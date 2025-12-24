@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <linearGradient id="foxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e94560"/>
+      <stop offset="100%" style="stop-color:#ff6b6b"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="60" fill="url(#bgGrad)" stroke="#e94560" stroke-width="2"/>
+  
+  <!-- Fox face -->
+  <g transform="translate(64, 68)">
+    <!-- Ears -->
+    <polygon points="-35,-40 -25,-10 -15,-35" fill="url(#foxGrad)"/>
+    <polygon points="35,-40 25,-10 15,-35" fill="url(#foxGrad)"/>
+    <polygon points="-30,-35 -23,-15 -17,-32" fill="#ff9a76"/>
+    <polygon points="30,-35 23,-15 17,-32" fill="#ff9a76"/>
+    
+    <!-- Face -->
+    <ellipse cx="0" cy="0" rx="30" ry="25" fill="url(#foxGrad)"/>
+    
+    <!-- White face markings -->
+    <ellipse cx="0" cy="8" rx="18" ry="15" fill="#fff"/>
+    
+    <!-- Eyes -->
+    <ellipse cx="-12" cy="-5" rx="6" ry="7" fill="#1a1a2e"/>
+    <ellipse cx="12" cy="-5" rx="6" ry="7" fill="#1a1a2e"/>
+    <circle cx="-10" cy="-6" r="2" fill="#fff"/>
+    <circle cx="14" cy="-6" r="2" fill="#fff"/>
+    
+    <!-- Nose -->
+    <ellipse cx="0" cy="8" rx="5" ry="4" fill="#1a1a2e"/>
+    
+    <!-- Mouth -->
+    <path d="M0,12 Q-5,18 -8,14" fill="none" stroke="#1a1a2e" stroke-width="1.5"/>
+    <path d="M0,12 Q5,18 8,14" fill="none" stroke="#1a1a2e" stroke-width="1.5"/>
+  </g>
+  
+  <!-- Checkmark badge -->
+  <g transform="translate(95, 95)">
+    <circle cx="0" cy="0" r="18" fill="#00d9a0"/>
+    <polyline points="-8,0 -2,6 8,-6" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
+

@@ -1,0 +1,11 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <!-- Simplified fox head for sidebar - monochrome -->
+  <!-- Left Ear -->
+  <path fill="currentColor" d="M6 2L9 9H7L6 2Z"/>
+  <!-- Right Ear -->
+  <path fill="currentColor" d="M18 2L17 9H15L18 2Z"/>
+  <!-- Head -->
+  <ellipse fill="currentColor" cx="12" cy="13" rx="7" ry="6"/>
+  <!-- Snout highlight (cutout effect) -->
+  <ellipse fill="currentColor" cx="12" cy="15" rx="3" ry="2" opacity="0.3"/>
+</svg>

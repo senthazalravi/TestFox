@@ -1,0 +1,378 @@
+{
+  "name": "testfox",
+  "displayName": "TestFox",
+  "description": "AI-powered comprehensive testing extension - the final quality gate in your SDLC. Automated functional, security, performance, and API testing with ISTQB standards. Uses Grok/XAI via OpenRouter.",
+  "version": "0.3.5",
+  "publisher": "TestFox",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/testfox/testfox-vscode.git"
+  },
+  "homepage": "https://github.com/testfox/testfox-vscode#readme",
+  "bugs": {
+    "url": "https://github.com/testfox/testfox-vscode/issues"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Testing",
+    "Other"
+  ],
+  "keywords": [
+    "testing",
+    "QA",
+    "security",
+    "ISTQB",
+    "automation",
+    "functional testing",
+    "API testing",
+    "performance testing",
+    "OWASP",
+    "smoke testing",
+    "load testing",
+    "regression testing",
+    "AI",
+    "Grok",
+    "OpenRouter",
+    "test generation"
+  ],
+  "icon": "media/testfox-icon.png",
+  "galleryBanner": {
+    "color": "#1a1a2e",
+    "theme": "dark"
+  },
+  "badges": [
+    {
+      "url": "https://img.shields.io/badge/License-MIT-yellow.svg",
+      "href": "https://opensource.org/licenses/MIT",
+      "description": "License: MIT"
+    }
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "testfox.analyze",
+        "title": "TestFox: Analyze Project",
+        "icon": "$(search)"
+      },
+      {
+        "command": "testfox.generateTests",
+        "title": "TestFox: Generate Tests",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "testfox.runAll",
+        "title": "TestFox: Run All Tests",
+        "icon": "$(play)"
+      },
+      {
+        "command": "testfox.runCategory",
+        "title": "TestFox: Run Test Category",
+        "icon": "$(run)"
+      },
+      {
+        "command": "testfox.openDashboard",
+        "title": "TestFox: Open Dashboard",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "testfox.exportReport",
+        "title": "TestFox: Export Report",
+        "icon": "$(export)"
+      },
+      {
+        "command": "testfox.markManual",
+        "title": "TestFox: Mark Manual Test Result",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "testfox.stopApp",
+        "title": "TestFox: Stop Running Application",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "testfox.refreshTests",
+        "title": "TestFox: Refresh Test Explorer",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "testfox.configureAI",
+        "title": "TestFox: Configure AI Settings",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "testfox.showTestDetails",
+        "title": "TestFox: Show Test Details",
+        "icon": "$(info)"
+      },
+      {
+        "command": "testfox.generateWebReport",
+        "title": "TestFox: Generate Web Report",
+        "icon": "$(output)"
+      },
+      {
+        "command": "testfox.runFullCycle",
+        "title": "TestFox: Run Full Cycle Testing",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "testfox.openSettings",
+        "title": "TestFox: Open Settings",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "testfox.runCrossBrowser",
+        "title": "TestFox: Run Cross-Browser Tests",
+        "icon": "$(browser)"
+      },
+      {
+        "command": "testfox.installBrowsers",
+        "title": "TestFox: Install All Browsers",
+        "icon": "$(cloud-download)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "testfox-container",
+          "title": "TestFox",
+          "icon": "media/testfox.svg"
+        }
+      ]
+    },
+    "views": {
+      "testfox-container": [
+        {
+          "id": "testfox-explorer",
+          "name": "Test Explorer",
+          "icon": "$(beaker)",
+          "contextualTitle": "TestFox Tests"
+        },
+        {
+          "id": "testfox-results",
+          "name": "Test Results",
+          "icon": "$(checklist)",
+          "contextualTitle": "TestFox Results"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "testfox.refreshTests",
+          "when": "view == testfox-explorer",
+          "group": "navigation"
+        },
+        {
+          "command": "testfox.runAll",
+          "when": "view == testfox-explorer",
+          "group": "navigation"
+        },
+        {
+          "command": "testfox.generateTests",
+          "when": "view == testfox-explorer",
+          "group": "navigation"
+        },
+        {
+          "command": "testfox.runFullCycle",
+          "when": "view == testfox-explorer",
+          "group": "navigation"
+        },
+        {
+          "command": "testfox.openSettings",
+          "when": "view == testfox-explorer",
+          "group": "navigation"
+        },
+        {
+          "command": "testfox.runCrossBrowser",
+          "when": "view == testfox-explorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "testfox.runCategory",
+          "when": "view == testfox-explorer && viewItem == testCategory",
+          "group": "inline"
+        },
+        {
+          "command": "testfox.markManual",
+          "when": "view == testfox-explorer && viewItem == manualTest",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "TestFox",
+      "properties": {
+        "testfox.autoDetectProject": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically detect project type on activation"
+        },
+        "testfox.defaultTimeout": {
+          "type": "number",
+          "default": 30000,
+          "description": "Default timeout for test execution (ms)"
+        },
+        "testfox.browserHeadless": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run browser tests in headless mode"
+        },
+        "testfox.reportFormat": {
+          "type": "string",
+          "enum": [
+            "html",
+            "json",
+            "both"
+          ],
+          "default": "html",
+          "description": "Test report output format"
+        },
+        "testfox.securityTestLevel": {
+          "type": "string",
+          "enum": [
+            "basic",
+            "standard",
+            "comprehensive"
+          ],
+          "default": "standard",
+          "description": "Security testing intensity level"
+        },
+        "testfox.performanceThreshold": {
+          "type": "number",
+          "default": 3000,
+          "description": "Performance threshold for response times (ms)"
+        },
+        "testfox.loadTestConcurrency": {
+          "type": "number",
+          "default": 10,
+          "description": "Number of concurrent users for load testing"
+        },
+        "testfox.autoAnalyze": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically analyze project when workspace opens"
+        },
+        "testfox.autoInstallDependencies": {
+          "type": "boolean",
+          "default": true,
+          "description": "Prompt to install missing dependencies (Playwright)"
+        },
+        "testfox.ai.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AI-powered test generation"
+        },
+        "testfox.ai.provider": {
+          "type": "string",
+          "default": "openrouter",
+          "enum": [
+            "openrouter",
+            "openai",
+            "anthropic"
+          ],
+          "enumDescriptions": [
+            "OpenRouter - Access multiple AI models (Grok, Claude, GPT, Llama)",
+            "OpenAI - GPT-4, GPT-3.5 models",
+            "Anthropic - Claude models"
+          ],
+          "description": "AI provider to use for test generation"
+        },
+        "testfox.ai.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for the selected AI provider"
+        },
+        "testfox.ai.model": {
+          "type": "string",
+          "default": "google/gemini-2.0-flash-exp:free",
+          "enum": [
+            "google/gemini-2.0-flash-exp:free",
+            "deepseek/deepseek-r1-0528:free",
+            "qwen/qwen3-coder:free",
+            "nvidia/nemotron-3-nano-30b-a3b:free",
+            "mistralai/devstral-2512:free",
+            "z-ai/glm-4.5-air:free",
+            "meta-llama/llama-3.1-8b-instruct:free",
+            "google/gemma-2-9b-it:free",
+            "mistralai/mistral-7b-instruct:free",
+            "x-ai/grok-beta",
+            "x-ai/grok-2-1212",
+            "anthropic/claude-3.5-sonnet",
+            "openai/gpt-4o",
+            "openai/gpt-4o-mini"
+          ],
+          "enumDescriptions": [
+            "Gemini 2.0 Flash (FREE) - Google's latest fast model",
+            "DeepSeek R1 (FREE) - Advanced reasoning model",
+            "Qwen3 Coder (FREE) - Specialized for code analysis",
+            "Nemotron 3 Nano (FREE) - NVIDIA's efficient model",
+            "Devstral (FREE) - Mistral's developer model",
+            "GLM 4.5 Air (FREE) - Fast multilingual model",
+            "Llama 3.1 8B (FREE) - Meta's open model",
+            "Gemma 2 9B (FREE) - Google's efficient model",
+            "Mistral 7B (FREE) - Fast open model",
+            "Grok Beta - xAI's capable model",
+            "Grok 2 - Latest Grok version",
+            "Claude 3.5 Sonnet - Best for complex analysis",
+            "GPT-4o - OpenAI's flagship model",
+            "GPT-4o Mini - Fast and affordable"
+          ],
+          "description": "AI model to use for test generation (FREE models recommended)"
+        },
+        "testfox.ai.fallbackModel": {
+          "type": "string",
+          "default": "meta-llama/llama-3.1-8b-instruct:free",
+          "description": "Fallback AI model (free) when primary model fails"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package-extension",
+    "compile": "node esbuild.js",
+    "compile:tsc": "tsc -p ./",
+    "watch": "node esbuild.js --watch",
+    "package-extension": "node esbuild.js --production",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "generate-icon": "node scripts/generate-icon.js",
+    "prepackage": "npm run generate-icon",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "publish:patch": "vsce publish patch",
+    "publish:minor": "vsce publish minor",
+    "publish:major": "vsce publish major"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.10.0",
+    "@types/uuid": "^9.0.7",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vscode/test-electron": "^2.3.8",
+    "@vscode/vsce": "^2.32.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.55.0",
+    "glob": "^10.3.10",
+    "mocha": "^10.2.0",
+    "sharp": "^0.34.5",
+    "typescript": "^5.3.2"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "playwright": "^1.40.1",
+    "uuid": "^9.0.1"
+  }
+}

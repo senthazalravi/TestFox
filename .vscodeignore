@@ -1,0 +1,44 @@
+# Source files (not needed in package)
+.vscode/**
+.vscode-test/**
+src/**
+**/*.ts
+!out/**
+
+# Config files
+.gitignore
+.eslintrc.json
+tsconfig.json
+**/*.map
+
+# Development files - exclude most node_modules but keep runtime deps
+node_modules/**
+!node_modules/playwright/**
+!node_modules/playwright-core/**
+!node_modules/axios/**
+!node_modules/uuid/**
+.testfox/**
+coverage/**
+
+# Test files
+**/test/**
+
+# Webview source (if using React build)
+webview-ui/node_modules/**
+webview-ui/src/**
+webview-ui/*.json
+webview-ui/*.config.*
+
+# Plan files
+.cursor/**
+
+# Git
+.git/**
+.github/**
+
+# Other
+*.vsix
+*.log
+.env
+.DS_Store
+Thumbs.db
