@@ -2,6 +2,52 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
+## [0.3.6] - 2024-12-24
+
+### Added
+- **New Free AI Models** 🤖
+  - Google Gemini 2.0 Flash (FREE) ⭐ - Default model
+  - DeepSeek R1 (FREE) - Advanced reasoning
+  - Qwen3 Coder (FREE) 💻 - Code-specialized
+  - NVIDIA Nemotron 3 Nano (FREE)
+  - Mistral Devstral (FREE) 💻 - Developer model
+  - Zhipu GLM 4.5 Air (FREE)
+
+- **Database Test Generator** 🗄️
+  - Auto-discovers database connections from:
+    - `.env` files (DATABASE_URL, MONGO_URI, etc.)
+    - Prisma schema
+    - Docker Compose files
+    - Knex, TypeORM, Sequelize, Drizzle configs
+  - Generates comprehensive database tests:
+    - CRUD operations (Create, Read, Update, Delete)
+    - Transaction testing (commit/rollback)
+    - SQL injection prevention
+    - Connection pooling
+    - Data integrity constraints
+    - Cascade operations
+
+- **AI-Powered E2E Test Generator** 🧪
+  - Analyzes entire application with AI to understand:
+    - User journeys and flows
+    - Form interactions and validation
+    - Navigation patterns
+    - Authentication flows
+  - Generates intelligent test scenarios:
+    - User journey tests (registration, onboarding)
+    - Form validation tests (boundary, security)
+    - Navigation tests (deep linking, back button)
+    - Auth tests (login, logout, session)
+    - Error handling tests (404, network)
+    - Responsive tests (mobile, tablet, desktop)
+
+### Changed
+- Default AI model changed to free Gemini 2.0 Flash
+- Free models are now shown first in settings
+- Settings panel shows model type badges (Free ⭐, Code 💻)
+
+---
+
 ## [0.3.5] - 2024-12-24
 
 ### Added

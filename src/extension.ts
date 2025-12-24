@@ -16,6 +16,8 @@ import { ManualTestTracker } from './manual/manualTestTracker';
 import { TestGeneratorManager } from './generators/testGenerator';
 import { TestGeneratorAI } from './ai/testGeneratorAI';
 import { getOpenRouterClient } from './ai/openRouterClient';
+import { DatabaseTestGenerator } from './generators/databaseTestGenerator';
+import { AIE2ETestGenerator } from './generators/aiE2ETestGenerator';
 import { TestStore } from './store/testStore';
 
 let projectDetector: ProjectDetector;
@@ -456,6 +458,26 @@ async function generateTests(): Promise<void> {
             await generator.generateUsabilityTests();
             await generator.generateAcceptanceTests();
             await generator.generateCompatibilityTests();
+
+            // Database Tests
+            progress.report({ message: 'Generating database tests...' });
+            const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+            const dbGenerator = new DatabaseTestGenerator(workspacePath);
+            const dbTests = await dbGenerator.generateDatabaseTests();
+            for (const test of dbTests) {
+                testStore.addTest(test);
+            }
+
+            // AI-Powered E2E Tests
+            progress.report({ message: 'Generating E2E tests with AI...' });
+            const projectInfo = testStore.getProjectInfo();
+            if (projectInfo && analysisResult) {
+                const e2eGenerator = new AIE2ETestGenerator(workspacePath);
+                const e2eTests = await e2eGenerator.generateE2ETests(projectInfo, analysisResult);
+                for (const test of e2eTests) {
+                    testStore.addTest(test);
+                }
+            }
 
             // Refresh views
             testExplorerProvider.refresh();
