@@ -19,6 +19,13 @@ export interface FullCycleResult {
     pages: PageInfo[];
     errors: string[];
     screenshots: string[];
+    // Browser monitoring results
+    consoleTestPassed: boolean;
+    consoleErrors: number;
+    consoleWarnings: number;
+    networkTestPassed: boolean;
+    networkFailedRequests: number;
+    networkSlowRequests: number;
 }
 
 /**
@@ -66,7 +73,13 @@ export class FullCycleRunner {
             interactions: [],
             pages: [],
             errors: [],
-            screenshots: []
+            screenshots: [],
+            consoleTestPassed: true,
+            consoleErrors: 0,
+            consoleWarnings: 0,
+            networkTestPassed: true,
+            networkFailedRequests: 0,
+            networkSlowRequests: 0
         };
 
         this.outputChannel.show();
@@ -304,6 +317,40 @@ export class FullCycleRunner {
                 }
             }
 
+            // Run browser console log tests
+            this.log('');
+            this.log('🖥️ Step 9: Running Console Log Tests...');
+            const consoleTestResult = this.browserRunner.runConsoleLogTests();
+            result.consoleTestPassed = consoleTestResult.passed;
+            result.consoleErrors = consoleTestResult.errors.length;
+            result.consoleWarnings = consoleTestResult.warnings.length;
+            
+            if (consoleTestResult.passed) {
+                this.log('   ✅ Console log tests passed');
+            } else {
+                this.log('   ❌ Console log tests failed');
+                for (const issue of consoleTestResult.issues.slice(0, 5)) {
+                    this.log(`      ${issue}`);
+                }
+            }
+
+            // Run browser network log tests
+            this.log('');
+            this.log('🌐 Step 10: Running Network Log Tests...');
+            const networkTestResult = this.browserRunner.runNetworkLogTests();
+            result.networkTestPassed = networkTestResult.passed;
+            result.networkFailedRequests = networkTestResult.failedRequests.length;
+            result.networkSlowRequests = networkTestResult.slowRequests.length;
+            
+            if (networkTestResult.passed) {
+                this.log('   ✅ Network log tests passed');
+            } else {
+                this.log('   ❌ Network log tests failed');
+                for (const issue of networkTestResult.issues.slice(0, 5)) {
+                    this.log(`      ${issue}`);
+                }
+            }
+
             // Take final screenshot
             const finalScreenshot = await this.browserRunner.takeScreenshot('final');
             if (finalScreenshot) result.screenshots.push(finalScreenshot);
@@ -341,8 +388,19 @@ export class FullCycleRunner {
         this.log(`   • Forms tested: ${result.formsTestedCount}`);
         this.log(`   • Buttons clicked: ${result.buttonsClickedCount}`);
         this.log(`   • Total interactions: ${result.interactions.length}`);
-        this.log(`   • Errors: ${result.errors.length}`);
+        this.log('');
+        this.log('🖥️ Console Logs:');
+        this.log(`   • Status: ${result.consoleTestPassed ? '✅ PASSED' : '❌ FAILED'}`);
+        this.log(`   • Errors: ${result.consoleErrors}`);
+        this.log(`   • Warnings: ${result.consoleWarnings}`);
+        this.log('');
+        this.log('🌐 Network Logs:');
+        this.log(`   • Status: ${result.networkTestPassed ? '✅ PASSED' : '❌ FAILED'}`);
+        this.log(`   • Failed requests: ${result.networkFailedRequests}`);
+        this.log(`   • Slow requests: ${result.networkSlowRequests}`);
+        this.log('');
         this.log(`   • Screenshots: ${result.screenshots.length}`);
+        this.log(`   • Errors: ${result.errors.length}`);
         this.log('');
 
         if (result.errors.length > 0) {

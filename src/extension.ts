@@ -18,6 +18,7 @@ import { TestGeneratorAI } from './ai/testGeneratorAI';
 import { getOpenRouterClient } from './ai/openRouterClient';
 import { DatabaseTestGenerator } from './generators/databaseTestGenerator';
 import { AIE2ETestGenerator } from './generators/aiE2ETestGenerator';
+import { BrowserLogTestGenerator } from './generators/browserLogTestGenerator';
 import { TestStore } from './store/testStore';
 
 let projectDetector: ProjectDetector;
@@ -477,6 +478,14 @@ async function generateTests(): Promise<void> {
                 for (const test of e2eTests) {
                     testStore.addTest(test);
                 }
+            }
+
+            // Browser Log Tests (Console + Network)
+            progress.report({ message: 'Generating browser log tests...' });
+            const browserLogGenerator = new BrowserLogTestGenerator();
+            const browserLogTests = browserLogGenerator.generateAllBrowserLogTests();
+            for (const test of browserLogTests) {
+                testStore.addTest(test);
             }
 
             // Refresh views

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { DiscoveredCredential } from '../core/credentialDiscovery';
+import { BrowserMonitor, ConsoleTestResult, NetworkTestResult } from '../monitors/browserMonitor';
 
 // Playwright types - imported dynamically
 type Browser = any;
@@ -75,9 +76,11 @@ export class SmartBrowserRunner {
     private interactionLog: InteractionResult[] = [];
     private visitedPages: Set<string> = new Set();
     private outputChannel: vscode.OutputChannel;
+    private browserMonitor: BrowserMonitor;
 
     constructor() {
         this.outputChannel = vscode.window.createOutputChannel('TestFox Browser');
+        this.browserMonitor = new BrowserMonitor();
     }
 
     /**
@@ -102,12 +105,8 @@ export class SmartBrowserRunner {
             });
             this.page = await this.context.newPage();
 
-            // Set up console logging
-            this.page.on('console', (msg: any) => {
-                if (msg.type() === 'error') {
-                    this.log(`[Console Error] ${msg.text()}`);
-                }
-            });
+            // Start browser monitoring for console and network logs
+            await this.browserMonitor.startMonitoring(this.page);
 
             this.log('Browser initialized successfully');
             return true;
@@ -1218,9 +1217,49 @@ export class SmartBrowserRunner {
     }
 
     /**
+     * Run console log tests
+     */
+    runConsoleLogTests(): ConsoleTestResult {
+        this.log('Running console log tests...');
+        return this.browserMonitor.runConsoleTests();
+    }
+
+    /**
+     * Run network log tests
+     */
+    runNetworkLogTests(): NetworkTestResult {
+        this.log('Running network log tests...');
+        return this.browserMonitor.runNetworkTests();
+    }
+
+    /**
+     * Get console log report HTML
+     */
+    getConsoleLogReport(): string {
+        return this.browserMonitor.generateConsoleReport();
+    }
+
+    /**
+     * Get network log report HTML
+     */
+    getNetworkLogReport(): string {
+        return this.browserMonitor.generateNetworkReport();
+    }
+
+    /**
+     * Get browser monitor instance
+     */
+    getBrowserMonitor(): BrowserMonitor {
+        return this.browserMonitor;
+    }
+
+    /**
      * Close browser
      */
     async close(): Promise<void> {
+        // Stop monitoring before closing
+        this.browserMonitor.stopMonitoring();
+        
         if (this.browser) {
             await this.browser.close();
             this.browser = null;
@@ -1234,6 +1273,7 @@ export class SmartBrowserRunner {
      */
     dispose(): void {
         this.close();
+        this.browserMonitor.dispose();
         this.outputChannel.dispose();
     }
 }

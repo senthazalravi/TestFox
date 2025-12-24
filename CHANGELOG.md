@@ -2,6 +2,47 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
+## [0.3.7] - 2024-12-24
+
+### Added
+- **Browser Console Log Testing** 🖥️
+  - Real-time console monitoring during browser tests
+  - Captures errors, warnings, info, and debug logs
+  - Detects JavaScript errors
+  - Detects unhandled promise rejections
+  - Detects framework-specific warnings (React, Vue, Angular)
+  - Detects deprecation warnings
+  - Detects security warnings (CORS, CSP, mixed content)
+  - 8 dedicated console log test cases
+
+- **Browser Network Log Testing** 🌐
+  - Real-time network request monitoring
+  - Captures all HTTP requests and responses
+  - Detects failed API calls (4xx, 5xx)
+  - Detects slow requests (>3s)
+  - Detects CORS errors
+  - Detects large response payloads (>1MB)
+  - Detects insecure (HTTP) requests
+  - Measures response times and data transferred
+  - 12 dedicated network log test cases
+
+- **New Test Category Group: Browser Monitoring**
+  - Console Log Tests
+  - Network Log Tests
+  - Visual reports with detailed breakdowns
+
+- **Full Cycle Testing Integration**
+  - Console log tests run automatically in Step 9
+  - Network log tests run automatically in Step 10
+  - Results included in final summary
+  - Pass/fail status for both test types
+
+### Changed
+- SmartBrowserRunner now integrates BrowserMonitor
+- Full cycle summary includes console/network results
+
+---
+
 ## [0.3.6] - 2024-12-24
 
 ### Added
@@ -275,12 +316,12 @@ All notable changes to the "TestFox" extension will be documented in this file.
 - **App Runner**: Automatic application startup using package.json scripts
 
 ### Security Features
-- SQL Injection detection
-- Cross-Site Scripting (XSS) testing
-- CSRF protection verification
-- Security headers validation
-- Sensitive data exposure checks
-- Authentication bypass testing
+  - SQL Injection detection
+  - Cross-Site Scripting (XSS) testing
+  - CSRF protection verification
+  - Security headers validation
+  - Sensitive data exposure checks
+  - Authentication bypass testing
 
 ---
 

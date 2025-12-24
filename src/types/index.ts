@@ -148,7 +148,11 @@ export type TestCategory =
     | 'exploratory'     // Unscripted creative testing
     | 'usability'       // UX evaluation, user satisfaction
     | 'acceptance'      // User acceptance testing (UAT)
-    | 'compatibility';  // Cross-browser, device, OS testing
+    | 'compatibility'   // Cross-browser, device, OS testing
+    
+    // Browser Monitoring
+    | 'console_logs'    // Browser console error/warning monitoring
+    | 'network_logs';   // Network request/response monitoring
 
 // Category groups for UI organization
 export type TestCategoryGroup = 
@@ -156,7 +160,8 @@ export type TestCategoryGroup =
     | 'functional'
     | 'non_functional'
     | 'edge_cases'
-    | 'manual_exploratory';
+    | 'manual_exploratory'
+    | 'browser_monitoring';
 
 export interface TestCategoryInfo {
     id: TestCategory;
@@ -198,7 +203,11 @@ export const TEST_CATEGORIES: TestCategoryInfo[] = [
     { id: 'exploratory', name: 'Exploratory Tests', description: 'Creative testing', group: 'manual_exploratory', icon: 'compass', automationDefault: 'manual' },
     { id: 'usability', name: 'Usability Tests', description: 'UX evaluation', group: 'manual_exploratory', icon: 'eye', automationDefault: 'manual' },
     { id: 'acceptance', name: 'Acceptance Tests', description: 'UAT validation', group: 'manual_exploratory', icon: 'account', automationDefault: 'manual' },
-    { id: 'compatibility', name: 'Compatibility Tests', description: 'Cross-browser/device', group: 'manual_exploratory', icon: 'device-mobile', automationDefault: 'partial' }
+    { id: 'compatibility', name: 'Compatibility Tests', description: 'Cross-browser/device', group: 'manual_exploratory', icon: 'device-mobile', automationDefault: 'partial' },
+    
+    // Browser Monitoring
+    { id: 'console_logs', name: 'Console Log Tests', description: 'Browser console monitoring', group: 'browser_monitoring', icon: 'terminal', automationDefault: 'full' },
+    { id: 'network_logs', name: 'Network Log Tests', description: 'Network request monitoring', group: 'browser_monitoring', icon: 'radio-tower', automationDefault: 'full' }
 ];
 
 export const CATEGORY_GROUPS = [
@@ -206,7 +215,8 @@ export const CATEGORY_GROUPS = [
     { id: 'functional', name: 'Functional', icon: 'check' },
     { id: 'non_functional', name: 'Non-Functional', icon: 'gauge' },
     { id: 'edge_cases', name: 'Edge Cases', icon: 'warning' },
-    { id: 'manual_exploratory', name: 'Manual/Exploratory', icon: 'person' }
+    { id: 'manual_exploratory', name: 'Manual/Exploratory', icon: 'person' },
+    { id: 'browser_monitoring', name: 'Browser Monitoring', icon: 'eye' }
 ];
 
 export type TestStatus = 
