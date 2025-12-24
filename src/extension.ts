@@ -19,6 +19,8 @@ import { getOpenRouterClient } from './ai/openRouterClient';
 import { DatabaseTestGenerator } from './generators/databaseTestGenerator';
 import { AIE2ETestGenerator } from './generators/aiE2ETestGenerator';
 import { BrowserLogTestGenerator } from './generators/browserLogTestGenerator';
+import { DefectTracker } from './tracking/defectTracker';
+import { DefectDashboard } from './views/defectDashboard';
 import { TestStore } from './store/testStore';
 
 let projectDetector: ProjectDetector;
@@ -34,6 +36,7 @@ let dependencyManager: DependencyManager;
 let testGeneratorAI: TestGeneratorAI;
 let fullCycleRunner: FullCycleRunner;
 let crossBrowserRunner: CrossBrowserRunner;
+let defectTracker: DefectTracker;
 
 // Status bar items
 let statusBarMain: vscode.StatusBarItem;
@@ -58,6 +61,7 @@ export async function activate(context: vscode.ExtensionContext) {
     testGeneratorAI = new TestGeneratorAI(testStore);
     fullCycleRunner = new FullCycleRunner(appRunner);
     crossBrowserRunner = new CrossBrowserRunner(dependencyManager);
+    defectTracker = new DefectTracker(context);
 
     // Initialize AI client with status bar
     const openRouter = getOpenRouterClient();
@@ -220,6 +224,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
         vscode.commands.registerCommand('testfox.installBrowsers', async () => {
             await dependencyManager.installAllBrowsers();
+        }),
+
+        vscode.commands.registerCommand('testfox.openDefectDashboard', () => {
+            DefectDashboard.createOrShow(context.extensionUri, defectTracker);
         })
     ];
 
@@ -512,12 +520,22 @@ async function runAllTests(): Promise<void> {
     }
 
     updateStatus('running', 'Running tests...');
+    const startTime = Date.now();
+
+    // Start a new defect tracking run
+    const runNumber = defectTracker.startNewRun();
+    vscode.window.showInformationMessage(`TestFox: Starting Test Run #${runNumber}`);
 
     await vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
-        title: 'TestFox: Running tests...',
+        title: `TestFox: Test Run #${runNumber}`,
         cancellable: true
     }, async (progress, token) => {
+        let passed = 0;
+        let failed = 0;
+        let skipped = 0;
+        const categoryResults = new Map<string, { total: number; passed: number; failed: number }>();
+
         try {
             // Start the application
             progress.report({ message: 'Starting application...' });
@@ -538,6 +556,7 @@ async function runAllTests(): Promise<void> {
 
             for (const test of automatedTests) {
                 if (token.isCancellationRequested) {
+                    skipped++;
                     break;
                 }
 
@@ -550,6 +569,34 @@ async function runAllTests(): Promise<void> {
                 testStore.updateTestResult(test.id, result);
                 completed++;
 
+                // Track category results
+                const catResult = categoryResults.get(test.category) || { total: 0, passed: 0, failed: 0 };
+                catResult.total++;
+
+                // Track defects
+                if (result.status === 'passed') {
+                    passed++;
+                    catResult.passed++;
+                    // Check if this fixes a defect
+                    defectTracker.reportPass(test.id);
+                } else if (result.status === 'failed') {
+                    failed++;
+                    catResult.failed++;
+                    // Report as defect
+                    defectTracker.reportFailure(
+                        test.id,
+                        test.name,
+                        test.category,
+                        result.error || 'Test failed',
+                        test.priority === 'critical' ? 'critical' : 
+                            test.priority === 'high' ? 'high' : 'medium'
+                    );
+                } else {
+                    skipped++;
+                }
+
+                categoryResults.set(test.category, catResult);
+
                 // Update views periodically
                 if (completed % 5 === 0) {
                     testResultsProvider.refresh();
@@ -559,19 +606,44 @@ async function runAllTests(): Promise<void> {
             // Stop the application
             await appRunner.stop();
 
+            // Complete the defect tracking run
+            const duration = Date.now() - startTime;
+            const catResultsArray = Array.from(categoryResults.entries()).map(([category, result]) => ({
+                category,
+                ...result
+            }));
+            
+            const testRun = defectTracker.completeRun(
+                passed + failed + skipped,
+                passed,
+                failed,
+                skipped,
+                duration,
+                catResultsArray
+            );
+
             // Refresh final results
             testExplorerProvider.refresh();
             testResultsProvider.refresh();
             updateStatus('ready');
 
-            const results = testStore.getTestResults();
-            const passed = results.filter(r => r.status === 'passed').length;
-            const failed = results.filter(r => r.status === 'failed').length;
             const manual = tests.filter(t => t.automationLevel === 'manual').length;
 
             vscode.window.showInformationMessage(
-                `TestFox: Tests complete - ${passed} passed, ${failed} failed, ${manual} manual tests pending`
+                `TestFox: Run #${runNumber} complete - ${passed} passed, ${failed} failed (${testRun.passRate}% pass rate). ` +
+                `${testRun.newDefects} new defects, ${testRun.fixedDefects} fixed.`
             );
+
+            // Show defect dashboard if there are new defects
+            if (testRun.newDefects > 0) {
+                const action = await vscode.window.showWarningMessage(
+                    `${testRun.newDefects} new defects found in this run`,
+                    'View Defect Dashboard'
+                );
+                if (action === 'View Defect Dashboard') {
+                    vscode.commands.executeCommand('testfox.openDefectDashboard');
+                }
+            }
         } catch (error) {
             await appRunner.stop();
             updateStatus('error');

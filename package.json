@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing extension - the final quality gate in your SDLC. Automated functional, security, performance, and API testing with ISTQB standards. Uses Grok/XAI via OpenRouter.",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -135,6 +135,11 @@
         "command": "testfox.installBrowsers",
         "title": "TestFox: Install All Browsers",
         "icon": "$(cloud-download)"
+      },
+      {
+        "command": "testfox.openDefectDashboard",
+        "title": "TestFox: Open Defect Dashboard",
+        "icon": "$(bug)"
       }
     ],
     "viewsContainers": {

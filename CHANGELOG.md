@@ -2,6 +2,52 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
+## [0.3.8] - 2024-12-24
+
+### Added
+- **Defect ID Auto-Generation** 🆔
+  - Meaningful defect IDs based on category (e.g., UI-0001, API-0002, SEC-0003)
+  - Prefixes: SMK (Smoke), SAN (Sanity), REG (Regression), FUN (Functional), 
+    API, UI, E2E, INT, DB, SEC, PRF (Performance), LOD (Load), STR (Stress),
+    ACC (Accessibility), NEG (Negative), BND (Boundary), MNK (Monkey),
+    EXP (Exploratory), USA (Usability), UAT (Acceptance), CMP (Compatibility),
+    CON (Console), NET (Network)
+  - 4-digit sequential numbering per category
+
+- **Test Run History Tracking** 📊
+  - Every test run is numbered and tracked
+  - Complete history of all runs with pass/fail counts
+  - Duration and category breakdown per run
+  - New defects and fixed defects per run
+
+- **Defect Dashboard** 🐛
+  - Interactive webview with 4 tabs: Overview, Defects, Test Runs, Trends
+  - All defects listed in table with status, severity, first found, fixed info
+  - Test run history table with all statistics
+  - Open/Fixed/Reopened status tracking
+
+- **Automatic Defect Status Updates** ✅
+  - Failed tests automatically create defects with unique IDs
+  - When a previously failed test passes, defect is auto-marked as "Fixed"
+  - Reopened defects when fixed tests fail again
+  - Full defect history with run numbers
+
+- **Improvement Charts** 📈
+  - Pass Rate Trend (last 10 runs)
+  - Open Defects Trend
+  - Fixed Defects per Run
+  - Defects by Severity (pie chart)
+  - Defects by Category (bar chart)
+
+- **Run Summary Messages**
+  - Shows run number, pass rate, new defects, fixed defects
+  - Prompts to view Defect Dashboard when new defects found
+
+### Commands
+- `TestFox: Open Defect Dashboard` - View all defects, runs, and trends
+
+---
+
 ## [0.3.7] - 2024-12-24
 
 ### Added
