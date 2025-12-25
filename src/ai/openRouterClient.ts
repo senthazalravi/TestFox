@@ -30,7 +30,7 @@ export class OpenRouterClient {
     private client: AxiosInstance;
     private apiKey: string | null = null;
     private currentModel: string = 'x-ai/grok-beta';
-    private fallbackModel: string = 'meta-llama/llama-3.1-8b-instruct:free';
+    private fallbackModel: string = 'mistralai/mistral-7b-instruct:free';
     
     // Status bar item to show current AI model
     private statusBarItem: vscode.StatusBarItem | null = null;
@@ -156,10 +156,20 @@ export class OpenRouterClient {
 
             throw new Error('No response from AI model');
         } catch (error: any) {
-            // If primary model fails, try fallback
-            if (model !== this.fallbackModel && error.response?.status !== 401) {
-                console.log(`Primary model failed, trying fallback: ${this.fallbackModel}`);
-                return this.chat(messages, { ...options, model: this.fallbackModel });
+            // If primary model fails, try fallback models
+            if (error.response?.status !== 401) {
+                // Try fallback models in order
+                for (const fallbackModel of OpenRouterClient.FREE_MODELS) {
+                    if (fallbackModel !== model && fallbackModel !== this.currentModel) {
+                        try {
+                            console.log(`Model ${model} failed, trying fallback: ${fallbackModel}`);
+                            return this.chat(messages, { ...options, model: fallbackModel });
+                        } catch (fallbackError) {
+                            console.log(`Fallback model ${fallbackModel} also failed, continuing...`);
+                            continue;
+                        }
+                    }
+                }
             }
 
             if (error.response?.status === 401) {
@@ -169,7 +179,7 @@ export class OpenRouterClient {
             } else if (error.response?.data?.error) {
                 throw new Error(error.response.data.error.message || 'AI request failed');
             }
-            
+
             throw error;
         }
     }

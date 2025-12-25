@@ -21,6 +21,8 @@ export class AppRunner {
      * Detect if application is already running on common development ports
      */
     private async detectRunningApplication(projectInfo: ProjectInfo): Promise<string | null> {
+        console.log(`AppRunner: Detecting running app, configured port: ${projectInfo.port}`);
+
         // Common development ports to check
         const portsToCheck = [
             projectInfo.port || 3000, // Configured port first
@@ -35,23 +37,31 @@ export class AppRunner {
 
         // Remove duplicates and prioritize configured port
         const uniquePorts = [...new Set(portsToCheck)];
+        console.log(`AppRunner: Checking ports: ${uniquePorts.join(', ')}`);
 
         for (const port of uniquePorts) {
             try {
+                console.log(`AppRunner: Checking port ${port}...`);
                 const isOpen = await this.checkPort(port);
+                console.log(`AppRunner: Port ${port} is ${isOpen ? 'open' : 'closed'}`);
                 if (isOpen) {
                     const url = `http://localhost:${port}`;
+                    console.log(`AppRunner: Verifying URL ${url}...`);
                     // Verify it's actually responding
                     if (await this.verifyUrl(url)) {
+                        console.log(`AppRunner: Found responding app at ${url}`);
                         return url;
+                    } else {
+                        console.log(`AppRunner: Port ${port} is open but not responding to HTTP`);
                     }
                 }
             } catch (error) {
-                // Port check failed, continue
+                console.log(`AppRunner: Error checking port ${port}:`, error);
                 continue;
             }
         }
 
+        console.log('AppRunner: No running application found');
         return null;
     }
 
@@ -85,32 +95,42 @@ export class AppRunner {
      */
     private async verifyUrl(url: string): Promise<boolean> {
         try {
+            console.log(`AppRunner: Making HTTP request to ${url}`);
             const axios = require('axios').default;
             const response = await axios.get(url, {
                 timeout: 2000,
                 validateStatus: () => true // Accept any status code
             });
+            console.log(`AppRunner: HTTP response from ${url}: ${response.status}`);
             return response.status < 500; // Consider it running if not server error
         } catch (error) {
+            console.log(`AppRunner: HTTP request to ${url} failed:`, error.message);
             return false;
         }
     }
 
     async start(projectInfo: ProjectInfo): Promise<string> {
+        console.log('AppRunner: Starting application...');
         if (this.isRunning) {
+            console.log(`AppRunner: Already running at ${this.baseUrl}`);
             return this.baseUrl;
         }
 
         // First, check if application is already running on any port
+        console.log('AppRunner: Checking for running application...');
         try {
             const detectedUrl = await this.detectRunningApplication(projectInfo);
             if (detectedUrl) {
                 this.isRunning = true;
                 this.baseUrl = detectedUrl;
                 this.outputChannel.appendLine(`✓ Found running application at ${this.baseUrl}`);
+                console.log(`AppRunner: Found running app at ${this.baseUrl}`);
                 return this.baseUrl;
+            } else {
+                console.log('AppRunner: No running application detected');
             }
         } catch (error) {
+            console.error('AppRunner: Port detection failed:', error);
             this.outputChannel.appendLine(`Warning: Port detection failed: ${error}`);
         }
 

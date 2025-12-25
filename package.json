@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing extension - the final quality gate in your SDLC. Automated functional, security, performance, and API testing with ISTQB standards. Uses Grok/XAI via OpenRouter.",
-  "version": "0.4.6",
+  "version": "0.4.8",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -127,6 +127,16 @@
         "command": "testfox.generateCategory",
         "title": "TestFox: Generate Tests for Category",
         "icon": "$(add)"
+      },
+      {
+        "command": "testfox.runScheduledTests",
+        "title": "TestFox: Run Scheduled Tests Now",
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "testfox.checkAppStatus",
+        "title": "TestFox: Check Application Status",
+        "icon": "$(info)"
       },
       {
         "command": "testfox.openDashboard",
@@ -414,6 +424,27 @@
           "type": "string",
           "default": "meta-llama/llama-3.1-8b-instruct:free",
           "description": "Fallback AI model (free) when primary model fails"
+        },
+        "testfox.automation.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable automated test scheduling and execution"
+        },
+        "testfox.automation.dailyTests": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically generate and run full cycle tests every day"
+        },
+        "testfox.automation.dailyTestTime": {
+          "type": "string",
+          "default": "09:00",
+          "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
+          "description": "Time to run daily tests (HH:MM format, 24-hour)"
+        },
+        "testfox.automation.notifyOnCompletion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show notification when automated tests complete"
         }
       }
     }

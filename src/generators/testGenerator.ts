@@ -25,13 +25,22 @@ export class TestGeneratorManager {
     constructor(private testStore: TestStore) {
         this.analysisResult = testStore.getAnalysisResult();
         // Ensure analysis result has all required properties
-        if (this.analysisResult) {
-            this.ensureValidAnalysisResult();
-        }
+        this.ensureValidAnalysisResult();
     }
 
     private ensureValidAnalysisResult(): void {
-        if (!this.analysisResult) return;
+        if (!this.analysisResult) {
+            this.analysisResult = {
+                routes: [],
+                forms: [],
+                endpoints: [],
+                authFlows: [],
+                databaseQueries: [],
+                externalApis: [],
+                components: []
+            };
+            return;
+        }
 
         if (!this.analysisResult.routes || !Array.isArray(this.analysisResult.routes)) {
             this.analysisResult.routes = [];

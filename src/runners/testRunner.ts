@@ -1,4 +1,4 @@
-import { TestCase, TestResult, TestStatus, TestEvidence } from '../types';
+import { TestCase, TestResult, TestStatus, TestEvidence, ProjectInfo } from '../types';
 import { AppRunner } from '../core/appRunner';
 import { BrowserRunner } from './browserRunner';
 import { ApiRunner } from './apiRunner';
@@ -10,7 +10,7 @@ export class TestRunner {
     private browserRunner: BrowserRunner | null = null;
     private apiRunner: ApiRunner;
 
-    constructor(private appRunner: AppRunner) {
+    constructor(private appRunner: AppRunner, private testStore?: { getProjectInfo(): ProjectInfo | null }) {
         this.apiRunner = new ApiRunner();
     }
 
@@ -70,7 +70,33 @@ export class TestRunner {
             await this.browserRunner.initialize();
         }
 
-        const baseUrl = this.appRunner.getBaseUrl() || 'http://localhost:3000';
+        // Ensure the application is running before testing
+        let baseUrl = this.appRunner.getBaseUrl();
+        if (!baseUrl || !this.appRunner.isAppRunning()) {
+            console.log('TestRunner: App not running, starting application...');
+            try {
+                // Get project info to start the app
+                if (this.testStore) {
+                    const projectInfo = this.testStore.getProjectInfo();
+                    if (projectInfo) {
+                        baseUrl = await this.appRunner.start(projectInfo);
+                        console.log(`TestRunner: App started at ${baseUrl}`);
+                    } else {
+                        console.error('TestRunner: No project info available to start app');
+                        baseUrl = 'http://localhost:3000'; // fallback
+                    }
+                } else {
+                    console.error('TestRunner: No testStore available');
+                    baseUrl = 'http://localhost:3000'; // fallback
+                }
+            } catch (error) {
+                console.error('TestRunner: Failed to start app:', error);
+                baseUrl = 'http://localhost:3000'; // fallback
+            }
+        } else {
+            console.log(`TestRunner: App already running at ${baseUrl}`);
+        }
+
         const evidence: TestEvidence[] = [];
 
         try {

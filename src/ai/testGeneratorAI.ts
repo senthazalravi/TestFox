@@ -107,7 +107,12 @@ export class TestGeneratorAI {
                 return tests;
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Unknown error';
-                vscode.window.showErrorMessage(`TestFox AI Error: ${message}`);
+                console.log('AI test generation failed, falling back to rule-based:', message);
+
+                // Show warning but don't block test generation
+                vscode.window.showWarningMessage(`TestFox AI failed: ${message}. Using rule-based generation.`);
+
+                // Return empty array to trigger fallback to rule-based generation
                 return [];
             }
         });

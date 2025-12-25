@@ -2,14 +2,45 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
-## [0.4.6] - 2024-12-25
+## [0.4.8] - 2024-12-25
+
+### Added
+- **Daily Automated Testing** ⏰
+  - Schedule full cycle tests to run automatically every day
+  - Configurable daily test execution time (HH:MM format)
+  - Status bar indicator showing next scheduled run time
+  - Notifications on test completion (configurable)
+  - Manual trigger option for testing the automation
+
+### New Settings Available:
+- `testfox.automation.enabled` - Enable automated test scheduling
+- `testfox.automation.dailyTests` - Run full cycle tests daily
+- `testfox.automation.dailyTestTime` - Time to run daily tests (default: 09:00)
+- `testfox.automation.notifyOnCompletion` - Show notifications when tests complete
+
+### Features:
+- **Smart Scheduling**: Automatically calculates next run time based on configured time
+- **Status Monitoring**: Status bar shows when tests are scheduled and next run time
+- **Error Handling**: Continues working even if scheduled tests fail
+- **Manual Override**: "TestFox: Run Scheduled Tests Now" command for immediate testing
+
+## [0.4.7] - 2024-12-25
 
 ### Fixed
+- **Test Generation Errors** 🐛
+  - Fixed "Cannot read properties of undefined (reading 'length')" error
+  - Improved analysis result validation in TestGeneratorManager
+  - Added fallback handling for missing or malformed analysis data
+
+- **AI Model Availability** 🤖
+  - Fixed AI errors when models are not available on OpenRouter
+  - Added multiple fallback models for better reliability
+  - Improved error handling to fall back to rule-based generation
+  - Changed default fallback model to more reliable option
+
 - **Extension Stability** 🛡️
-  - Added comprehensive error handling throughout extension activation
-  - Extension no longer crashes if auto-initialization fails
-  - Improved logging for debugging activation issues
-  - Graceful degradation when components fail to initialize
+  - Better error handling throughout test generation pipeline
+  - Extension continues working even when individual components fail
 
 - **Auto-Initialization** 🔄
   - Better error handling for dependency installation and project analysis

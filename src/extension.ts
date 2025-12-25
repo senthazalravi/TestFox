@@ -25,6 +25,7 @@ import { DefectDashboard } from './views/defectDashboard';
 import { WebServer } from './server/webServer';
 import { TestFoxWebServer } from './server/webServer';
 import { TestStore } from './store/testStore';
+import { TestScheduler } from './core/scheduler';
 
 let projectDetector: ProjectDetector;
 let codeAnalyzer: CodeAnalyzer;
@@ -41,11 +42,46 @@ let fullCycleRunner: FullCycleRunner;
 let crossBrowserRunner: CrossBrowserRunner;
 let defectTracker: DefectTracker;
 let webServer: WebServer;
+let scheduler: TestScheduler;
 
 // Status bar items
 let statusBarMain: vscode.StatusBarItem;
 let statusBarAI: vscode.StatusBarItem;
 let statusBarStatus: vscode.StatusBarItem;
+let statusBarScheduler: vscode.StatusBarItem;
+
+/**
+ * Check if application is available on common ports
+ */
+async function checkApplicationAvailability(): Promise<string | null> {
+    const portsToCheck = [3000, 8080, 4200, 5000, 8000, 4000, 5173];
+    const axios = require('axios').default;
+
+    for (const port of portsToCheck) {
+        try {
+            const url = `http://localhost:${port}`;
+            console.log(`TestFox: Checking if application is running on port ${port}...`);
+
+            // Try to connect with a short timeout
+            const response = await axios.get(url, {
+                timeout: 2000,
+                validateStatus: () => true // Accept any status code
+            });
+
+            // If we get any response (even 404), the server is running
+            if (response.status < 500) {
+                console.log(`TestFox: Application found on port ${port}`);
+                return url;
+            }
+        } catch (error) {
+            // Connection failed, try next port
+            continue;
+        }
+    }
+
+    console.log('TestFox: No application found on common ports');
+    return null;
+}
 
 export async function activate(context: vscode.ExtensionContext) {
     console.log('TestFox is now active!');
@@ -66,15 +102,16 @@ export async function activate(context: vscode.ExtensionContext) {
         projectDetector = new ProjectDetector();
         codeAnalyzer = new CodeAnalyzer();
         appRunner = new AppRunner();
-        testRunner = new TestRunner(appRunner);
+        testRunner = new TestRunner(appRunner, testStore);
         manualTestTracker = new ManualTestTracker(context);
         reportGenerator = new ReportGenerator(context);
         dependencyManager = new DependencyManager(context);
         testGeneratorAI = new TestGeneratorAI(testStore);
         fullCycleRunner = new FullCycleRunner(appRunner);
         crossBrowserRunner = new CrossBrowserRunner(dependencyManager);
-        defectTracker = new DefectTracker(context);
-        webServer = new WebServer(context);
+    defectTracker = new DefectTracker(context);
+    webServer = new WebServer(context);
+    scheduler = new TestScheduler(context);
         console.log('Core components initialized');
     } catch (error) {
         console.error('Failed to initialize core components:', error);
@@ -207,6 +244,33 @@ export async function activate(context: vscode.ExtensionContext) {
 
         vscode.commands.registerCommand('testfox.generateCategory', async (category?: string) => {
             await generateTestCategory(category);
+        }),
+
+        vscode.commands.registerCommand('testfox.runScheduledTests', async () => {
+            await scheduler.runNow();
+        }),
+
+        vscode.commands.registerCommand('testfox.checkAppStatus', async () => {
+            const appUrl = await checkApplicationAvailability();
+            if (appUrl) {
+                vscode.window.showInformationMessage(`TestFox: Application is running at ${appUrl}`);
+            } else {
+                const startApp = await vscode.window.showWarningMessage(
+                    'TestFox: No application detected on common ports. Would you like to start it?',
+                    'Start Application',
+                    'Cancel'
+                );
+
+                if (startApp === 'Start Application') {
+                    const projectInfo = testStore.getProjectInfo();
+                    if (projectInfo) {
+                        await appRunner.start(projectInfo);
+                        vscode.window.showInformationMessage('TestFox: Application startup initiated. Check status again in a few seconds.');
+                    } else {
+                        vscode.window.showErrorMessage('TestFox: No project information available. Please analyze the project first.');
+                    }
+                }
+            }
         }),
 
         vscode.commands.registerCommand('testfox.openDashboard', () => {
@@ -406,6 +470,12 @@ export async function activate(context: vscode.ExtensionContext) {
                     openRouter.loadConfiguration();
                     openRouter.updateStatusBar();
                 }
+
+                if (e.affectsConfiguration('testfox.automation')) {
+                    console.log('Automation settings changed, updating scheduler...');
+                    scheduler.updateSettings();
+                    updateSchedulerStatus();
+                }
             })
         );
         console.log('Configuration listener set up');
@@ -421,6 +491,41 @@ export async function activate(context: vscode.ExtensionContext) {
     } catch (error) {
         console.error('Auto-initialization failed:', error);
         vscode.window.showWarningMessage('TestFox: Auto-initialization failed. You can still use manual commands.');
+    }
+
+    try {
+        // Start the test scheduler
+        console.log('Starting test scheduler...');
+        scheduler.start();
+        updateSchedulerStatus();
+        console.log('Test scheduler started');
+    } catch (error) {
+        console.error('Failed to start scheduler:', error);
+    }
+}
+
+/**
+ * Update application status in status bar
+ */
+async function updateSchedulerStatus(): Promise<void> {
+    if (!statusBarScheduler) return;
+
+    try {
+        const appUrl = await checkApplicationAvailability();
+        if (appUrl) {
+            const port = appUrl.split(':')[2];
+            statusBarScheduler.text = `$(zap) App: ${port}`;
+            statusBarScheduler.tooltip = `Application running on port ${port}\nClick to check status`;
+            statusBarScheduler.backgroundColor = undefined;
+        } else {
+            statusBarScheduler.text = '$(warning) App: Off';
+            statusBarScheduler.tooltip = 'No application detected\nClick to start or check status';
+            statusBarScheduler.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+        }
+    } catch (error) {
+        statusBarScheduler.text = '$(error) App: Error';
+        statusBarScheduler.tooltip = 'Error checking application status\nClick to retry';
+        statusBarScheduler.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
     }
 }
 
@@ -447,6 +552,12 @@ function initStatusBar(context: vscode.ExtensionContext): void {
     statusBarStatus.text = '$(sync~spin) Initializing...';
     statusBarStatus.show();
     context.subscriptions.push(statusBarStatus);
+
+    // Scheduler status
+    statusBarScheduler = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 97);
+    statusBarScheduler.command = 'testfox.checkAppStatus';
+    updateSchedulerStatus(); // Will run async in background
+    context.subscriptions.push(statusBarScheduler);
 }
 
 /**
@@ -626,6 +737,43 @@ async function generateTests(): Promise<void> {
     }
     if (!analysisResult.components || !Array.isArray(analysisResult.components)) {
         analysisResult.components = [];
+    }
+
+    // Check if application is running before proceeding
+    const appUrl = await checkApplicationAvailability();
+    if (!appUrl) {
+        const startApp = await vscode.window.showWarningMessage(
+            'TestFox: No application detected on common ports (3000, 8080, 4200, 5000, 8000). Would you like to start the application?',
+            'Start Application',
+            'Cancel'
+        );
+
+        if (startApp === 'Start Application') {
+            try {
+                const projectInfo = testStore.getProjectInfo();
+                if (projectInfo) {
+                    await appRunner.start(projectInfo);
+                    // Wait a moment for the app to start
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                } else {
+                    vscode.window.showErrorMessage('TestFox: No project information available. Please analyze the project first.');
+                    return;
+                }
+            } catch (error) {
+                vscode.window.showErrorMessage(`TestFox: Failed to start application - ${error}`);
+                return;
+            }
+        } else {
+            vscode.window.showInformationMessage(
+                'TestFox: Tests cancelled. Please ensure your application is running and try again.',
+                'View Settings'
+            ).then(selection => {
+                if (selection === 'View Settings') {
+                    vscode.commands.executeCommand('workbench.action.openSettings', 'testfox');
+                }
+            });
+            return;
+        }
     }
 
     updateStatus('running', 'Generating tests...');
@@ -977,6 +1125,29 @@ async function runAllTests(): Promise<void> {
     if (tests.length === 0) {
         vscode.window.showWarningMessage('TestFox: No tests to run. Generate tests first.');
         return;
+    }
+
+    // Check if application is running
+    const appUrl = await checkApplicationAvailability();
+    if (!appUrl) {
+        const startApp = await vscode.window.showWarningMessage(
+            'TestFox: No application detected. Would you like to start it?',
+            'Start Application',
+            'Cancel'
+        );
+
+        if (startApp === 'Start Application') {
+            const projectInfo = testStore.getProjectInfo();
+            if (projectInfo) {
+                await appRunner.start(projectInfo);
+                await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for startup
+            } else {
+                vscode.window.showErrorMessage('TestFox: No project information available.');
+                return;
+            }
+        } else {
+            return;
+        }
     }
 
     updateStatus('running', 'Running tests...');
