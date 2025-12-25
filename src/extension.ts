@@ -49,34 +49,55 @@ let statusBarStatus: vscode.StatusBarItem;
 
 export async function activate(context: vscode.ExtensionContext) {
     console.log('TestFox is now active!');
+    console.log('Initializing TestFox extension...');
 
-    // Initialize status bar first (visible immediately)
-    initStatusBar(context);
+    try {
+        // Initialize status bar first (visible immediately)
+        initStatusBar(context);
+        console.log('Status bar initialized');
+    } catch (error) {
+        console.error('Failed to initialize status bar:', error);
+    }
 
-    // Initialize core components
-    testStore = new TestStore(context);
-    projectDetector = new ProjectDetector();
-    codeAnalyzer = new CodeAnalyzer();
-    appRunner = new AppRunner();
-    testRunner = new TestRunner(appRunner);
-    manualTestTracker = new ManualTestTracker(context);
-    reportGenerator = new ReportGenerator(context);
-    dependencyManager = new DependencyManager(context);
-    testGeneratorAI = new TestGeneratorAI(testStore);
-    fullCycleRunner = new FullCycleRunner(appRunner);
-    crossBrowserRunner = new CrossBrowserRunner(dependencyManager);
-    defectTracker = new DefectTracker(context);
-    webServer = new WebServer(context);
+    try {
+        // Initialize core components
+        console.log('Initializing core components...');
+        testStore = new TestStore(context);
+        projectDetector = new ProjectDetector();
+        codeAnalyzer = new CodeAnalyzer();
+        appRunner = new AppRunner();
+        testRunner = new TestRunner(appRunner);
+        manualTestTracker = new ManualTestTracker(context);
+        reportGenerator = new ReportGenerator(context);
+        dependencyManager = new DependencyManager(context);
+        testGeneratorAI = new TestGeneratorAI(testStore);
+        fullCycleRunner = new FullCycleRunner(appRunner);
+        crossBrowserRunner = new CrossBrowserRunner(dependencyManager);
+        defectTracker = new DefectTracker(context);
+        webServer = new WebServer(context);
+        console.log('Core components initialized');
+    } catch (error) {
+        console.error('Failed to initialize core components:', error);
+        vscode.window.showErrorMessage('TestFox: Failed to initialize core components. Extension may not work properly.');
+    }
 
-    // Initialize AI client with status bar
-    const openRouter = getOpenRouterClient();
-    openRouter.initStatusBar(statusBarAI);
+    try {
+        // Initialize AI client with status bar
+        console.log('Initializing AI client...');
+        const openRouter = getOpenRouterClient();
+        openRouter.initStatusBar(statusBarAI);
 
-    // Load AI configuration (including API key from settings)
-    loadAIConfiguration(context);
+        // Load AI configuration (including API key from settings)
+        loadAIConfiguration(context);
+        console.log('AI configuration loaded');
+    } catch (error) {
+        console.error('Failed to initialize AI:', error);
+    }
 
-    // Set up web server callbacks
-    webServer.setCommandCallback(async (command: string, data?: any) => {
+    try {
+        // Set up web server callbacks
+        console.log('Setting up web server...');
+        webServer.setCommandCallback(async (command: string, data?: any) => {
         try {
             switch (command) {
                 case 'analyze':
@@ -139,25 +160,35 @@ export async function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // Initialize view providers
-    testExplorerProvider = new TestExplorerProvider(testStore);
-    testResultsProvider = new TestResultsProvider(testStore);
+    try {
+        // Initialize view providers
+        console.log('Initializing view providers...');
+        testExplorerProvider = new TestExplorerProvider(testStore);
+        testResultsProvider = new TestResultsProvider(testStore);
 
-    // Register tree views
-    const testExplorerView = vscode.window.createTreeView('testfox-explorer', {
-        treeDataProvider: testExplorerProvider,
-        showCollapseAll: true
-    });
+        // Register tree views
+        console.log('Registering tree views...');
+        const testExplorerView = vscode.window.createTreeView('testfox-explorer', {
+            treeDataProvider: testExplorerProvider,
+            showCollapseAll: true
+        });
 
-    const testResultsView = vscode.window.createTreeView('testfox-results', {
-        treeDataProvider: testResultsProvider,
-        showCollapseAll: true
-    });
+        const testResultsView = vscode.window.createTreeView('testfox-results', {
+            treeDataProvider: testResultsProvider,
+            showCollapseAll: true
+        });
 
-    context.subscriptions.push(testExplorerView, testResultsView);
+        context.subscriptions.push(testExplorerView, testResultsView);
+        console.log('Views registered successfully');
+    } catch (error) {
+        console.error('Failed to register views:', error);
+        vscode.window.showErrorMessage('TestFox: Failed to register views. Extension may not work properly.');
+    }
 
-    // Register commands
-    const commands = [
+    try {
+        // Register commands
+        console.log('Registering commands...');
+        const commands = [
         vscode.commands.registerCommand('testfox.analyze', async () => {
             await analyzeProject();
         }),
@@ -360,21 +391,37 @@ export async function activate(context: vscode.ExtensionContext) {
         })
     ];
 
-    context.subscriptions.push(...commands);
+        context.subscriptions.push(...commands);
+        console.log('Commands registered successfully');
+    } catch (error) {
+        console.error('Failed to register commands:', error);
+        vscode.window.showErrorMessage('TestFox: Failed to register commands. Extension may not work properly.');
+    }
 
-    // Listen for configuration changes
-    context.subscriptions.push(
-        vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('testfox.ai')) {
-                loadAIConfiguration(context);
-                openRouter.loadConfiguration();
-                openRouter.updateStatusBar();
-            }
-        })
-    );
+        // Listen for configuration changes
+        context.subscriptions.push(
+            vscode.workspace.onDidChangeConfiguration(e => {
+                if (e.affectsConfiguration('testfox.ai')) {
+                    loadAIConfiguration(context);
+                    openRouter.loadConfiguration();
+                    openRouter.updateStatusBar();
+                }
+            })
+        );
+        console.log('Configuration listener set up');
+    } catch (error) {
+        console.error('Failed to set up configuration listener:', error);
+    }
 
-    // Auto-initialize on activation
-    await autoInitialize(context);
+    try {
+        // Auto-initialize on activation
+        console.log('Starting auto-initialization...');
+        await autoInitialize(context);
+        console.log('Auto-initialization completed');
+    } catch (error) {
+        console.error('Auto-initialization failed:', error);
+        vscode.window.showWarningMessage('TestFox: Auto-initialization failed. You can still use manual commands.');
+    }
 }
 
 /**
@@ -440,25 +487,46 @@ async function autoInitialize(context: vscode.ExtensionContext): Promise<void> {
     const autoAnalyze = config.get<boolean>('autoAnalyze', true);
     const autoInstallDeps = config.get<boolean>('autoInstallDependencies', true);
 
+    console.log('Auto-initialization starting...');
+    console.log(`Auto-analyze: ${autoAnalyze}, Auto-install deps: ${autoInstallDeps}`);
+    console.log(`Workspace folders: ${vscode.workspace.workspaceFolders?.length || 0}`);
+
     try {
         // Check and install dependencies
         if (autoInstallDeps) {
+            console.log('Checking dependencies...');
             updateStatus('analyzing', 'Checking dependencies...');
-            await dependencyManager.ensureDependencies();
+            try {
+                await dependencyManager.ensureDependencies();
+                console.log('Dependencies check completed');
+            } catch (error) {
+                console.error('Dependency installation failed:', error);
+                vscode.window.showWarningMessage('TestFox: Failed to install dependencies. Some features may not work.');
+            }
         }
 
         // Auto-analyze project if enabled
         if (autoAnalyze && vscode.workspace.workspaceFolders) {
+            console.log('Starting auto-analysis...');
             updateStatus('analyzing', 'Detecting project...');
-            await analyzeProject(true);
+            try {
+                await analyzeProject(true);
+                console.log('Auto-analysis completed successfully');
+            } catch (error) {
+                console.error('Auto-analysis failed:', error);
+                vscode.window.showWarningMessage('TestFox: Failed to auto-analyze project. Please try manual analysis.');
+            }
+        } else {
+            console.log('Auto-analysis skipped (disabled or no workspace)');
         }
 
         updateStatus('ready');
+        console.log('Auto-initialization completed successfully');
 
         // Show welcome message with detected project
         const projectInfo = testStore.getProjectInfo();
         if (projectInfo) {
-            const message = projectInfo.framework 
+            const message = projectInfo.framework
                 ? `TestFox detected ${projectInfo.framework} (${projectInfo.language}) project`
                 : `TestFox detected ${projectInfo.type} project`;
 

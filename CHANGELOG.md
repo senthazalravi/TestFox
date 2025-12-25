@@ -2,6 +2,20 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
+## [0.4.6] - 2024-12-25
+
+### Fixed
+- **Extension Stability** 🛡️
+  - Added comprehensive error handling throughout extension activation
+  - Extension no longer crashes if auto-initialization fails
+  - Improved logging for debugging activation issues
+  - Graceful degradation when components fail to initialize
+
+- **Auto-Initialization** 🔄
+  - Better error handling for dependency installation and project analysis
+  - Extension continues to work even if auto-analysis fails
+  - Clear error messages for troubleshooting
+
 ## [0.4.5] - 2024-12-25
 
 ### Fixed
