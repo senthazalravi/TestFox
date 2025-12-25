@@ -106,6 +106,27 @@ export class AIE2ETestGenerator {
      * Gather comprehensive application context for AI
      */
     private async gatherApplicationContext(projectInfo: ProjectInfo, codeAnalysis: CodeAnalysis): Promise<string> {
+        // Ensure codeAnalysis has valid properties
+        if (!codeAnalysis) {
+            codeAnalysis = {
+                routes: [],
+                forms: [],
+                endpoints: [],
+                authFlows: [],
+                databaseQueries: [],
+                externalApis: [],
+                components: []
+            };
+        }
+
+        // Ensure all arrays exist
+        if (!codeAnalysis.routes || !Array.isArray(codeAnalysis.routes)) codeAnalysis.routes = [];
+        if (!codeAnalysis.forms || !Array.isArray(codeAnalysis.forms)) codeAnalysis.forms = [];
+        if (!codeAnalysis.endpoints || !Array.isArray(codeAnalysis.endpoints)) codeAnalysis.endpoints = [];
+        if (!codeAnalysis.authFlows || !Array.isArray(codeAnalysis.authFlows)) codeAnalysis.authFlows = [];
+        if (!codeAnalysis.databaseQueries || !Array.isArray(codeAnalysis.databaseQueries)) codeAnalysis.databaseQueries = [];
+        if (!codeAnalysis.externalApis || !Array.isArray(codeAnalysis.externalApis)) codeAnalysis.externalApis = [];
+        if (!codeAnalysis.components || !Array.isArray(codeAnalysis.components)) codeAnalysis.components = [];
         const context: string[] = [];
 
         // Project info

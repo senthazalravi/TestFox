@@ -2,6 +2,45 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
+## [0.4.4] - 2024-12-25
+
+### Added
+- **Automatic Port Detection** 🔍
+  - TestFox now automatically detects running applications on any port (3000, 8080, 4200, 5000, 8000, etc.)
+  - No more hardcoded localhost:3000 assumptions - works with Vue (8080), Angular (4200), Django (8000), etc.
+  - Scans multiple common development ports to find your running application
+  - Extracts actual port from application startup logs (localhost:8080, 127.0.0.1:3001, etc.)
+  - If no application is running, TestFox starts it and detects the actual port it binds to
+
+### Fixed
+- **Port Detection Issues** 🐛
+  - Fixed smoke tests failing when applications run on ports other than 3000
+  - Applications now correctly detected regardless of configured vs actual running port
+  - Improved application startup detection and URL resolution
+
+## [0.4.3] - 2024-12-25
+
+### Added
+- **Generate Tests by Category** 🎯
+  - Right-click any test category in the Test Explorer to generate tests specifically for that category
+  - Individual category generation for all 18+ test categories (Smoke, Functional, API, Security, Performance, etc.)
+  - Faster, more focused test generation - generate only what you need
+  - Better performance and resource usage when you only need specific test types
+  - Context menu integration with intuitive "Generate Tests" icon
+
+- **UI Test Generator** 🖥️
+  - Comprehensive UI testing framework with viewport/responsive tests
+  - Interactive element testing (buttons, links, forms, dropdowns)
+  - Visual layout and consistency verification
+  - Accessibility testing for keyboard navigation and screen readers
+  - Automated UI validation across desktop, tablet, and mobile viewports
+
+### Fixed
+- **Bug Fixes** 🐛
+  - Fixed TypeError when accessing undefined properties during test generation
+  - Added defensive programming to prevent crashes from malformed analysis results
+  - Improved error handling in all test generators
+
 ## [0.4.1] - 2024-12-24
 
 ### Added

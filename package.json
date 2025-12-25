@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing extension - the final quality gate in your SDLC. Automated functional, security, performance, and API testing with ISTQB standards. Uses Grok/XAI via OpenRouter.",
-  "version": "0.4.1",
+  "version": "0.4.4",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -123,6 +123,11 @@
         "command": "testfox.runCategory",
         "title": "TestFox: Run Test Category",
         "icon": "$(run)"
+      },
+      {
+        "command": "testfox.generateCategory",
+        "title": "TestFox: Generate Tests for Category",
+        "icon": "$(add)"
       },
       {
         "command": "testfox.openDashboard",
@@ -271,6 +276,11 @@
       "view/item/context": [
         {
           "command": "testfox.runCategory",
+          "when": "view == testfox-explorer && viewItem == testCategory",
+          "group": "inline"
+        },
+        {
+          "command": "testfox.generateCategory",
           "when": "view == testfox-explorer && viewItem == testCategory",
           "group": "inline"
         },

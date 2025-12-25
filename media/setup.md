@@ -81,3 +81,4 @@ You're all set! TestFox is ready to test your application.
   <p>TestFox is now ready to revolutionize your testing workflow.</p>
   <p>Continue to explore TestFox's powerful features.</p>
 </div>
+

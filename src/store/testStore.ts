@@ -78,7 +78,37 @@ export class TestStore {
     }
 
     getAnalysisResult(): AnalysisResult | null {
+        if (!this.analysisResult) {
+            return null;
+        }
+
+        // Ensure the analysis result has all required properties
+        this.ensureValidAnalysisResult(this.analysisResult);
         return this.analysisResult;
+    }
+
+    private ensureValidAnalysisResult(analysisResult: AnalysisResult): void {
+        if (!analysisResult.routes || !Array.isArray(analysisResult.routes)) {
+            analysisResult.routes = [];
+        }
+        if (!analysisResult.forms || !Array.isArray(analysisResult.forms)) {
+            analysisResult.forms = [];
+        }
+        if (!analysisResult.endpoints || !Array.isArray(analysisResult.endpoints)) {
+            analysisResult.endpoints = [];
+        }
+        if (!analysisResult.authFlows || !Array.isArray(analysisResult.authFlows)) {
+            analysisResult.authFlows = [];
+        }
+        if (!analysisResult.databaseQueries || !Array.isArray(analysisResult.databaseQueries)) {
+            analysisResult.databaseQueries = [];
+        }
+        if (!analysisResult.externalApis || !Array.isArray(analysisResult.externalApis)) {
+            analysisResult.externalApis = [];
+        }
+        if (!analysisResult.components || !Array.isArray(analysisResult.components)) {
+            analysisResult.components = [];
+        }
     }
 
     // Tests

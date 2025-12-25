@@ -109,6 +109,8 @@ export class BrowserLogTestGenerator {
     generateAccountManagementTests(): TestCase[] {
         const tests: TestCase[] = [];
 
+        try {
+
         // Account Creation Tests
         tests.push(this.createTest(
             'account-create-admin',
@@ -221,6 +223,47 @@ export class BrowserLogTestGenerator {
             ['Create account but don\'t verify', 'Try to login', 'Verify appropriate error message', 'Check for account lockout after multiple failed attempts'],
             'medium',
             ['account', 'inactive', 'security']
+        ));
+
+        return tests;
+        } catch (error: any) {
+            console.error('Error generating account management tests:', error);
+            // Return basic account tests as fallback
+            return this.generateBasicAccountTests();
+        }
+    }
+
+    /**
+     * Generate basic account tests as fallback
+     */
+    private generateBasicAccountTests(): TestCase[] {
+        const tests: TestCase[] = [];
+
+        tests.push(this.createTest(
+            'account-basic-login',
+            'Account Basic - Login Functionality',
+            'account_management',
+            'Verify basic login functionality works',
+            'automated',
+            ['account', 'login']
+        ));
+
+        tests.push(this.createTest(
+            'account-basic-register',
+            'Account Basic - Registration Process',
+            'account_management',
+            'Verify user registration process works',
+            'automated',
+            ['account', 'registration']
+        ));
+
+        tests.push(this.createTest(
+            'account-basic-profile',
+            'Account Basic - Profile Management',
+            'account_management',
+            'Verify user profile updates work',
+            'automated',
+            ['account', 'profile']
         ));
 
         return tests;

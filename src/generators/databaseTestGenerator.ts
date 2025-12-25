@@ -284,11 +284,19 @@ export class DatabaseTestGenerator {
      */
     async generateDatabaseTests(): Promise<TestCase[]> {
         const tests: TestCase[] = [];
-        const connections = await this.discoverConnections();
+        let connections: DatabaseConnection[] = [];
 
-        if (connections.length === 0) {
+        try {
+            connections = await this.discoverConnections();
+        } catch (error) {
+            this.log(`Error discovering database connections: ${error}`);
+            connections = [];
+        }
+
+        if (!connections || connections.length === 0) {
             this.log('No database connections found');
-            return tests;
+            // Still generate basic database tests for common scenarios
+            return this.generateBasicDatabaseTests();
         }
 
         // Generate tests for each database type found
@@ -407,6 +415,62 @@ export class DatabaseTestGenerator {
         await this.enhanceTestsWithAI(tests, connections);
 
         this.log(`Generated ${tests.length} database tests`);
+        return tests;
+    }
+
+    /**
+     * Generate basic database tests when no connections are found
+     */
+    private generateBasicDatabaseTests(): TestCase[] {
+        const tests: TestCase[] = [];
+
+        // Generic database tests that work regardless of specific database type
+        tests.push(this.createTest(
+            'db-general-connectivity',
+            'Database General - Connectivity Test',
+            'database',
+            'Verify database connectivity and basic operations work',
+            'automated',
+            ['database', 'connectivity']
+        ));
+
+        tests.push(this.createTest(
+            'db-general-crud',
+            'Database General - CRUD Operations',
+            'database',
+            'Test Create, Read, Update, Delete operations',
+            'automated',
+            ['database', 'crud']
+        ));
+
+        tests.push(this.createTest(
+            'db-general-transactions',
+            'Database General - Transaction Handling',
+            'database',
+            'Verify transaction commit and rollback functionality',
+            'automated',
+            ['database', 'transactions']
+        ));
+
+        tests.push(this.createTest(
+            'db-general-performance',
+            'Database General - Query Performance',
+            'database',
+            'Test query execution times and performance',
+            'automated',
+            ['database', 'performance']
+        ));
+
+        tests.push(this.createTest(
+            'db-general-security',
+            'Database General - Security Validation',
+            'database',
+            'Verify SQL injection prevention and access controls',
+            'automated',
+            ['database', 'security']
+        ));
+
+        this.log(`Generated ${tests.length} basic database tests`);
         return tests;
     }
 

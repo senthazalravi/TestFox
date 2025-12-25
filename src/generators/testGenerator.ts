@@ -24,6 +24,36 @@ export class TestGeneratorManager {
 
     constructor(private testStore: TestStore) {
         this.analysisResult = testStore.getAnalysisResult();
+        // Ensure analysis result has all required properties
+        if (this.analysisResult) {
+            this.ensureValidAnalysisResult();
+        }
+    }
+
+    private ensureValidAnalysisResult(): void {
+        if (!this.analysisResult) return;
+
+        if (!this.analysisResult.routes || !Array.isArray(this.analysisResult.routes)) {
+            this.analysisResult.routes = [];
+        }
+        if (!this.analysisResult.forms || !Array.isArray(this.analysisResult.forms)) {
+            this.analysisResult.forms = [];
+        }
+        if (!this.analysisResult.endpoints || !Array.isArray(this.analysisResult.endpoints)) {
+            this.analysisResult.endpoints = [];
+        }
+        if (!this.analysisResult.authFlows || !Array.isArray(this.analysisResult.authFlows)) {
+            this.analysisResult.authFlows = [];
+        }
+        if (!this.analysisResult.databaseQueries || !Array.isArray(this.analysisResult.databaseQueries)) {
+            this.analysisResult.databaseQueries = [];
+        }
+        if (!this.analysisResult.externalApis || !Array.isArray(this.analysisResult.externalApis)) {
+            this.analysisResult.externalApis = [];
+        }
+        if (!this.analysisResult.components || !Array.isArray(this.analysisResult.components)) {
+            this.analysisResult.components = [];
+        }
     }
 
     async generateSmokeTests(): Promise<void> {

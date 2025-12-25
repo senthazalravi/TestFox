@@ -19,6 +19,7 @@ import { getOpenRouterClient } from './ai/openRouterClient';
 import { DatabaseTestGenerator } from './generators/databaseTestGenerator';
 import { AIE2ETestGenerator } from './generators/aiE2ETestGenerator';
 import { BrowserLogTestGenerator } from './generators/browserLogTestGenerator';
+import { UITestGenerator } from './generators/uiTestGenerator';
 import { DefectTracker } from './tracking/defectTracker';
 import { DefectDashboard } from './views/defectDashboard';
 import { WebServer } from './server/webServer';
@@ -171,6 +172,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
         vscode.commands.registerCommand('testfox.runCategory', async (category?: string) => {
             await runTestCategory(category);
+        }),
+
+        vscode.commands.registerCommand('testfox.generateCategory', async (category?: string) => {
+            await generateTestCategory(category);
         }),
 
         vscode.commands.registerCommand('testfox.openDashboard', () => {
@@ -521,11 +526,38 @@ async function analyzeProject(silent = false): Promise<void> {
 }
 
 async function generateTests(): Promise<void> {
-    const analysisResult = testStore.getAnalysisResult();
+    let analysisResult = testStore.getAnalysisResult();
     if (!analysisResult) {
         vscode.window.showWarningMessage('TestFox: Please analyze the project first');
         await analyzeProject();
-        return;
+        analysisResult = testStore.getAnalysisResult();
+        if (!analysisResult) {
+            vscode.window.showErrorMessage('TestFox: Project analysis failed. Please try again.');
+            return;
+        }
+    }
+
+    // Ensure analysis result has all required properties
+    if (!analysisResult.routes || !Array.isArray(analysisResult.routes)) {
+        analysisResult.routes = [];
+    }
+    if (!analysisResult.forms || !Array.isArray(analysisResult.forms)) {
+        analysisResult.forms = [];
+    }
+    if (!analysisResult.endpoints || !Array.isArray(analysisResult.endpoints)) {
+        analysisResult.endpoints = [];
+    }
+    if (!analysisResult.authFlows || !Array.isArray(analysisResult.authFlows)) {
+        analysisResult.authFlows = [];
+    }
+    if (!analysisResult.databaseQueries || !Array.isArray(analysisResult.databaseQueries)) {
+        analysisResult.databaseQueries = [];
+    }
+    if (!analysisResult.externalApis || !Array.isArray(analysisResult.externalApis)) {
+        analysisResult.externalApis = [];
+    }
+    if (!analysisResult.components || !Array.isArray(analysisResult.components)) {
+        analysisResult.components = [];
     }
 
     updateStatus('running', 'Generating tests...');
@@ -628,6 +660,242 @@ async function generateTests(): Promise<void> {
             const tests = testStore.getAllTests();
             vscode.window.showInformationMessage(
                 `TestFox: Generated ${tests.length} test cases across all categories`
+            );
+        } catch (error) {
+            updateStatus('error');
+            vscode.window.showErrorMessage(`TestFox: Test generation failed - ${error}`);
+        }
+    });
+}
+
+async function generateTestCategory(categoryOrItem?: string | { category?: string }): Promise<void> {
+    // Handle both string category and tree item object
+    let category: string | undefined;
+
+    if (typeof categoryOrItem === 'string') {
+        category = categoryOrItem;
+    } else if (categoryOrItem && typeof categoryOrItem === 'object' && categoryOrItem.category) {
+        category = categoryOrItem.category;
+    }
+
+    if (!category) {
+        // Get all available categories from TEST_CATEGORIES
+        const { TEST_CATEGORIES } = require('./types');
+        const categories = TEST_CATEGORIES.map((c: any) => c.id);
+        const categoryLabels = categories.map((c: string) => c.charAt(0).toUpperCase() + c.slice(1).replace('_', ' '));
+
+        const selected = await vscode.window.showQuickPick(categoryLabels, {
+            placeHolder: 'Select test category to generate'
+        });
+
+        if (selected) {
+            category = selected.toLowerCase().replace(' ', '_');
+        }
+    }
+
+    if (!category) {
+        return;
+    }
+
+    let analysisResult = testStore.getAnalysisResult();
+    if (!analysisResult) {
+        vscode.window.showWarningMessage('TestFox: Please analyze the project first');
+        await analyzeProject();
+        analysisResult = testStore.getAnalysisResult();
+        if (!analysisResult) {
+            vscode.window.showErrorMessage('TestFox: Project analysis failed. Please try again.');
+            return;
+        }
+    }
+
+    // Ensure analysis result has all required properties
+    if (!analysisResult.routes || !Array.isArray(analysisResult.routes)) {
+        analysisResult.routes = [];
+    }
+    if (!analysisResult.forms || !Array.isArray(analysisResult.forms)) {
+        analysisResult.forms = [];
+    }
+    if (!analysisResult.endpoints || !Array.isArray(analysisResult.endpoints)) {
+        analysisResult.endpoints = [];
+    }
+    if (!analysisResult.authFlows || !Array.isArray(analysisResult.authFlows)) {
+        analysisResult.authFlows = [];
+    }
+    if (!analysisResult.databaseQueries || !Array.isArray(analysisResult.databaseQueries)) {
+        analysisResult.databaseQueries = [];
+    }
+    if (!analysisResult.externalApis || !Array.isArray(analysisResult.externalApis)) {
+        analysisResult.externalApis = [];
+    }
+    if (!analysisResult.components || !Array.isArray(analysisResult.components)) {
+        analysisResult.components = [];
+    }
+
+    updateStatus('running', `Generating ${category} tests...`);
+
+    await vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: `TestFox: Generating ${category} tests...`,
+        cancellable: false
+    }, async (progress) => {
+        try {
+            const generator = new TestGeneratorManager(testStore);
+            const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+            let testsGenerated = 0;
+
+            // Generate tests based on category
+            switch (category) {
+                case 'smoke':
+                    progress.report({ message: 'Generating smoke tests...' });
+                    await generator.generateSmokeTests();
+                    break;
+                case 'sanity':
+                    progress.report({ message: 'Generating sanity tests...' });
+                    await generator.generateSanityTests();
+                    break;
+                case 'regression':
+                    progress.report({ message: 'Generating regression tests...' });
+                    await generator.generateRegressionTests();
+                    break;
+                case 'functional':
+                    progress.report({ message: 'Generating functional tests...' });
+                    await generator.generateFunctionalTests();
+                    break;
+                case 'api':
+                    progress.report({ message: 'Generating API tests...' });
+                    await generator.generateApiTests();
+                    break;
+                case 'integration':
+                    progress.report({ message: 'Generating integration tests...' });
+                    await generator.generateIntegrationTests();
+                    break;
+                case 'database':
+                    progress.report({ message: 'Generating database tests...' });
+                    const dbGenerator = new DatabaseTestGenerator(workspacePath);
+                    const dbTests = await dbGenerator.generateDatabaseTests();
+                    for (const test of dbTests) {
+                        testStore.addTest(test);
+                        testsGenerated++;
+                    }
+                    break;
+                case 'security':
+                    progress.report({ message: 'Generating security tests...' });
+                    await generator.generateSecurityTests();
+                    break;
+                case 'performance':
+                    progress.report({ message: 'Generating performance tests...' });
+                    await generator.generatePerformanceTests();
+                    break;
+                case 'load':
+                    progress.report({ message: 'Generating load tests...' });
+                    await generator.generateLoadTests();
+                    break;
+                case 'stress':
+                    progress.report({ message: 'Generating load and stress tests...' });
+                    await generator.generateLoadTests();
+                    break;
+                case 'accessibility':
+                    progress.report({ message: 'Generating accessibility tests...' });
+                    await generator.generateAccessibilityTests();
+                    break;
+                case 'negative':
+                    progress.report({ message: 'Generating negative tests...' });
+                    await generator.generateNegativeTests();
+                    break;
+                case 'boundary':
+                    progress.report({ message: 'Generating boundary tests...' });
+                    await generator.generateBoundaryTests();
+                    break;
+                case 'monkey':
+                    progress.report({ message: 'Generating monkey tests...' });
+                    await generator.generateMonkeyTests();
+                    break;
+                case 'exploratory':
+                    progress.report({ message: 'Generating exploratory tests...' });
+                    await generator.generateExploratoryTests();
+                    break;
+                case 'usability':
+                    progress.report({ message: 'Generating usability tests...' });
+                    await generator.generateUsabilityTests();
+                    break;
+                case 'acceptance':
+                    progress.report({ message: 'Generating acceptance tests...' });
+                    await generator.generateAcceptanceTests();
+                    break;
+                case 'compatibility':
+                    progress.report({ message: 'Generating compatibility tests...' });
+                    await generator.generateCompatibilityTests();
+                    break;
+                case 'ui':
+                    progress.report({ message: 'Generating UI tests...' });
+                    const uiGenerator = new UITestGenerator(workspacePath);
+                    const uiTests = await uiGenerator.generateUITests();
+                    for (const test of uiTests) {
+                        testStore.addTest(test);
+                        testsGenerated++;
+                    }
+                    break;
+                case 'e2e':
+                    progress.report({ message: 'Generating E2E tests with AI...' });
+                    const projectInfo = testStore.getProjectInfo();
+                    if (projectInfo && analysisResult) {
+                        const e2eGenerator = new AIE2ETestGenerator(workspacePath);
+                        const e2eTests = await e2eGenerator.generateE2ETests(projectInfo, analysisResult);
+                        for (const test of e2eTests) {
+                            testStore.addTest(test);
+                            testsGenerated++;
+                        }
+                    }
+                    break;
+                case 'console_logs':
+                    progress.report({ message: 'Generating console log tests...' });
+                    const browserLogGenerator = new BrowserLogTestGenerator();
+                    const consoleTests = browserLogGenerator.generateConsoleLogTests();
+                    for (const test of consoleTests) {
+                        testStore.addTest(test);
+                        testsGenerated++;
+                    }
+                    break;
+                case 'network_logs':
+                    progress.report({ message: 'Generating network log tests...' });
+                    const networkLogGenerator = new BrowserLogTestGenerator();
+                    const networkTests = networkLogGenerator.generateNetworkLogTests();
+                    for (const test of networkTests) {
+                        testStore.addTest(test);
+                        testsGenerated++;
+                    }
+                    break;
+                case 'account_management':
+                    progress.report({ message: 'Generating account management tests...' });
+                    const accountGenerator = new BrowserLogTestGenerator();
+                    const accountTests = accountGenerator.generateAccountManagementTests();
+                    for (const test of accountTests) {
+                        testStore.addTest(test);
+                        testsGenerated++;
+                    }
+                    break;
+                default:
+                    vscode.window.showWarningMessage(`TestFox: Category '${category}' generation not implemented yet`);
+                    updateStatus('ready');
+                    return;
+            }
+
+            // Count tests for categories that use the TestGeneratorManager
+            if (category !== 'database' && category !== 'ui' && category !== 'e2e' &&
+                category !== 'console_logs' && category !== 'network_logs' && category !== 'account_management') {
+                const allTests = testStore.getAllTests();
+                const categoryTests = allTests.filter(test => test.category === category);
+                testsGenerated = categoryTests.length;
+            }
+
+            // Refresh views
+            testExplorerProvider.refresh();
+            testResultsProvider.refresh();
+            updateStatus('ready');
+
+            const categoryName = category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' ');
+            vscode.window.showInformationMessage(
+                `TestFox: Generated ${testsGenerated} test cases for ${categoryName}`
             );
         } catch (error) {
             updateStatus('error');

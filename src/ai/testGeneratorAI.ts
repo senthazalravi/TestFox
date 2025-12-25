@@ -18,6 +18,30 @@ export class TestGeneratorAI {
 
     constructor(private testStore: TestStore) {}
 
+    private ensureValidAnalysisResult(analysisResult: AnalysisResult): void {
+        if (!analysisResult.routes || !Array.isArray(analysisResult.routes)) {
+            analysisResult.routes = [];
+        }
+        if (!analysisResult.forms || !Array.isArray(analysisResult.forms)) {
+            analysisResult.forms = [];
+        }
+        if (!analysisResult.endpoints || !Array.isArray(analysisResult.endpoints)) {
+            analysisResult.endpoints = [];
+        }
+        if (!analysisResult.authFlows || !Array.isArray(analysisResult.authFlows)) {
+            analysisResult.authFlows = [];
+        }
+        if (!analysisResult.databaseQueries || !Array.isArray(analysisResult.databaseQueries)) {
+            analysisResult.databaseQueries = [];
+        }
+        if (!analysisResult.externalApis || !Array.isArray(analysisResult.externalApis)) {
+            analysisResult.externalApis = [];
+        }
+        if (!analysisResult.components || !Array.isArray(analysisResult.components)) {
+            analysisResult.components = [];
+        }
+    }
+
     /**
      * Generate tests using AI
      */
@@ -25,9 +49,16 @@ export class TestGeneratorAI {
         const projectInfo = this.testStore.getProjectInfo();
         const analysisResult = this.testStore.getAnalysisResult();
 
-        if (!projectInfo || !analysisResult) {
+        if (!projectInfo) {
             throw new Error('Project not analyzed. Run analysis first.');
         }
+
+        if (!analysisResult) {
+            throw new Error('Analysis result not available. Run analysis first.');
+        }
+
+        // Ensure analysis result has valid structure
+        this.ensureValidAnalysisResult(analysisResult);
 
         if (!this.openRouter.isEnabled()) {
             vscode.window.showWarningMessage(

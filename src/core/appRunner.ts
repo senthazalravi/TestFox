@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as path from 'path';
+import * as net from 'net';
 import { ProjectInfo } from '../types';
 
 /**
@@ -16,8 +17,96 @@ export class AppRunner {
         this.outputChannel = vscode.window.createOutputChannel('TestFox App Runner');
     }
 
+    /**
+     * Detect if application is already running on common development ports
+     */
+    private async detectRunningApplication(projectInfo: ProjectInfo): Promise<string | null> {
+        // Common development ports to check
+        const portsToCheck = [
+            projectInfo.port || 3000, // Configured port first
+            3000, 3001, 3002, // React/Next.js
+            8080, 8081, 8082, // Vue/Java/Spring
+            4200, 4201,       // Angular
+            5000, 5001,       // Flask/Django/ASPNET
+            8000, 8001,       // Various frameworks
+            4000, 4001,       // Gatsby
+            5173, 5174        // Vite
+        ];
+
+        // Remove duplicates and prioritize configured port
+        const uniquePorts = [...new Set(portsToCheck)];
+
+        for (const port of uniquePorts) {
+            try {
+                const isOpen = await this.checkPort(port);
+                if (isOpen) {
+                    const url = `http://localhost:${port}`;
+                    // Verify it's actually responding
+                    if (await this.verifyUrl(url)) {
+                        return url;
+                    }
+                }
+            } catch (error) {
+                // Port check failed, continue
+                continue;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if a port is open
+     */
+    private checkPort(port: number): Promise<boolean> {
+        return new Promise((resolve) => {
+            const socket = new net.Socket();
+            socket.setTimeout(1000);
+
+            socket.connect(port, 'localhost', () => {
+                socket.destroy();
+                resolve(true);
+            });
+
+            socket.on('error', () => {
+                socket.destroy();
+                resolve(false);
+            });
+
+            socket.on('timeout', () => {
+                socket.destroy();
+                resolve(false);
+            });
+        });
+    }
+
+    /**
+     * Verify that a URL is responding
+     */
+    private async verifyUrl(url: string): Promise<boolean> {
+        try {
+            const axios = require('axios').default;
+            const response = await axios.get(url, {
+                timeout: 2000,
+                validateStatus: () => true // Accept any status code
+            });
+            return response.status < 500; // Consider it running if not server error
+        } catch (error) {
+            return false;
+        }
+    }
+
     async start(projectInfo: ProjectInfo): Promise<string> {
         if (this.isRunning) {
+            return this.baseUrl;
+        }
+
+        // First, check if application is already running on any port
+        const detectedUrl = await this.detectRunningApplication(projectInfo);
+        if (detectedUrl) {
+            this.isRunning = true;
+            this.baseUrl = detectedUrl;
+            this.outputChannel.appendLine(`✓ Found running application at ${this.baseUrl}`);
             return this.baseUrl;
         }
 
@@ -53,10 +142,16 @@ export class AppRunner {
                 this.baseUrl = `http://localhost:${projectInfo.port || 3000}`;
 
                 let startupDetected = false;
-                const startupTimeout = setTimeout(() => {
+                const startupTimeout = setTimeout(async () => {
                     if (!startupDetected) {
-                        // Assume it started after timeout
-                        this.outputChannel.appendLine(`Application assumed running at ${this.baseUrl}`);
+                        // Try to detect the actual running port
+                        const detectedUrl = await this.detectRunningApplication(projectInfo);
+                        if (detectedUrl && detectedUrl !== this.baseUrl) {
+                            this.baseUrl = detectedUrl;
+                            this.outputChannel.appendLine(`✓ Detected application running at ${this.baseUrl}`);
+                        } else {
+                            this.outputChannel.appendLine(`Application assumed running at ${this.baseUrl}`);
+                        }
                         resolve(this.baseUrl);
                     }
                 }, 15000);
@@ -64,6 +159,17 @@ export class AppRunner {
                 this.process.stdout?.on('data', (data: Buffer) => {
                     const output = data.toString();
                     this.outputChannel.append(output);
+
+                    // Try to extract actual port from output
+                    const portMatch = output.match(/localhost:(\d+)/) || output.match(/127\.0\.0\.1:(\d+)/) || output.match(/0\.0\.0\.0:(\d+)/);
+                    if (portMatch && !startupDetected) {
+                        const detectedPort = parseInt(portMatch[1], 10);
+                        const detectedUrl = `http://localhost:${detectedPort}`;
+                        if (detectedUrl !== this.baseUrl) {
+                            this.baseUrl = detectedUrl;
+                            this.outputChannel.appendLine(`✓ Detected port ${detectedPort} from application output`);
+                        }
+                    }
 
                     // Detect when app is ready
                     if (!startupDetected && this.isStartupMessage(output, projectInfo)) {
