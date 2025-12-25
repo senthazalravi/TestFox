@@ -2,6 +2,45 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
+## [0.3.9] - 2024-12-24
+
+### Added
+- **External Browser Dashboard** 🌐
+  - Web server serving TestFox dashboard at `http://localhost:8080`
+  - Real-time WebSocket communication between browser and VS Code extension
+  - Full control panel in browser to execute TestFox commands remotely
+  - Live activity log showing real-time test execution updates
+  - Same charts and data as VS Code dashboard but accessible externally
+
+- **Browser Control Panel** 🎮
+  - Execute all TestFox commands directly from browser:
+    - Analyze Project
+    - Generate Tests
+    - Run All Tests
+    - Run Full Cycle Testing
+    - Stop Application
+    - Export Report
+    - Clear Data
+  - Real-time command execution feedback
+  - Live log updates during test execution
+
+- **Real-Time Dashboard Updates** 🔄
+  - Live synchronization between VS Code extension and browser dashboard
+  - Automatic data refresh when tests complete
+  - Real-time defect tracking updates
+  - Live test execution progress
+
+- **Enhanced User Experience** ✨
+  - "View Dashboard in Browser" command and button
+  - Automatic port selection (starts from 8080, finds available port)
+  - Connection status indicators in browser dashboard
+  - Seamless switching between VS Code and browser interfaces
+
+### Commands
+- `TestFox: View Dashboard in Browser` - Opens external dashboard in default browser
+
+---
+
 ## [0.3.8] - 2024-12-24
 
 ### Added

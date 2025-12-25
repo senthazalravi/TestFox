@@ -21,6 +21,8 @@ import { AIE2ETestGenerator } from './generators/aiE2ETestGenerator';
 import { BrowserLogTestGenerator } from './generators/browserLogTestGenerator';
 import { DefectTracker } from './tracking/defectTracker';
 import { DefectDashboard } from './views/defectDashboard';
+import { WebServer } from './server/webServer';
+import { TestFoxWebServer } from './server/webServer';
 import { TestStore } from './store/testStore';
 
 let projectDetector: ProjectDetector;
@@ -37,6 +39,7 @@ let testGeneratorAI: TestGeneratorAI;
 let fullCycleRunner: FullCycleRunner;
 let crossBrowserRunner: CrossBrowserRunner;
 let defectTracker: DefectTracker;
+let webServer: WebServer;
 
 // Status bar items
 let statusBarMain: vscode.StatusBarItem;
@@ -62,6 +65,7 @@ export async function activate(context: vscode.ExtensionContext) {
     fullCycleRunner = new FullCycleRunner(appRunner);
     crossBrowserRunner = new CrossBrowserRunner(dependencyManager);
     defectTracker = new DefectTracker(context);
+    webServer = new WebServer(context);
 
     // Initialize AI client with status bar
     const openRouter = getOpenRouterClient();
@@ -69,6 +73,70 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Load AI configuration (including API key from settings)
     loadAIConfiguration(context);
+
+    // Set up web server callbacks
+    webServer.setCommandCallback(async (command: string, data?: any) => {
+        try {
+            switch (command) {
+                case 'analyze':
+                    await analyzeProject();
+                    return { message: 'Project analysis completed' };
+                case 'generateTests':
+                    await generateTests();
+                    return { message: 'Test generation completed' };
+                case 'runAll':
+                    await runAllTests();
+                    return { message: 'All tests executed' };
+                case 'runFullCycle':
+                    await runFullCycleTests();
+                    return { message: 'Full cycle testing completed' };
+                case 'stopApp':
+                    await appRunner.stop();
+                    updateStatus('stopped');
+                    return { message: 'Application stopped' };
+                case 'exportReport':
+                    await exportReport();
+                    return { message: 'Report exported' };
+                case 'clearData':
+                    await defectTracker.clearAllData();
+                    return { message: 'All data cleared' };
+                default:
+                    throw new Error(`Unknown command: ${command}`);
+            }
+        } catch (error: any) {
+            throw new Error(`Command execution failed: ${error.message}`);
+        }
+    });
+
+    webServer.setDataRequestCallback(async (type: string) => {
+        switch (type) {
+            case 'defects':
+                return defectTracker.getAllDefects();
+            case 'runs':
+                return defectTracker.getAllRuns();
+            case 'stats':
+                const stats = defectTracker.getDefectStats();
+                const runs = defectTracker.getAllRuns();
+                const latestRun = runs[runs.length - 1];
+                return {
+                    totalRuns: runs.length,
+                    totalDefects: stats.total,
+                    openDefects: stats.open,
+                    fixedDefects: stats.fixed,
+                    latestPassRate: latestRun?.passRate || 0,
+                    avgPassRate: runs.length > 0
+                        ? Math.round(runs.reduce((sum, r) => sum + r.passRate, 0) / runs.length)
+                        : 0
+                };
+            case 'trends':
+                return {
+                    ...defectTracker.getImprovementMetrics(),
+                    stats: defectTracker.getDefectStats()
+                };
+            default:
+                throw new Error(`Unknown data type: ${type}`);
+        }
+    });
 
     // Initialize view providers
     testExplorerProvider = new TestExplorerProvider(testStore);
@@ -228,6 +296,62 @@ export async function activate(context: vscode.ExtensionContext) {
 
         vscode.commands.registerCommand('testfox.openDefectDashboard', () => {
             DefectDashboard.createOrShow(context.extensionUri, defectTracker);
+        }),
+
+        vscode.commands.registerCommand('testfox.openBrowserDashboard', async () => {
+            if (!webServer.isServerRunning()) {
+                const started = await webServer.start();
+                if (!started) {
+                    vscode.window.showErrorMessage('TestFox: Failed to start web server for browser dashboard');
+                    return;
+                }
+            }
+
+            const url = webServer.getServerUrl();
+            if (url) {
+                vscode.env.openExternal(vscode.Uri.parse(url));
+            }
+        }),
+
+        vscode.commands.registerCommand('testfox.startWebServer', async () => {
+            const success = await webServer.start();
+            if (success) {
+                vscode.window.showInformationMessage(`TestFox Web Server started on http://localhost:${webServer.getPort()}`);
+                updateStatus('server', `Server: ${webServer.getPort()}`);
+            } else {
+                vscode.window.showErrorMessage('Failed to start TestFox Web Server');
+            }
+        }),
+
+        vscode.commands.registerCommand('testfox.stopWebServer', async () => {
+            await webServer.stop();
+            vscode.window.showInformationMessage('TestFox Web Server stopped');
+            updateStatus('ready');
+        }),
+
+        vscode.commands.registerCommand('testfox.openBrowserDashboard', async () => {
+            if (!webServer.isRunning()) {
+                const startServer = await vscode.window.showInformationMessage(
+                    'Web server is not running. Start it?',
+                    'Start Server',
+                    'Cancel'
+                );
+
+                if (startServer === 'Start Server') {
+                    await vscode.commands.executeCommand('testfox.startWebServer');
+                    // Wait a moment for server to start
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } else {
+                    return;
+                }
+            }
+
+            if (webServer.isRunning()) {
+                const url = `http://localhost:${webServer.getPort()}`;
+                await vscode.env.openExternal(vscode.Uri.parse(url));
+            } else {
+                vscode.window.showErrorMessage('TestFox Web Server is not running');
+            }
         })
     ];
 
@@ -622,6 +746,9 @@ async function runAllTests(): Promise<void> {
                 catResultsArray
             );
 
+            // Notify web server of data changes
+            webServer.notifyDataChange();
+
             // Refresh final results
             testExplorerProvider.refresh();
             testResultsProvider.refresh();
@@ -638,10 +765,13 @@ async function runAllTests(): Promise<void> {
             if (testRun.newDefects > 0) {
                 const action = await vscode.window.showWarningMessage(
                     `${testRun.newDefects} new defects found in this run`,
-                    'View Defect Dashboard'
+                    'View Defect Dashboard',
+                    'View in Browser'
                 );
                 if (action === 'View Defect Dashboard') {
                     vscode.commands.executeCommand('testfox.openDefectDashboard');
+                } else if (action === 'View in Browser') {
+                    vscode.commands.executeCommand('testfox.openBrowserDashboard');
                 }
             }
         } catch (error) {
@@ -650,6 +780,10 @@ async function runAllTests(): Promise<void> {
             vscode.window.showErrorMessage(`TestFox: Test execution failed - ${error}`);
         }
     });
+}
+
+async function runFullCycleTests(): Promise<void> {
+    await runFullCycleTesting();
 }
 
 async function runTestCategory(categoryOrItem?: string | { category?: string }): Promise<void> {
@@ -1060,6 +1194,9 @@ export function deactivate() {
     // Clean up resources
     if (appRunner) {
         appRunner.stop();
+    }
+    if (webServer) {
+        webServer.stop();
     }
     console.log('TestFox has been deactivated');
 }

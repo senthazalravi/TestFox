@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TestFox External Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --accent: #e94560;
+            --accent-green: #3fb950;
+            --accent-yellow: #d29922;
+            --accent-blue: #58a6ff;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --border: #30363d;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .status-connected { color: var(--accent-green); }
+        .status-disconnected { color: #f85149; }
+        .status-connecting { color: var(--accent-yellow); }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
+        .btn-danger { background: #f85149; color: white; }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab:hover { color: var(--text-primary); }
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .chart-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--text-secondary);
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover { background: var(--bg-tertiary); }
+
+        .defect-id {
+            font-family: 'Consolas', monospace;
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-open { background: rgba(248, 81, 73, 0.2); color: #f85149; }
+        .status-fixed { background: rgba(63, 185, 80, 0.2); color: #3fb950; }
+        .status-reopen { background: rgba(210, 153, 34, 0.2); color: #d29922; }
+
+        .severity-critical { color: #f85149; }
+        .severity-high { color: #db6d28; }
+        .severity-medium { color: #d29922; }
+        .severity-low { color: #8b949e; }
+
+        .section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .run-number {
+            font-family: 'Consolas', monospace;
+            color: var(--accent-blue);
+        }
+
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .control-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .control-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .control-btn {
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .control-btn:active {
+            transform: scale(0.98);
+        }
+
+        .log-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .log-entries {
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 10px;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            padding: 2px 0;
+        }
+
+        .log-timestamp { color: var(--text-secondary); }
+        .log-info { color: var(--accent-blue); }
+        .log-success { color: var(--accent-green); }
+        .log-warning { color: var(--accent-yellow); }
+        .log-error { color: #f85149; }
+
+        @media (max-width: 800px) {
+            .charts-row { grid-template-columns: 1fr; }
+            .control-buttons { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🦊 TestFox External Dashboard</h1>
+        <div class="connection-status">
+            <span id="connection-status" class="status-disconnected">● Disconnected</span>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-secondary" onclick="refreshData()">🔄 Refresh</button>
+            <button class="btn btn-danger" onclick="clearData()">🗑️ Clear Data</button>
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <div class="section-title">🎮 Control Panel</div>
+        <div class="control-buttons">
+            <button class="control-btn" onclick="executeCommand('analyze')">🔍 Analyze Project</button>
+            <button class="control-btn" onclick="executeCommand('generateTests')">🧪 Generate Tests</button>
+            <button class="control-btn" onclick="executeCommand('runAll')">▶️ Run All Tests</button>
+            <button class="control-btn" onclick="executeCommand('runFullCycle')">🚀 Full Cycle Testing</button>
+            <button class="control-btn" onclick="executeCommand('stopApp')">⏹️ Stop Application</button>
+            <button class="control-btn" onclick="executeCommand('exportReport')">📄 Export Report</button>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('overview')">📊 Overview</button>
+        <button class="tab" onclick="showTab('defects')">🐛 Defects (${defects?.length || 0})</button>
+        <button class="tab" onclick="showTab('runs')">🏃 Test Runs (${runs?.length || 0})</button>
+        <button class="tab" onclick="showTab('trends')">📈 Trends</button>
+        <button class="tab" onclick="showTab('logs')">📝 Live Logs</button>
+    </div>
+
+    <!-- Overview Tab -->
+    <div id="overview" class="tab-content active">
+        <div id="overview-content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-runs">0</div>
+                    <div class="stat-label">Total Runs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-defects">0</div>
+                    <div class="stat-label">Total Defects</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="open-defects">0</div>
+                    <div class="stat-label">Open Defects</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="fixed-defects">0</div>
+                    <div class="stat-label">Fixed Defects</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="latest-pass-rate">0%</div>
+                    <div class="stat-label">Latest Pass Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avg-pass-rate">0%</div>
+                    <div class="stat-label">Average Pass Rate</div>
+                </div>
+            </div>
+
+            <div class="charts-row">
+                <div class="chart-container">
+                    <div class="chart-title">📊 Defects by Severity</div>
+                    <canvas id="severityChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">📂 Defects by Category</div>
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Defects Tab -->
+    <div id="defects" class="tab-content">
+        <div id="defects-content">
+            <div class="empty-state">Loading defects...</div>
+        </div>
+    </div>
+
+    <!-- Test Runs Tab -->
+    <div id="runs" class="tab-content">
+        <div id="runs-content">
+            <div class="empty-state">Loading test runs...</div>
+        </div>
+    </div>
+
+    <!-- Trends Tab -->
+    <div id="trends" class="tab-content">
+        <div id="trends-content">
+            <div class="chart-container">
+                <div class="chart-title">📈 Pass Rate Trend (Last 10 Runs)</div>
+                <canvas id="passRateChart" height="100"></canvas>
+            </div>
+
+            <div class="charts-row">
+                <div class="chart-container">
+                    <div class="chart-title">🐛 Open Defects Trend</div>
+                    <canvas id="defectTrendChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">✅ Fixed Defects per Run</div>
+                    <canvas id="fixedTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs Tab -->
+    <div id="logs" class="tab-content">
+        <div class="log-panel">
+            <div class="section-title">📝 Live Activity Log</div>
+            <div id="log-entries" class="log-entries">
+                <div class="log-entry log-info">Connected to TestFox server...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        let defects = [];
+        let runs = [];
+        let charts = {};
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            connectToServer();
+        });
+
+        // Connect to WebSocket server
+        function connectToServer() {
+            updateConnectionStatus('connecting');
+
+            socket = io();
+
+            socket.on('connect', () => {
+                updateConnectionStatus('connected');
+                addLogEntry('Connected to TestFox server', 'success');
+                loadInitialData();
+            });
+
+            socket.on('disconnect', () => {
+                updateConnectionStatus('disconnected');
+                addLogEntry('Disconnected from TestFox server', 'error');
+            });
+
+            socket.on('update', (data) => {
+                handleUpdate(data);
+            });
+
+            socket.on('command-response', (data) => {
+                handleCommandResponse(data);
+            });
+
+            socket.on('data-response', (data) => {
+                handleDataResponse(data);
+            });
+
+            socket.on('welcome', (data) => {
+                addLogEntry(data.message, 'info');
+            });
+        }
+
+        function updateConnectionStatus(status) {
+            const statusEl = document.getElementById('connection-status');
+            statusEl.className = `status-${status}`;
+
+            switch(status) {
+                case 'connected':
+                    statusEl.textContent = '● Connected';
+                    break;
+                case 'disconnected':
+                    statusEl.textContent = '● Disconnected';
+                    break;
+                case 'connecting':
+                    statusEl.textContent = '● Connecting...';
+                    break;
+            }
+        }
+
+        function loadInitialData() {
+            requestData('defects');
+            requestData('runs');
+            requestData('stats');
+            requestData('trends');
+        }
+
+        function requestData(type) {
+            if (socket && socket.connected) {
+                socket.emit('request-data', { type });
+            }
+        }
+
+        function executeCommand(command, data) {
+            if (socket && socket.connected) {
+                addLogEntry(`Executing command: ${command}`, 'info');
+                socket.emit('command', { command, payload: data });
+            } else {
+                addLogEntry('Cannot execute command: not connected', 'error');
+            }
+        }
+
+        function handleCommandResponse(data) {
+            if (data.success) {
+                addLogEntry(`Command "${data.command}" executed successfully`, 'success');
+            } else {
+                addLogEntry(`Command "${data.command}" failed: ${data.error}`, 'error');
+            }
+        }
+
+        function handleDataResponse(data) {
+            if (data.success) {
+                switch(data.type) {
+                    case 'defects':
+                        defects = data.data || [];
+                        updateDefectsTab();
+                        break;
+                    case 'runs':
+                        runs = data.data || [];
+                        updateRunsTab();
+                        break;
+                    case 'stats':
+                        updateStats(data.data);
+                        break;
+                    case 'trends':
+                        updateTrends(data.data);
+                        break;
+                }
+            } else {
+                addLogEntry(`Failed to load ${data.type}: ${data.error}`, 'error');
+            }
+        }
+
+        function handleUpdate(data) {
+            switch(data.type) {
+                case 'test-status':
+                    addLogEntry(`Test status: ${data.data.message}`, 'info');
+                    break;
+                case 'command-executed':
+                    addLogEntry(`Command executed: ${data.data.command}`, 'success');
+                    break;
+                case 'error':
+                    addLogEntry(`Error: ${data.data.message}`, 'error');
+                    break;
+                case 'data-changed':
+                    // Refresh data when something changes
+                    loadInitialData();
+                    break;
+            }
+        }
+
+        function updateStats(stats) {
+            if (!stats) return;
+
+            document.getElementById('total-runs').textContent = stats.totalRuns || 0;
+            document.getElementById('total-defects').textContent = stats.totalDefects || 0;
+            document.getElementById('open-defects').textContent = stats.openDefects || 0;
+            document.getElementById('fixed-defects').textContent = stats.fixedDefects || 0;
+            document.getElementById('latest-pass-rate').textContent = `${stats.latestPassRate || 0}%`;
+            document.getElementById('avg-pass-rate').textContent = `${stats.avgPassRate || 0}%`;
+
+            // Update tab counters
+            document.querySelector('[onclick="showTab(\'defects\')"]').textContent = `🐛 Defects (${stats.totalDefects || 0})`;
+            document.querySelector('[onclick="showTab(\'runs\')"]').textContent = `🏃 Test Runs (${stats.totalRuns || 0})`;
+        }
+
+        function updateDefectsTab() {
+            const content = document.getElementById('defects-content');
+
+            if (defects.length === 0) {
+                content.innerHTML = '<div class="empty-state">No defects recorded yet. Run tests to track defects.</div>';
+                return;
+            }
+
+            content.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Defect ID</th>
+                            <th>Test Name</th>
+                            <th>Category</th>
+                            <th>Status</th>
+                            <th>Severity</th>
+                            <th>First Found</th>
+                            <th>Fixed In</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${defects.map(d => `
+                            <tr>
+                                <td class="defect-id">${d.id}</td>
+                                <td>${escapeHtml(d.testName)}</td>
+                                <td>${d.category}</td>
+                                <td><span class="status-badge status-${d.status}">${d.status}</span></td>
+                                <td><span class="severity-${d.severity}">${d.severity.toUpperCase()}</span></td>
+                                <td class="run-number">Run #${d.firstFoundRun}</td>
+                                <td class="run-number">${d.fixedInRun ? `Run #${d.fixedInRun}` : '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function updateRunsTab() {
+            const content = document.getElementById('runs-content');
+
+            if (runs.length === 0) {
+                content.innerHTML = '<div class="empty-state">No test runs recorded yet.</div>';
+                return;
+            }
+
+            content.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Run #</th>
+                            <th>Date</th>
+                            <th>Duration</th>
+                            <th>Total</th>
+                            <th>Passed</th>
+                            <th>Failed</th>
+                            <th>Pass Rate</th>
+                            <th>New Defects</th>
+                            <th>Fixed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${runs.slice().reverse().map(r => `
+                            <tr>
+                                <td class="run-number">Run #${r.runNumber}</td>
+                                <td>${new Date(r.timestamp).toLocaleString()}</td>
+                                <td>${Math.round(r.duration / 1000)}s</td>
+                                <td>${r.totalTests}</td>
+                                <td style="color: #3fb950">${r.passed}</td>
+                                <td style="color: #f85149">${r.failed}</td>
+                                <td><strong>${r.passRate}%</strong></td>
+                                <td style="color: ${r.newDefects > 0 ? '#f85149' : 'inherit'}">${r.newDefects}</td>
+                                <td style="color: ${r.fixedDefects > 0 ? '#3fb950' : 'inherit'}">${r.fixedDefects}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function updateTrends(trends) {
+            if (!trends) return;
+
+            // Update existing charts or create new ones
+            if (charts.passRateChart) {
+                charts.passRateChart.destroy();
+            }
+            if (charts.defectTrendChart) {
+                charts.defectTrendChart.destroy();
+            }
+            if (charts.fixedTrendChart) {
+                charts.fixedTrendChart.destroy();
+            }
+
+            // Pass rate trend
+            charts.passRateChart = new Chart(document.getElementById('passRateChart'), {
+                type: 'line',
+                data: {
+                    labels: trends.runLabels || [],
+                    datasets: [{
+                        label: 'Pass Rate %',
+                        data: trends.passRateTrend || [],
+                        borderColor: '#3fb950',
+                        backgroundColor: 'rgba(63, 185, 80, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { min: 0, max: 100, ticks: { color: '#8b949e' }, grid: { color: '#30363d' } },
+                        x: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } }
+                    },
+                    plugins: { legend: { labels: { color: '#c9d1d9' } } }
+                }
+            });
+
+            // Defect trend
+            charts.defectTrendChart = new Chart(document.getElementById('defectTrendChart'), {
+                type: 'line',
+                data: {
+                    labels: trends.runLabels || [],
+                    datasets: [{
+                        label: 'Open Defects',
+                        data: trends.defectTrend || [],
+                        borderColor: '#f85149',
+                        backgroundColor: 'rgba(248, 81, 73, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } },
+                        x: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } }
+                    },
+                    plugins: { legend: { labels: { color: '#c9d1d9' } } }
+                }
+            });
+
+            // Fixed trend
+            charts.fixedTrendChart = new Chart(document.getElementById('fixedTrendChart'), {
+                type: 'bar',
+                data: {
+                    labels: trends.runLabels || [],
+                    datasets: [{
+                        label: 'Fixed Defects',
+                        data: trends.fixedTrend || [],
+                        backgroundColor: '#3fb950'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } },
+                        x: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } }
+                    },
+                    plugins: { legend: { labels: { color: '#c9d1d9' } } }
+                }
+            });
+
+            // Severity chart
+            const stats = trends.stats || {};
+            if (charts.severityChart) {
+                charts.severityChart.destroy();
+            }
+            if (stats.bySeverity) {
+                charts.severityChart = new Chart(document.getElementById('severityChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Critical', 'High', 'Medium', 'Low'],
+                        datasets: [{
+                            data: [
+                                stats.bySeverity.critical || 0,
+                                stats.bySeverity.high || 0,
+                                stats.bySeverity.medium || 0,
+                                stats.bySeverity.low || 0
+                            ],
+                            backgroundColor: ['#f85149', '#db6d28', '#d29922', '#8b949e']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { position: 'bottom', labels: { color: '#c9d1d9' } } }
+                    }
+                });
+            }
+
+            // Category chart
+            if (charts.categoryChart) {
+                charts.categoryChart.destroy();
+            }
+            if (stats.byCategory) {
+                const categories = Object.keys(stats.byCategory);
+                charts.categoryChart = new Chart(document.getElementById('categoryChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: categories,
+                        datasets: [{
+                            label: 'Defects',
+                            data: categories.map(c => stats.byCategory[c]),
+                            backgroundColor: '#e94560'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } },
+                            y: { ticks: { color: '#8b949e' }, grid: { color: '#30363d' } }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+        }
+
+        function showTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        function refreshData() {
+            addLogEntry('Refreshing data...', 'info');
+            loadInitialData();
+        }
+
+        function clearData() {
+            if (confirm('Are you sure you want to clear all defect tracking data?')) {
+                executeCommand('clearData');
+            }
+        }
+
+        function addLogEntry(message, type = 'info') {
+            const logContainer = document.getElementById('log-entries');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${escapeHtml(message)}`;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            if (socket) {
+                socket.disconnect();
+            }
+        });
+    </script>
+</body>
+</html>

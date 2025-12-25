@@ -48,7 +48,10 @@ export class DefectDashboard {
                     case 'refresh':
                         this.update();
                         break;
-                    case 'clearData':
+                    case 'openInBrowser':
+                        vscode.commands.executeCommand('testfox.openBrowserDashboard');
+                        break;
+                    case 'clearDefects':
                         await this._defectTracker.clearAllData();
                         this.update();
                         vscode.window.showInformationMessage('TestFox: All tracking data cleared');
@@ -122,6 +125,7 @@ export class DefectDashboard {
         .header-actions {
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         .btn {
@@ -298,6 +302,7 @@ export class DefectDashboard {
     <div class="header">
         <h1>🦊 TestFox Defect Dashboard</h1>
         <div class="header-actions">
+            <button class="btn btn-info" onclick="openInBrowser()">🌐 View in Browser</button>
             <button class="btn btn-secondary" onclick="refresh()">🔄 Refresh</button>
             <button class="btn btn-danger" onclick="clearData()">🗑️ Clear Data</button>
         </div>
@@ -613,9 +618,13 @@ export class DefectDashboard {
             vscode.postMessage({ command: 'refresh' });
         }
 
+        function openInBrowser() {
+            vscode.postMessage({ command: 'openInBrowser' });
+        }
+
         function clearData() {
             if (confirm('Are you sure you want to clear all defect tracking data?')) {
-                vscode.postMessage({ command: 'clearData' });
+                vscode.postMessage({ command: 'clearDefects' });
             }
         }
     </script>
