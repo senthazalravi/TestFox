@@ -2,27 +2,32 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
-## [0.4.8] - 2024-12-25
+## [0.4.9] - 2024-12-25
 
-### Added
-- **Daily Automated Testing** ⏰
-  - Schedule full cycle tests to run automatically every day
-  - Configurable daily test execution time (HH:MM format)
-  - Status bar indicator showing next scheduled run time
-  - Notifications on test completion (configurable)
-  - Manual trigger option for testing the automation
+### Fixed
+- **Application Availability Checks** 🔍
+  - Added automatic application availability detection before running tests
+  - Prevents test failures when application is not running
+  - Automatically checks common ports (3000, 8080, 4200, 5000, 8000, 4000, 5173)
+  - Provides clear feedback when no application is detected
 
-### New Settings Available:
-- `testfox.automation.enabled` - Enable automated test scheduling
-- `testfox.automation.dailyTests` - Run full cycle tests daily
-- `testfox.automation.dailyTestTime` - Time to run daily tests (default: 09:00)
-- `testfox.automation.notifyOnCompletion` - Show notifications when tests complete
+- **Enhanced User Experience** 🎯
+  - Status bar now shows application status (port number or "Off")
+  - Color-coded status bar (green=running, yellow=warning, red=error)
+  - "Check Application Status" command for manual status verification
+  - Automatic application startup prompts when needed
 
-### Features:
-- **Smart Scheduling**: Automatically calculates next run time based on configured time
-- **Status Monitoring**: Status bar shows when tests are scheduled and next run time
-- **Error Handling**: Continues working even if scheduled tests fail
-- **Manual Override**: "TestFox: Run Scheduled Tests Now" command for immediate testing
+### Improved Features:
+- **Smart Test Prevention**: Tests won't run if application is not available
+- **Visual Status Indicators**: Status bar shows real-time application status
+- **Better Error Messages**: Clear guidance when applications are not running
+- **Automatic Port Detection**: Scans multiple common development ports
+- **Startup Integration**: Checks application status during test generation
+
+### Technical Improvements:
+- **Proactive Error Prevention**: Checks application health before test execution
+- **User-Friendly Feedback**: Provides actionable next steps when issues occur
+- **Background Status Monitoring**: Continuous application availability checking
 
 ## [0.4.7] - 2024-12-25
 
