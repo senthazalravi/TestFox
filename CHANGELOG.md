@@ -2,7 +2,27 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
-## [0.3.9] - 2024-12-24
+## [0.4.1] - 2024-12-24
+
+### Added
+- **Welcome Screen & Walkthrough** 🎉
+  - Interactive welcome experience for new users
+  - Step-by-step setup guide with visual walkthrough
+  - Feature overview with detailed explanations
+  - Getting started guide with best practices
+  - Terms of service and privacy policy acceptance
+  - Beautiful design with TestFox branding and logo
+
+- **Enhanced User Onboarding**
+  - Guided walkthrough for first-time users
+  - Clear explanation of TestFox capabilities
+  - Easy setup instructions for AI and browser configuration
+  - Feature highlights with practical examples
+  - Pro tips for optimal testing results
+
+---
+
+## [0.4.0] - 2024-12-24
 
 ### Added
 - **External Browser Dashboard** 🌐

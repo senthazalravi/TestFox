@@ -167,6 +167,7 @@ TestFox is **not** a unit testing framework - it's the comprehensive system test
 2. Go to Extensions (Ctrl+Shift+X)
 3. Search for "TestFox"
 4. Click Install
+5. **Welcome Screen**: TestFox will show an interactive welcome guide to help you get started
 
 ### Dependencies
 Playwright browsers are automatically installed on first use. If needed, you can install manually:

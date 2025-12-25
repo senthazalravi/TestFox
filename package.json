@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing extension - the final quality gate in your SDLC. Automated functional, security, performance, and API testing with ISTQB standards. Uses Grok/XAI via OpenRouter.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -51,10 +51,58 @@
     }
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onWalkthrough:testfoxWelcome"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "walkthroughs": [
+      {
+        "id": "testfoxWelcome",
+        "title": "Welcome to TestFox",
+        "description": "Get started with automated testing and quality assurance",
+        "steps": [
+          {
+            "id": "welcome",
+            "title": "Welcome to TestFox 🦊",
+            "description": "TestFox is your comprehensive testing companion that automates quality assurance and finds bugs before they reach production.\n\n[Learn more about TestFox](https://marketplace.visualstudio.com/items?itemName=TestFox.testfox)",
+            "media": {
+              "markdown": "media/welcome.md"
+            },
+            "completionEvents": [
+              "onCommand:testfox.analyze"
+            ]
+          },
+          {
+            "id": "setup",
+            "title": "Quick Setup",
+            "description": "Get TestFox ready to test your applications in just a few steps.",
+            "media": {
+              "markdown": "media/setup.md"
+            }
+          },
+          {
+            "id": "features",
+            "title": "Powerful Testing Features",
+            "description": "Discover TestFox's comprehensive testing capabilities.",
+            "media": {
+              "markdown": "media/features.md"
+            }
+          },
+          {
+            "id": "getStarted",
+            "title": "Start Testing",
+            "description": "Begin your testing journey with TestFox.",
+            "media": {
+              "markdown": "media/get-started.md"
+            },
+            "completionEvents": [
+              "onCommand:testfox.generateTests"
+            ]
+          }
+        ]
+      }
+    ],
     "commands": [
       {
         "command": "testfox.analyze",
