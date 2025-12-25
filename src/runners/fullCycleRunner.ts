@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { CredentialDiscovery, DiscoveredCredential } from '../core/credentialDiscovery';
+import { CredentialDiscovery, DiscoveredCredential, TestAccount } from '../core/credentialDiscovery';
 import { SmartBrowserRunner, PageInfo, InteractionResult } from './smartBrowserRunner';
 import { ProjectInfo } from '../types';
 import { AppRunner } from '../core/appRunner';
@@ -26,6 +26,11 @@ export interface FullCycleResult {
     networkTestPassed: boolean;
     networkFailedRequests: number;
     networkSlowRequests: number;
+    // Test account management
+    testAccountsCreated: TestAccount[];
+    testAccountsDeleted: TestAccount[];
+    accountCreationAttempts: number;
+    accountDeletionAttempts: number;
 }
 
 /**
@@ -79,7 +84,11 @@ export class FullCycleRunner {
             consoleWarnings: 0,
             networkTestPassed: true,
             networkFailedRequests: 0,
-            networkSlowRequests: 0
+            networkSlowRequests: 0,
+            testAccountsCreated: [],
+            testAccountsDeleted: [],
+            accountCreationAttempts: 0,
+            accountDeletionAttempts: 0
         };
 
         this.outputChannel.show();
@@ -128,6 +137,26 @@ export class FullCycleRunner {
                 return this.finalize(result);
             }
             this.log('   ✅ Browser initialized');
+
+            // Step 3.5: Initialize test accounts
+            this.log('');
+            this.log('👤 Step 3.5: Initializing test accounts...');
+            this.browserRunner.initializeTestAccounts(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '', [
+                'functional', 'ui', 'security', 'performance', 'accessibility'
+            ]);
+
+            // Step 3.6: Create test accounts
+            this.log('');
+            this.log('📝 Step 3.6: Creating test accounts...');
+            const createdAccounts = await this.browserRunner.createTestAccounts();
+            result.testAccountsCreated = createdAccounts;
+            result.accountCreationAttempts = this.browserRunner.getTestAccounts().length;
+            this.log(`   ✅ Created ${createdAccounts.length}/${result.accountCreationAttempts} test accounts`);
+
+            // Log created accounts
+            for (const account of createdAccounts) {
+                this.log(`   • ${account.type}: ${account.email} (${account.testType || 'general'})`);
+            }
 
             // Step 4: Navigate to home
             await this.browserRunner.navigateToHome();
@@ -351,11 +380,28 @@ export class FullCycleRunner {
                 }
             }
 
+            // Step 11: Clean up test accounts
+            this.log('');
+            this.log('🧹 Step 11: Cleaning up test accounts...');
+            const deletedAccounts = await this.browserRunner.cleanupTestAccounts();
+            result.testAccountsDeleted = deletedAccounts;
+            result.accountDeletionAttempts = result.testAccountsCreated.length;
+            this.log(`   ✅ Cleaned up ${deletedAccounts.length}/${result.accountDeletionAttempts} test accounts`);
+
             // Take final screenshot
             const finalScreenshot = await this.browserRunner.takeScreenshot('final');
             if (finalScreenshot) result.screenshots.push(finalScreenshot);
 
             result.success = true;
+
+            // Step 11: Clean up test accounts
+            this.log('');
+            this.log('🧹 Step 11: Cleaning up test accounts...');
+            await this.browserRunner.cleanupTestAccounts();
+            const cleanedAccounts = this.browserRunner.getTestAccounts().filter(a => !a.created).length;
+            result.testAccountsCleaned = cleanedAccounts;
+            this.log(`   ✅ Cleaned up ${cleanedAccounts} test accounts`);
+
             this.log('');
             this.log('═══════════════════════════════════════════════════');
             this.log('           FULL CYCLE TESTING COMPLETE              ');
@@ -383,6 +429,8 @@ export class FullCycleRunner {
         this.log('📊 Summary:');
         this.log(`   • Duration: ${Math.round(result.duration / 1000)}s`);
         this.log(`   • Credentials found: ${result.credentialsFound.length}`);
+        this.log(`   • Test accounts created: ${result.testAccountsCreated.length}/${result.accountCreationAttempts}`);
+        this.log(`   • Test accounts cleaned: ${result.testAccountsDeleted.length}/${result.accountDeletionAttempts}`);
         this.log(`   • Login: ${result.loginSuccessful ? '✅ Success' : (result.loginAttempted ? '❌ Failed' : '⚠️ Not attempted')}`);
         this.log(`   • Pages visited: ${result.pagesVisited}`);
         this.log(`   • Forms tested: ${result.formsTestedCount}`);
@@ -402,6 +450,15 @@ export class FullCycleRunner {
         this.log(`   • Screenshots: ${result.screenshots.length}`);
         this.log(`   • Errors: ${result.errors.length}`);
         this.log('');
+
+        // Show created test accounts
+        if (result.testAccounts && result.testAccounts.length > 0) {
+            this.log('👤 Created Test Accounts:');
+            for (const account of result.testAccounts) {
+                this.log(`   • ${account.email} (${account.type}) - ${account.created ? '✅ Created' : '❌ Failed'}`);
+            }
+            this.log('');
+        }
 
         if (result.errors.length > 0) {
             this.log('⚠️ Errors encountered:');

@@ -13,6 +13,29 @@ export interface DiscoveredCredential {
     confidence: 'high' | 'medium' | 'low';
 }
 
+export interface TestAccount {
+    id: string;
+    type: 'admin' | 'user' | 'guest' | 'moderator' | 'tester';
+    email: string;
+    username: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    phone?: string;
+    address?: string;
+    created: boolean;
+    createdAt?: Date;
+    testType?: string;
+}
+
+export interface AccountCreationResult {
+    success: boolean;
+    account: TestAccount;
+    error?: string;
+    url?: string;
+    screenshot?: string;
+}
+
 export interface DiscoveredEndpoint {
     url: string;
     type: 'login' | 'register' | 'api' | 'page';
@@ -430,6 +453,307 @@ export class CredentialDiscovery {
      */
     getAllCredentials(): DiscoveredCredential[] {
         return this.credentials;
+    }
+
+    /**
+     * Generate test accounts for different testing scenarios
+     */
+    generateTestAccounts(testTypes: string[] = []): TestAccount[] {
+        const accounts: TestAccount[] = [];
+        const timestamp = Date.now();
+
+        // Base account types
+        const accountTypes: TestAccount['type'][] = ['admin', 'user', 'guest', 'moderator', 'tester'];
+
+        // Generate accounts for each type
+        accountTypes.forEach((type, index) => {
+            const account: TestAccount = {
+                id: `testfox-${type}-${timestamp}-${index}`,
+                type,
+                email: `${type}@testfox.local`,
+                username: `testfox_${type}_${index}`,
+                password: `TestFox123!@${type}`,
+                firstName: this.generateFirstName(),
+                lastName: this.generateLastName(),
+                phone: this.generatePhoneNumber(),
+                address: this.generateAddress(),
+                created: false,
+                testType: testTypes.length > 0 ? testTypes[0] : 'general'
+            };
+            accounts.push(account);
+        });
+
+        // Generate additional accounts for specific test types
+        testTypes.forEach(testType => {
+            if (testType !== 'general') {
+                const typeAccount: TestAccount = {
+                    id: `testfox-${testType}-${timestamp}`,
+                    type: 'tester',
+                    email: `${testType}@testfox.local`,
+                    username: `testfox_${testType}`,
+                    password: `TestFox123!@${testType}`,
+                    firstName: this.generateFirstName(),
+                    lastName: this.generateLastName(),
+                    phone: this.generatePhoneNumber(),
+                    address: this.generateAddress(),
+                    created: false,
+                    testType
+                };
+                accounts.push(typeAccount);
+            }
+        });
+
+        // Generate edge case accounts
+        const edgeCases = [
+            { username: 'test_user_123', email: 'test123@testfox.local', type: 'user' as const },
+            { username: 'admin@test', email: 'admin@testfox.local', type: 'admin' as const },
+            { username: 'guest.user', email: 'guest@testfox.local', type: 'guest' as const },
+            { username: 'mod-2024', email: 'mod@testfox.local', type: 'moderator' as const }
+        ];
+
+        edgeCases.forEach((edgeCase, index) => {
+            const edgeAccount: TestAccount = {
+                id: `testfox-edge-${timestamp}-${index}`,
+                type: edgeCase.type,
+                email: edgeCase.email,
+                username: edgeCase.username,
+                password: `EdgeCase123!@${edgeCase.type}`,
+                firstName: this.generateFirstName(),
+                lastName: this.generateLastName(),
+                phone: this.generatePhoneNumber(),
+                address: this.generateAddress(),
+                created: false,
+                testType: 'edge-case'
+            };
+            accounts.push(edgeAccount);
+        });
+
+        return accounts;
+    }
+
+    /**
+     * Create a test account on the application (if registration endpoint exists)
+     */
+    async createTestAccount(page: any, account: TestAccount, registerUrl?: string): Promise<AccountCreationResult> {
+        const result: AccountCreationResult = {
+            success: false,
+            account: { ...account }
+        };
+
+        try {
+            // Try to find registration page
+            if (registerUrl) {
+                await page.goto(registerUrl);
+            } else {
+                // Try common registration URLs
+                const registerUrls = ['/register', '/signup', '/sign-up', '/join', '/create-account'];
+                for (const url of registerUrls) {
+                    try {
+                        await page.goto(url, { waitUntil: 'networkidle' });
+                        // Check if we have registration form elements
+                        const hasForm = await page.locator('input[type="email"], input[name*="email"]').count() > 0;
+                        if (hasForm) break;
+                    } catch {
+                        continue;
+                    }
+                }
+            }
+
+            // Wait for form to load
+            await page.waitForTimeout(1000);
+
+            // Fill registration form
+            const formSelectors = {
+                email: 'input[type="email"], input[name*="email"], input[placeholder*="email"]',
+                username: 'input[name*="username"], input[name*="user"], input[placeholder*="username"]',
+                password: 'input[type="password"], input[name*="password"]',
+                confirmPassword: 'input[name*="confirm"], input[name*="repeat"]',
+                firstName: 'input[name*="first"], input[name*="fname"]',
+                lastName: 'input[name*="last"], input[name*="lname"]',
+                phone: 'input[type="tel"], input[name*="phone"]',
+                submit: 'button[type="submit"], input[type="submit"], button:has-text("Register"), button:has-text("Sign Up")'
+            };
+
+            // Fill email (required)
+            try {
+                await page.locator(formSelectors.email).first().fill(account.email);
+            } catch (error) {
+                result.error = 'Could not find email field';
+                return result;
+            }
+
+            // Fill password (required)
+            try {
+                const passwordFields = page.locator(formSelectors.password);
+                await passwordFields.first().fill(account.password);
+                // If there's a confirm password field, fill it too
+                if (await passwordFields.count() > 1) {
+                    await passwordFields.nth(1).fill(account.password);
+                }
+            } catch (error) {
+                result.error = 'Could not find password field';
+                return result;
+            }
+
+            // Fill optional fields
+            try {
+                await page.locator(formSelectors.username).first().fill(account.username).catch(() => {});
+                await page.locator(formSelectors.firstName).first().fill(account.firstName).catch(() => {});
+                await page.locator(formSelectors.lastName).first().fill(account.lastName).catch(() => {});
+                await page.locator(formSelectors.phone).first().fill(account.phone || '').catch(() => {});
+            } catch {
+                // Optional fields, ignore errors
+            }
+
+            // Submit form
+            try {
+                await page.locator(formSelectors.submit).first().click();
+            } catch (error) {
+                result.error = 'Could not find submit button';
+                return result;
+            }
+
+            // Wait for navigation or success message
+            await page.waitForTimeout(3000);
+
+            // Check for success indicators
+            const successIndicators = [
+                'page.locator("text=success")',
+                'page.locator("text=account created")',
+                'page.locator("text=registration successful")',
+                'page.locator("text=welcome")',
+                'page.locator("text=verify your email")'
+            ];
+
+            let isSuccess = false;
+            for (const indicator of successIndicators) {
+                try {
+                    if (await eval(indicator).count() > 0) {
+                        isSuccess = true;
+                        break;
+                    }
+                } catch {
+                    continue;
+                }
+            }
+
+            // Check if we're on a different page (dashboard, login, etc.)
+            const currentUrl = page.url();
+            if (currentUrl.includes('dashboard') || currentUrl.includes('profile') ||
+                currentUrl.includes('home') || !currentUrl.includes('register')) {
+                isSuccess = true;
+            }
+
+            if (isSuccess) {
+                result.success = true;
+                result.account.created = true;
+                result.account.createdAt = new Date();
+                result.url = currentUrl;
+
+                // Take screenshot
+                try {
+                    result.screenshot = await page.screenshot({ fullPage: false });
+                } catch {
+                    // Screenshot optional
+                }
+            } else {
+                result.error = 'Registration may have failed - no success indicators found';
+            }
+
+        } catch (error: any) {
+            result.error = `Registration failed: ${error.message}`;
+        }
+
+        return result;
+    }
+
+    /**
+     * Delete a test account (if account deletion is available)
+     */
+    async deleteTestAccount(page: any, account: TestAccount): Promise<boolean> {
+        try {
+            // Try to navigate to account/profile settings
+            const profileUrls = ['/profile', '/account', '/settings', '/user'];
+            for (const url of profileUrls) {
+                try {
+                    await page.goto(url);
+                    await page.waitForTimeout(1000);
+                    break;
+                } catch {
+                    continue;
+                }
+            }
+
+            // Look for delete account button/link
+            const deleteSelectors = [
+                'button:has-text("Delete Account")',
+                'button:has-text("Delete")',
+                'a:has-text("Delete Account")',
+                'button:has-text("Remove Account")',
+                'button[class*="delete"]',
+                'button[id*="delete"]'
+            ];
+
+            for (const selector of deleteSelectors) {
+                try {
+                    const element = page.locator(selector).first();
+                    if (await element.count() > 0) {
+                        await element.click();
+                        await page.waitForTimeout(1000);
+
+                        // Confirm deletion if confirmation dialog appears
+                        try {
+                            await page.locator('button:has-text("Confirm"), button:has-text("Yes"), button:has-text("Delete")').first().click();
+                            await page.waitForTimeout(2000);
+                            return true;
+                        } catch {
+                            // No confirmation needed
+                            return true;
+                        }
+                    }
+                } catch {
+                    continue;
+                }
+            }
+
+            return false; // Could not find delete option
+        } catch (error) {
+            console.warn(`Could not delete test account ${account.email}:`, error);
+            return false;
+        }
+    }
+
+    // Helper methods for generating realistic test data
+    private generateFirstName(): string {
+        const firstNames = [
+            'John', 'Jane', 'Michael', 'Sarah', 'David', 'Lisa', 'Robert', 'Emma',
+            'James', 'Maria', 'William', 'Jennifer', 'Richard', 'Linda', 'Charles', 'Susan',
+            'Joseph', 'Margaret', 'Thomas', 'Dorothy', 'Christopher', 'Barbara', 'Daniel', 'Patricia'
+        ];
+        return firstNames[Math.floor(Math.random() * firstNames.length)];
+    }
+
+    private generateLastName(): string {
+        const lastNames = [
+            'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis',
+            'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas',
+            'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee', 'Perez', 'Thompson', 'White'
+        ];
+        return lastNames[Math.floor(Math.random() * lastNames.length)];
+    }
+
+    private generatePhoneNumber(): string {
+        const areaCode = Math.floor(Math.random() * 900) + 100;
+        const exchange = Math.floor(Math.random() * 900) + 100;
+        const number = Math.floor(Math.random() * 9000) + 1000;
+        return `(${areaCode}) ${exchange}-${number}`;
+    }
+
+    private generateAddress(): string {
+        const streets = ['Main St', 'Oak Ave', 'Pine Rd', 'Cedar Ln', 'Maple Dr', 'Elm St'];
+        const streetNumber = Math.floor(Math.random() * 9999) + 1;
+        const street = streets[Math.floor(Math.random() * streets.length)];
+        return `${streetNumber} ${street}`;
     }
 }
 

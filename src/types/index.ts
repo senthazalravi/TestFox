@@ -152,7 +152,10 @@ export type TestCategory =
     
     // Browser Monitoring
     | 'console_logs'    // Browser console error/warning monitoring
-    | 'network_logs';   // Network request/response monitoring
+    | 'network_logs'    // Network request/response monitoring
+
+    // Account Management
+    | 'account_management'; // User account creation, update, deletion testing
 
 // Category groups for UI organization
 export type TestCategoryGroup = 
@@ -207,7 +210,10 @@ export const TEST_CATEGORIES: TestCategoryInfo[] = [
     
     // Browser Monitoring
     { id: 'console_logs', name: 'Console Log Tests', description: 'Browser console monitoring', group: 'browser_monitoring', icon: 'terminal', automationDefault: 'full' },
-    { id: 'network_logs', name: 'Network Log Tests', description: 'Network request monitoring', group: 'browser_monitoring', icon: 'radio-tower', automationDefault: 'full' }
+    { id: 'network_logs', name: 'Network Log Tests', description: 'Network request monitoring', group: 'browser_monitoring', icon: 'radio-tower', automationDefault: 'full' },
+
+    // Account Management
+    { id: 'account_management', name: 'Account Management Tests', description: 'User account lifecycle testing', group: 'browser_monitoring', icon: 'person-add', automationDefault: 'full' }
 ];
 
 export const CATEGORY_GROUPS = [

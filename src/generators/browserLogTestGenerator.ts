@@ -104,6 +104,129 @@ export class BrowserLogTestGenerator {
     }
 
     /**
+     * Generate account management test cases
+     */
+    generateAccountManagementTests(): TestCase[] {
+        const tests: TestCase[] = [];
+
+        // Account Creation Tests
+        tests.push(this.createTest(
+            'account-create-admin',
+            'Account Creation - Admin User',
+            'Account Management',
+            'Verify admin account can be created successfully',
+            ['Navigate to registration page', 'Fill admin account details', 'Submit registration form', 'Verify account creation success', 'Verify admin privileges'],
+            'critical',
+            ['account', 'creation', 'admin']
+        ));
+
+        tests.push(this.createTest(
+            'account-create-user',
+            'Account Creation - Regular User',
+            'Account Management',
+            'Verify regular user account can be created successfully',
+            ['Navigate to registration page', 'Fill user account details', 'Submit registration form', 'Verify account creation success', 'Verify user dashboard access'],
+            'critical',
+            ['account', 'creation', 'user']
+        ));
+
+        tests.push(this.createTest(
+            'account-create-validation',
+            'Account Creation - Form Validation',
+            'Account Management',
+            'Verify proper validation on account creation form',
+            ['Submit empty form', 'Verify required field errors', 'Submit invalid email format', 'Verify email validation error', 'Submit weak password', 'Verify password strength requirements'],
+            'high',
+            ['account', 'validation', 'form']
+        ));
+
+        tests.push(this.createTest(
+            'account-create-duplicate',
+            'Account Creation - Duplicate Prevention',
+            'Account Management',
+            'Verify duplicate accounts cannot be created',
+            ['Create first account successfully', 'Attempt to create account with same email', 'Verify duplicate email error', 'Verify account not created'],
+            'high',
+            ['account', 'duplicate', 'validation']
+        ));
+
+        // Account Deletion Tests
+        tests.push(this.createTest(
+            'account-delete-own',
+            'Account Deletion - Delete Own Account',
+            'Account Management',
+            'Verify users can delete their own accounts',
+            ['Login as test user', 'Navigate to account settings', 'Click delete account', 'Confirm deletion', 'Verify account removal', 'Verify logout after deletion'],
+            'critical',
+            ['account', 'deletion', 'user']
+        ));
+
+        tests.push(this.createTest(
+            'account-delete-admin',
+            'Account Deletion - Admin Delete User',
+            'Account Management',
+            'Verify admins can delete user accounts',
+            ['Login as admin', 'Navigate to user management', 'Select user account', 'Delete user account', 'Verify user removal', 'Verify user cannot login'],
+            'high',
+            ['account', 'deletion', 'admin']
+        ));
+
+        tests.push(this.createTest(
+            'account-delete-confirmation',
+            'Account Deletion - Confirmation Required',
+            'Account Management',
+            'Verify account deletion requires confirmation',
+            ['Attempt to delete account', 'Verify confirmation dialog appears', 'Cancel deletion', 'Verify account still exists', 'Confirm deletion', 'Verify account removed'],
+            'medium',
+            ['account', 'confirmation', 'safety']
+        ));
+
+        // Account Update Tests
+        tests.push(this.createTest(
+            'account-update-profile',
+            'Account Update - Profile Information',
+            'Account Management',
+            'Verify users can update their profile information',
+            ['Login to account', 'Navigate to profile settings', 'Update name, email, phone', 'Save changes', 'Verify updates persist', 'Refresh page and verify changes'],
+            'high',
+            ['account', 'update', 'profile']
+        ));
+
+        tests.push(this.createTest(
+            'account-update-password',
+            'Account Update - Password Change',
+            'Account Management',
+            'Verify users can change their passwords securely',
+            ['Login to account', 'Navigate to password settings', 'Enter current password', 'Enter new password', 'Confirm new password', 'Save changes', 'Login with new password', 'Verify old password fails'],
+            'critical',
+            ['account', 'password', 'security']
+        ));
+
+        // Account Security Tests
+        tests.push(this.createTest(
+            'account-security-session',
+            'Account Security - Session Management',
+            'Account Management',
+            'Verify proper session handling and logout',
+            ['Login to account', 'Open multiple tabs', 'Logout from one tab', 'Verify all tabs logged out', 'Verify session cookies cleared'],
+            'high',
+            ['account', 'session', 'security']
+        ));
+
+        tests.push(this.createTest(
+            'account-security-inactive',
+            'Account Security - Inactive Account Handling',
+            'Account Management',
+            'Verify inactive accounts are handled properly',
+            ['Create account but don\'t verify', 'Try to login', 'Verify appropriate error message', 'Check for account lockout after multiple failed attempts'],
+            'medium',
+            ['account', 'inactive', 'security']
+        ));
+
+        return tests;
+    }
+
+    /**
      * Generate network log test cases
      */
     generateNetworkLogTests(): TestCase[] {
@@ -250,7 +373,8 @@ export class BrowserLogTestGenerator {
     generateAllBrowserLogTests(): TestCase[] {
         return [
             ...this.generateConsoleLogTests(),
-            ...this.generateNetworkLogTests()
+            ...this.generateNetworkLogTests(),
+            ...this.generateAccountManagementTests()
         ];
     }
 

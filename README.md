@@ -56,6 +56,14 @@ TestFox covers the complete testing spectrum aligned with industry standards:
 | **Acceptance Tests** | User acceptance testing (UAT) | Manual |
 | **Compatibility Tests** | Cross-browser, device, OS testing | Partial |
 
+#### Account Management Testing
+| Category | Description | Automation |
+|----------|-------------|------------|
+| **Account Creation** | User registration, validation, duplicate prevention | Fully Automated |
+| **Account Deletion** | Self/admin deletion, confirmation requirements | Fully Automated |
+| **Account Updates** | Profile changes, password updates | Fully Automated |
+| **Account Security** | Session management, inactive handling | Fully Automated |
+
 ### 🛡️ Security Testing (OWASP/WASP)
 - SQL Injection detection
 - Cross-Site Scripting (XSS) testing
@@ -74,6 +82,17 @@ TestFox covers the complete testing spectrum aligned with industry standards:
 - Use Case Testing
 - Error Guessing
 - Exploratory Testing
+
+### 🤖 Smart Application Testing
+- **Automatic Application Startup**: Launches your app using detected run commands
+- **Intelligent Browser Automation**: Simulates real user interactions
+- **Test Account Creation**: Automatically creates test accounts on-the-fly for comprehensive testing
+- **Account Lifecycle Management**: Creates → Uses → Tests → Cleans up test accounts automatically
+- **Credential Discovery**: Finds and uses existing test credentials
+- **Page Exploration**: Automatically discovers and tests all application pages
+- **Form Testing**: Validates all forms and user inputs
+- **API Integration Testing**: Tests frontend-backend communication
+- **Account Security Testing**: Session management, password policies, access controls
 
 ### 🤖 AI-Powered Features
 - **Smart Test Generation**: AI suggests comprehensive test cases

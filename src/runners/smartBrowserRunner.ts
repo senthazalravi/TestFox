@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { DiscoveredCredential } from '../core/credentialDiscovery';
+import { DiscoveredCredential, TestAccount, CredentialDiscovery } from '../core/credentialDiscovery';
 import { BrowserMonitor, ConsoleTestResult, NetworkTestResult } from '../monitors/browserMonitor';
 
 // Playwright types - imported dynamically
@@ -77,6 +77,8 @@ export class SmartBrowserRunner {
     private visitedPages: Set<string> = new Set();
     private outputChannel: vscode.OutputChannel;
     private browserMonitor: BrowserMonitor;
+    private testAccounts: TestAccount[] = [];
+    private credentialDiscovery: CredentialDiscovery;
 
     constructor() {
         this.outputChannel = vscode.window.createOutputChannel('TestFox Browser');
@@ -1251,6 +1253,230 @@ export class SmartBrowserRunner {
      */
     getBrowserMonitor(): BrowserMonitor {
         return this.browserMonitor;
+    }
+
+    /**
+     * Initialize test account management
+     */
+    initializeTestAccounts(workspacePath: string, testTypes: string[] = []): void {
+        this.credentialDiscovery = new CredentialDiscovery(workspacePath);
+        this.testAccounts = this.credentialDiscovery.generateTestAccounts(testTypes);
+        this.log(`Generated ${this.testAccounts.length} test accounts for testing`);
+    }
+
+    /**
+     * Create test accounts on the application
+     */
+    async createTestAccounts(registerUrl?: string): Promise<TestAccount[]> {
+        if (!this.page) {
+            throw new Error('Browser not initialized');
+        }
+
+        const createdAccounts: TestAccount[] = [];
+        this.log(`Creating ${this.testAccounts.length} test accounts...`);
+
+        for (const account of this.testAccounts) {
+            try {
+                this.log(`Creating test account: ${account.email} (${account.type})`);
+                const result = await this.credentialDiscovery.createTestAccount(this.page, account, registerUrl);
+
+                if (result.success) {
+                    createdAccounts.push(result.account);
+                    this.log(`✅ Successfully created account: ${account.email}`);
+                } else {
+                    this.log(`❌ Failed to create account ${account.email}: ${result.error}`);
+                }
+
+                // Brief pause between account creations
+                await this.page.waitForTimeout(1000);
+            } catch (error: any) {
+                this.log(`❌ Error creating account ${account.email}: ${error.message}`);
+            }
+        }
+
+        this.log(`Created ${createdAccounts.length}/${this.testAccounts.length} test accounts`);
+        return createdAccounts;
+    }
+
+    /**
+     * Login with a specific test account
+     */
+    async loginWithTestAccount(account: TestAccount): Promise<boolean> {
+        if (!this.page) {
+            throw new Error('Browser not initialized');
+        }
+
+        try {
+            this.log(`Attempting to login with test account: ${account.email}`);
+
+            // Navigate to login page
+            const loginUrls = ['/login', '/signin', '/sign-in', '/auth/login'];
+            let foundLoginPage = false;
+
+            for (const url of loginUrls) {
+                try {
+                    await this.page.goto(url);
+                    await this.page.waitForTimeout(1000);
+                    foundLoginPage = true;
+                    break;
+                } catch {
+                    continue;
+                }
+            }
+
+            if (!foundLoginPage) {
+                this.log('Could not find login page');
+                return false;
+            }
+
+            // Fill login form
+            const emailSelectors = [
+                'input[type="email"]',
+                'input[name*="email"]',
+                'input[placeholder*="email"]',
+                'input[name="username"]'
+            ];
+
+            const passwordSelectors = [
+                'input[type="password"]',
+                'input[name*="password"]'
+            ];
+
+            // Fill email/username
+            let emailFilled = false;
+            for (const selector of emailSelectors) {
+                try {
+                    const element = this.page.locator(selector).first();
+                    if (await element.count() > 0) {
+                        await element.fill(account.email);
+                        emailFilled = true;
+                        break;
+                    }
+                } catch {
+                    continue;
+                }
+            }
+
+            // Fill password
+            let passwordFilled = false;
+            for (const selector of passwordSelectors) {
+                try {
+                    const element = this.page.locator(selector).first();
+                    if (await element.count() > 0) {
+                        await element.fill(account.password);
+                        passwordFilled = true;
+                        break;
+                    }
+                } catch {
+                    continue;
+                }
+            }
+
+            if (!emailFilled || !passwordFilled) {
+                this.log('Could not fill login form');
+                return false;
+            }
+
+            // Submit login
+            const submitSelectors = [
+                'button[type="submit"]',
+                'input[type="submit"]',
+                'button:has-text("Login")',
+                'button:has-text("Sign In")',
+                'button:has-text("Submit")'
+            ];
+
+            for (const selector of submitSelectors) {
+                try {
+                    const element = this.page.locator(selector).first();
+                    if (await element.count() > 0) {
+                        await element.click();
+                        break;
+                    }
+                } catch {
+                    continue;
+                }
+            }
+
+            // Wait for login to complete
+            await this.page.waitForTimeout(3000);
+
+            // Check if login was successful
+            const currentUrl = this.page.url();
+            const successIndicators = [
+                currentUrl.includes('dashboard'),
+                currentUrl.includes('profile'),
+                currentUrl.includes('home'),
+                !currentUrl.includes('login'),
+                !currentUrl.includes('signin')
+            ];
+
+            const isLoggedIn = successIndicators.some(indicator => indicator);
+            this.isLoggedIn = isLoggedIn;
+
+            if (isLoggedIn) {
+                this.log(`✅ Successfully logged in with ${account.email}`);
+                return true;
+            } else {
+                this.log(`❌ Login failed for ${account.email}`);
+                return false;
+            }
+
+        } catch (error: any) {
+            this.log(`❌ Login error for ${account.email}: ${error.message}`);
+            return false;
+        }
+    }
+
+    /**
+     * Clean up test accounts (delete them if possible)
+     */
+    async cleanupTestAccounts(): Promise<void> {
+        if (!this.page || this.testAccounts.length === 0) {
+            return;
+        }
+
+        this.log(`Cleaning up ${this.testAccounts.length} test accounts...`);
+        let deletedCount = 0;
+
+        for (const account of this.testAccounts) {
+            if (!account.created) continue;
+
+            try {
+                // Login first if not already logged in
+                if (!this.isLoggedIn) {
+                    await this.loginWithTestAccount(account);
+                }
+
+                // Attempt to delete the account
+                const deleted = await this.credentialDiscovery.deleteTestAccount(this.page, account);
+                if (deleted) {
+                    account.created = false; // Mark as deleted
+                    deletedCount++;
+                    this.log(`✅ Deleted test account: ${account.email}`);
+                } else {
+                    this.log(`⚠️ Could not delete test account: ${account.email}`);
+                }
+            } catch (error: any) {
+                this.log(`❌ Error deleting account ${account.email}: ${error.message}`);
+            }
+        }
+
+        this.log(`Cleaned up ${deletedCount}/${this.testAccounts.filter(a => a.created).length} test accounts`);
+    }
+
+    /**
+     * Get all test accounts
+     */
+    getTestAccounts(): TestAccount[] {
+        return this.testAccounts;
+    }
+
+    /**
+     * Get created test accounts
+     */
+    getCreatedTestAccounts(): TestAccount[] {
+        return this.testAccounts.filter(account => account.created);
     }
 
     /**

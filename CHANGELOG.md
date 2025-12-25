@@ -46,12 +46,27 @@ All notable changes to the "TestFox" extension will be documented in this file.
 ### Added
 - **Defect ID Auto-Generation** 🆔
   - Meaningful defect IDs based on category (e.g., UI-0001, API-0002, SEC-0003)
-  - Prefixes: SMK (Smoke), SAN (Sanity), REG (Regression), FUN (Functional), 
+  - Prefixes: SMK (Smoke), SAN (Sanity), REG (Regression), FUN (Functional),
     API, UI, E2E, INT, DB, SEC, PRF (Performance), LOD (Load), STR (Stress),
     ACC (Accessibility), NEG (Negative), BND (Boundary), MNK (Monkey),
     EXP (Exploratory), USA (Usability), UAT (Acceptance), CMP (Compatibility),
-    CON (Console), NET (Network)
+    CON (Console), NET (Network), ACC (Account Management)
   - 4-digit sequential numbering per category
+
+- **Automatic Test Account Creation & Management** 👤
+  - Creates test accounts on-the-fly for different testing types
+  - Generates accounts for: admin, user, guest, moderator, tester roles
+  - Specialized accounts for: functional, UI, security, performance, accessibility testing
+  - Automatic account cleanup after testing completion
+  - Tracks account creation/deletion attempts and success rates
+  - Displays created accounts in test results and dashboard
+
+- **Comprehensive Account Management Testing** 🔐
+  - Account Creation Tests: admin/user registration, form validation, duplicate prevention
+  - Account Deletion Tests: self-deletion, admin deletion, confirmation requirements
+  - Account Update Tests: profile updates, password changes
+  - Account Security Tests: session management, inactive account handling
+  - 12 new test cases covering complete account lifecycle
 
 - **Test Run History Tracking** 📊
   - Every test run is numbered and tracked

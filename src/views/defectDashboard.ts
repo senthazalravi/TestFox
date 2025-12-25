@@ -75,6 +75,15 @@ export class DefectDashboard {
         const openDefects = this._defectTracker.getOpenDefects();
         const fixedDefects = this._defectTracker.getFixedDefects();
 
+        // Get test run stats including account information
+        const latestRun = runs[runs.length - 1];
+        const accountStats = latestRun ? {
+            created: latestRun.testAccountsCreated?.length || 0,
+            deleted: latestRun.testAccountsDeleted?.length || 0,
+            creationAttempts: latestRun.accountCreationAttempts || 0,
+            deletionAttempts: latestRun.accountDeletionAttempts || 0
+        } : { created: 0, deleted: 0, creationAttempts: 0, deletionAttempts: 0 };
+
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -335,8 +344,8 @@ export class DefectDashboard {
                 <div class="stat-label">Fixed Defects</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" style="color: var(--accent-yellow)">${stats.reopen}</div>
-                <div class="stat-label">Reopened</div>
+                <div class="stat-value" style="color: var(--accent-blue)">${accountStats.created}</div>
+                <div class="stat-label">Test Accounts</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value">${runs.length > 0 ? runs[runs.length - 1].passRate : 0}%</div>
@@ -382,6 +391,50 @@ export class DefectDashboard {
             </table>
         </div>
         ` : '<div class="empty-state">✅ No open defects!</div>'}
+
+        ${latestRun && latestRun.testAccountsCreated && latestRun.testAccountsCreated.length > 0 ? `
+        <div class="section">
+            <div class="section-title">👤 Test Accounts Created</div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">${latestRun.testAccountsCreated.length}</div>
+                    <div class="stat-label">Created</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${latestRun.testAccountsDeleted?.length || 0}</div>
+                    <div class="stat-label">Cleaned Up</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${latestRun.accountCreationAttempts || 0}</div>
+                    <div class="stat-label">Creation Attempts</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${latestRun.accountDeletionAttempts || 0}</div>
+                    <div class="stat-label">Cleanup Attempts</div>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Account Type</th>
+                        <th>Email</th>
+                        <th>Test Type</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${latestRun.testAccountsCreated.map(account => `
+                        <tr>
+                            <td><span class="status-badge">${account.type}</span></td>
+                            <td>${this.escapeHtml(account.email)}</td>
+                            <td>${account.testType || 'general'}</td>
+                            <td><span class="status-badge status-fixed">Created</span></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        ` : '<div class="empty-state">No test accounts created in latest run</div>'}
     </div>
 
     <!-- Defects Tab -->
