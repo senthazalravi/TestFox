@@ -502,6 +502,7 @@ export async function activate(context: vscode.ExtensionContext) {
     } catch (error) {
         console.error('Failed to start scheduler:', error);
     }
+
 }
 
 /**

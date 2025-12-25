@@ -17,7 +17,7 @@ async function main() {
             'vscode',           // VS Code API is provided at runtime
             'playwright',       // Playwright has native dependencies
             'playwright-core',  // Playwright core
-            'ws',               // WebSocket library with native dependencies
+            // 'ws' is now bundled to ensure availability
         ],
         logLevel: 'info',
         plugins: [

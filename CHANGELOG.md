@@ -2,6 +2,36 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
+## [0.4.11] - 2024-12-25
+
+### Fixed
+- **WebSocket Dependency Bundling** 🔧
+  - Fixed `ws` dependency packaging issues by bundling it into the extension
+  - Removed `ws` from esbuild externals to ensure it's included in the .vsix
+  - Prevents "Cannot find module 'ws'" errors in packaged extension
+  - Ensures Socket.IO WebSocket functionality works in installed extensions
+
+### Technical Details:
+- **Dependency Resolution**: `ws` is now bundled instead of external
+- **Runtime Stability**: Eliminates dependency resolution issues in VS Code
+- **Cross-Platform**: Ensures WebSocket functionality works on all platforms
+- **Extension Size**: Slightly larger .vsix but guaranteed functionality
+
+## [0.4.10] - 2024-12-25
+
+### Fixed
+- **Command Registration Issues** 🛠️
+  - Added all TestFox commands to activationEvents in package.json
+  - Fixes "command not found" errors for all extension commands
+  - Extension now activates properly on command execution
+  - Prevents VS Code from showing "command not found" errors
+
+### Technical Details:
+- **Activation Events**: Added 25+ command activation events
+- **Extension Loading**: Ensures extension activates when any command is used
+- **Command Availability**: All commands now work immediately after installation
+- **No More Reloads**: Users don't need to reload VS Code to use commands
+
 ## [0.4.9] - 2024-12-25
 
 ### Fixed
