@@ -2,6 +2,14 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
+## [0.4.5] - 2024-12-25
+
+### Fixed
+- **Extension Loading Issue** 🐛
+  - Fixed "Cannot find module 'express'" error preventing extension activation
+  - Corrected esbuild configuration to properly bundle express and socket.io dependencies
+  - Extension now loads and activates correctly after installation
+
 ## [0.4.4] - 2024-12-25
 
 ### Added

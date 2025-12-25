@@ -102,12 +102,16 @@ export class AppRunner {
         }
 
         // First, check if application is already running on any port
-        const detectedUrl = await this.detectRunningApplication(projectInfo);
-        if (detectedUrl) {
-            this.isRunning = true;
-            this.baseUrl = detectedUrl;
-            this.outputChannel.appendLine(`✓ Found running application at ${this.baseUrl}`);
-            return this.baseUrl;
+        try {
+            const detectedUrl = await this.detectRunningApplication(projectInfo);
+            if (detectedUrl) {
+                this.isRunning = true;
+                this.baseUrl = detectedUrl;
+                this.outputChannel.appendLine(`✓ Found running application at ${this.baseUrl}`);
+                return this.baseUrl;
+            }
+        } catch (error) {
+            this.outputChannel.appendLine(`Warning: Port detection failed: ${error}`);
         }
 
         const workspacePath = projectInfo.rootPath;
@@ -145,11 +149,16 @@ export class AppRunner {
                 const startupTimeout = setTimeout(async () => {
                     if (!startupDetected) {
                         // Try to detect the actual running port
-                        const detectedUrl = await this.detectRunningApplication(projectInfo);
-                        if (detectedUrl && detectedUrl !== this.baseUrl) {
-                            this.baseUrl = detectedUrl;
-                            this.outputChannel.appendLine(`✓ Detected application running at ${this.baseUrl}`);
-                        } else {
+                        try {
+                            const detectedUrl = await this.detectRunningApplication(projectInfo);
+                            if (detectedUrl && detectedUrl !== this.baseUrl) {
+                                this.baseUrl = detectedUrl;
+                                this.outputChannel.appendLine(`✓ Detected application running at ${this.baseUrl}`);
+                            } else {
+                                this.outputChannel.appendLine(`Application assumed running at ${this.baseUrl}`);
+                            }
+                        } catch (error) {
+                            this.outputChannel.appendLine(`Warning: Port detection failed: ${error}`);
                             this.outputChannel.appendLine(`Application assumed running at ${this.baseUrl}`);
                         }
                         resolve(this.baseUrl);
