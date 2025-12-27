@@ -253,7 +253,7 @@ Available models include:
 
 ## Author
 
-Developed by [@senthazalravi](https://x.com/senthazalravi)
+Developed by [@senthazalravi](https://x.com/senthazalravi),NithiyanandamS
 
 ## Contributing
 
