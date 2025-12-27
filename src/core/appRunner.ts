@@ -163,7 +163,14 @@ export class AppRunner {
                 });
 
                 this.isRunning = true;
-                this.baseUrl = `http://localhost:${projectInfo.port || 3000}`;
+                // First try to detect if app is already running on a different port
+                const detectedUrl = await this.detectRunningApplication(projectInfo);
+                if (detectedUrl) {
+                    this.baseUrl = detectedUrl;
+                    this.outputChannel.appendLine(`✓ Detected application running at ${this.baseUrl}`);
+                } else {
+                    this.baseUrl = `http://localhost:${projectInfo.port || 3000}`;
+                }
 
                 let startupDetected = false;
                 const startupTimeout = setTimeout(async () => {

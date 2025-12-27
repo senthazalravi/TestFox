@@ -1510,7 +1510,29 @@ async function runFullCycleTesting(): Promise<void> {
             return;
         }
 
-        const result = await fullCycleRunner.run(projectInfo);
+        // Get the correct application URL for full cycle testing
+        let appUrl = appRunner.getBaseUrl();
+        if (!appUrl) {
+            appUrl = await checkApplicationAvailability();
+        }
+
+        if (!appUrl) {
+            await appRunner.start(projectInfo);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            appUrl = await appRunner.waitForReady(30000);
+            if (!appUrl) {
+                appUrl = await checkApplicationAvailability();
+            }
+        }
+
+        if (!appUrl) {
+            vscode.window.showErrorMessage('TestFox: Could not determine application URL for full cycle testing.');
+            updateStatus('ready');
+            return;
+        }
+
+        vscode.window.showInformationMessage(`TestFox: Running full cycle tests against ${appUrl}`);
+        const result = await fullCycleRunner.run(projectInfo, appUrl);
 
         updateStatus('ready');
 
