@@ -219,7 +219,7 @@ export const TEST_CATEGORIES: TestCategoryInfo[] = [
 export const CATEGORY_GROUPS = [
     { id: 'quick_validation', name: 'Quick Validation', icon: 'zap' },
     { id: 'functional', name: 'Functional', icon: 'check' },
-    { id: 'non_functional', name: 'Non-Functional', icon: 'gauge' },
+    { id: 'non_functional', name: 'Non-Functional', icon: 'dashboard' },
     { id: 'edge_cases', name: 'Edge Cases', icon: 'warning' },
     { id: 'manual_exploratory', name: 'Manual/Exploratory', icon: 'person' },
     { id: 'browser_monitoring', name: 'Browser Monitoring', icon: 'eye' }

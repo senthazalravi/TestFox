@@ -147,7 +147,9 @@ export class OpenRouterClient {
             }, {
                 headers: {
                     'Authorization': `Bearer ${this.apiKey}`
-                }
+                },
+                timeout: 60000, // 60 second timeout for AI requests
+                validateStatus: (status) => status < 500 // Accept client errors, reject server errors
             });
 
             if (response.data.choices && response.data.choices.length > 0) {
@@ -156,6 +158,16 @@ export class OpenRouterClient {
 
             throw new Error('No response from AI model');
         } catch (error: any) {
+            // Handle aborted/cancelled requests
+            if (error.code === 'ECONNABORTED' || error.message?.includes('aborted') || error.message?.includes('cancelled')) {
+                throw new Error('AI request was cancelled. Please try again.');
+            }
+
+            // Handle network errors
+            if (!error.response) {
+                throw new Error('Network error: Unable to connect to AI service. Check your internet connection.');
+            }
+
             // If primary model fails, try fallback models
             if (error.response?.status !== 401) {
                 // Try fallback models in order
@@ -163,8 +175,12 @@ export class OpenRouterClient {
                     if (fallbackModel !== model && fallbackModel !== this.currentModel) {
                         try {
                             console.log(`Model ${model} failed, trying fallback: ${fallbackModel}`);
-                            return this.chat(messages, { ...options, model: fallbackModel });
-                        } catch (fallbackError) {
+                            return await this.chat(messages, { ...options, model: fallbackModel });
+                        } catch (fallbackError: any) {
+                            // If fallback is also aborted, don't continue trying
+                            if (fallbackError.message?.includes('cancelled') || fallbackError.message?.includes('aborted')) {
+                                throw fallbackError;
+                            }
                             console.log(`Fallback model ${fallbackModel} also failed, continuing...`);
                             continue;
                         }
@@ -173,11 +189,13 @@ export class OpenRouterClient {
             }
 
             if (error.response?.status === 401) {
-                throw new Error('Invalid OpenRouter API key');
+                throw new Error('Invalid OpenRouter API key. Please check your API key in settings.');
             } else if (error.response?.status === 429) {
-                throw new Error('Rate limit exceeded. Please wait and try again.');
-            } else if (error.response?.data?.error) {
-                throw new Error(error.response.data.error.message || 'AI request failed');
+                throw new Error('AI service rate limit exceeded. Please wait a moment and try again.');
+            } else if (error.response?.status >= 500) {
+                throw new Error('AI service is temporarily unavailable. Please try again later.');
+            } else {
+                throw new Error(`AI request failed: ${error.response?.status} ${error.response?.statusText || 'Unknown error'}`);
             }
 
             throw error;

@@ -67,6 +67,7 @@ export class TestGeneratorManager {
 
     async generateSmokeTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -127,6 +128,7 @@ export class TestGeneratorManager {
 
     async generateFunctionalTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -254,6 +256,7 @@ export class TestGeneratorManager {
 
     async generateApiTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -336,6 +339,7 @@ export class TestGeneratorManager {
 
     async generateSecurityTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -471,6 +475,7 @@ export class TestGeneratorManager {
 
     async generatePerformanceTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -537,6 +542,7 @@ export class TestGeneratorManager {
 
     async generateEdgeCaseTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -663,6 +669,7 @@ export class TestGeneratorManager {
 
     async generateMonkeyTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -707,6 +714,7 @@ export class TestGeneratorManager {
 
     async generateFeatureTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -751,6 +759,7 @@ export class TestGeneratorManager {
 
     async generateLoadTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -796,6 +805,7 @@ export class TestGeneratorManager {
      */
     async generateNegativeTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -903,6 +913,7 @@ export class TestGeneratorManager {
      */
     async generateBoundaryTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -979,6 +990,7 @@ export class TestGeneratorManager {
      */
     async generateAccessibilityTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -1068,6 +1080,7 @@ export class TestGeneratorManager {
      */
     async generateSanityTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -1124,6 +1137,7 @@ export class TestGeneratorManager {
      */
     async generateRegressionTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -1153,6 +1167,7 @@ export class TestGeneratorManager {
      */
     async generateIntegrationTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -1204,6 +1219,7 @@ export class TestGeneratorManager {
      */
     async generateUsabilityTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -1257,6 +1273,7 @@ export class TestGeneratorManager {
      */
     async generateAcceptanceTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 
@@ -1298,6 +1315,7 @@ export class TestGeneratorManager {
      */
     async generateExploratoryTests(): Promise<void> {
         if (!this.analysisResult) return;
+        this.ensureValidAnalysisResult();
 
         const tests: TestCase[] = [];
 

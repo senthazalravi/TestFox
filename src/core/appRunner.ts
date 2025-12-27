@@ -381,6 +381,10 @@ export class AppRunner {
         return this.isRunning;
     }
 
+    showOutputChannel(): void {
+        this.outputChannel.show();
+    }
+
     async waitForReady(timeout = 30000): Promise<boolean> {
         if (!this.baseUrl) {
             return false;
@@ -392,8 +396,14 @@ export class AppRunner {
         while (Date.now() - startTime < timeout) {
             try {
                 await axios.default.get(this.baseUrl, { timeout: 2000 });
+                this.outputChannel.appendLine(`✓ Application at ${this.baseUrl} is ready.`);
                 return true;
-            } catch (error) {
+            } catch (error: any) {
+                // Handle aborted requests gracefully
+                if (error.code === 'ECONNABORTED' || error.message?.includes('aborted') || error.message?.includes('cancelled')) {
+                    this.outputChannel.appendLine(`⚠️ Health check request was cancelled, but app may still be starting...`);
+                    // Don't return false immediately, give it more time
+                }
                 // Wait and retry
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }

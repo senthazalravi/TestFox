@@ -23,7 +23,6 @@ import { UITestGenerator } from './generators/uiTestGenerator';
 import { DefectTracker } from './tracking/defectTracker';
 import { DefectDashboard } from './views/defectDashboard';
 import { WebServer } from './server/webServer';
-import { TestFoxWebServer } from './server/webServer';
 import { TestStore } from './store/testStore';
 import { TestScheduler } from './core/scheduler';
 
@@ -73,7 +72,12 @@ async function checkApplicationAvailability(): Promise<string | null> {
                 console.log(`TestFox: Application found on port ${port}`);
                 return url;
             }
-        } catch (error) {
+        } catch (error: any) {
+            // Handle aborted requests gracefully
+            if (error.code === 'ECONNABORTED' || error.message?.includes('aborted') || error.message?.includes('cancelled')) {
+                console.log(`TestFox: Request to port ${port} was cancelled, continuing...`);
+                continue;
+            }
             // Connection failed, try next port
             continue;
         }
@@ -97,22 +101,75 @@ export async function activate(context: vscode.ExtensionContext) {
 
     try {
         // Initialize core components
-        console.log('Initializing core components...');
-        testStore = new TestStore(context);
+        console.log('TestFox: Initializing core components...');
+
+        console.log('TestFox: Creating TestStore...');
+        try {
+            testStore = new TestStore(context);
+            console.log('TestFox: TestStore created');
+        } catch (error) {
+            console.error('TestFox: Failed to create TestStore:', error);
+            throw error;
+        }
+
+        console.log('TestFox: Creating ProjectDetector...');
         projectDetector = new ProjectDetector();
+        console.log('TestFox: ProjectDetector created');
+
+        console.log('TestFox: Creating CodeAnalyzer...');
         codeAnalyzer = new CodeAnalyzer();
+        console.log('TestFox: CodeAnalyzer created');
+
+        console.log('TestFox: Creating AppRunner...');
         appRunner = new AppRunner();
+        console.log('TestFox: AppRunner created');
+
+        console.log('TestFox: Creating TestRunner...');
         testRunner = new TestRunner(appRunner, testStore);
+        console.log('TestFox: TestRunner created');
+
+        console.log('TestFox: Creating ManualTestTracker...');
         manualTestTracker = new ManualTestTracker(context);
+        console.log('TestFox: ManualTestTracker created');
+
+        console.log('TestFox: Creating ReportGenerator...');
         reportGenerator = new ReportGenerator(context);
+        console.log('TestFox: ReportGenerator created');
+
+        console.log('TestFox: Creating DependencyManager...');
         dependencyManager = new DependencyManager(context);
+        console.log('TestFox: DependencyManager created');
+
+        console.log('TestFox: Creating TestGeneratorAI...');
         testGeneratorAI = new TestGeneratorAI(testStore);
+        console.log('TestFox: TestGeneratorAI created');
+
+        console.log('TestFox: Creating FullCycleRunner...');
         fullCycleRunner = new FullCycleRunner(appRunner);
+        console.log('TestFox: FullCycleRunner created');
+
+        console.log('TestFox: Creating CrossBrowserRunner...');
         crossBrowserRunner = new CrossBrowserRunner(dependencyManager);
-    defectTracker = new DefectTracker(context);
-    webServer = new WebServer(context);
-    scheduler = new TestScheduler(context);
-        console.log('Core components initialized');
+        console.log('TestFox: CrossBrowserRunner created');
+
+        console.log('TestFox: Creating DefectTracker...');
+        defectTracker = new DefectTracker(context);
+        console.log('TestFox: DefectTracker created');
+
+        console.log('TestFox: Creating WebServer...');
+        try {
+            webServer = new WebServer(context);
+            console.log('TestFox: WebServer created');
+        } catch (error) {
+            console.error('TestFox: Failed to create WebServer:', error);
+            throw error;
+        }
+
+        console.log('TestFox: Creating TestScheduler...');
+        scheduler = new TestScheduler(context);
+        console.log('TestFox: TestScheduler created');
+
+        console.log('TestFox: Core components initialized successfully');
     } catch (error) {
         console.error('Failed to initialize core components:', error);
         vscode.window.showErrorMessage('TestFox: Failed to initialize core components. Extension may not work properly.');
@@ -224,7 +281,27 @@ export async function activate(context: vscode.ExtensionContext) {
 
     try {
         // Register commands
-        console.log('Registering commands...');
+        console.log('TestFox: Starting command registration...');
+
+        // Test that all required functions are available before registering
+        console.log('TestFox: Checking function availability...');
+        if (typeof analyzeProject !== 'function') {
+            throw new Error('analyzeProject function not available');
+        }
+        if (typeof generateTests !== 'function') {
+            throw new Error('generateTests function not available');
+        }
+        if (typeof runAllTests !== 'function') {
+            throw new Error('runAllTests function not available');
+        }
+        if (typeof runTestCategory !== 'function') {
+            throw new Error('runTestCategory function not available');
+        }
+        if (typeof generateTestCategory !== 'function') {
+            throw new Error('generateTestCategory function not available');
+        }
+        console.log('TestFox: All functions available, proceeding with registration...');
+
         const commands = [
         vscode.commands.registerCommand('testfox.analyze', async () => {
             await analyzeProject();
@@ -456,10 +533,11 @@ export async function activate(context: vscode.ExtensionContext) {
     ];
 
         context.subscriptions.push(...commands);
-        console.log('Commands registered successfully');
+        console.log('TestFox: Commands registered successfully');
     } catch (error) {
-        console.error('Failed to register commands:', error);
-        vscode.window.showErrorMessage('TestFox: Failed to register commands. Extension may not work properly.');
+        console.error('TestFox: Failed to register commands:', error);
+        console.error('TestFox: Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        vscode.window.showErrorMessage(`TestFox: Failed to register commands - ${error instanceof Error ? error.message : String(error)}`);
     }
 
         // Listen for configuration changes
@@ -1503,18 +1581,104 @@ async function runCrossBrowserTests(context: vscode.ExtensionContext): Promise<v
     updateStatus('running', 'Cross-Browser Testing...');
 
     try {
-        // Start the application
-        await vscode.window.withProgress({
-            location: vscode.ProgressLocation.Notification,
-            title: 'TestFox: Starting application...',
-            cancellable: false
-        }, async () => {
-            await appRunner.start(projectInfo);
-        });
+        // Check if application is already running first
+        const existingAppUrl = await checkApplicationAvailability();
+        let appUrl: string;
 
-        const appUrl = await appRunner.waitForReady(30000);
-        if (!appUrl) {
-            throw new Error('Application failed to start');
+        if (existingAppUrl) {
+            appUrl = existingAppUrl;
+            vscode.window.showInformationMessage(`TestFox: Using already running application at ${appUrl}`);
+        } else {
+            // Start the application
+            const startResult = await vscode.window.showInformationMessage(
+                'TestFox needs to start your application for cross-browser testing. Continue?',
+                { modal: true },
+                'Start Application',
+                'Cancel'
+            );
+
+            if (startResult !== 'Start Application') {
+                return;
+            }
+
+            // Validate startup command before attempting
+            const startupCommand = projectInfo.devCommand || projectInfo.runCommand;
+            if (!startupCommand) {
+                const configureCommand = await vscode.window.showWarningMessage(
+                    'TestFox: No startup command configured for this project.',
+                    'Configure Command',
+                    'Cancel'
+                );
+
+                if (configureCommand === 'Configure Command') {
+                    // Open settings to let user configure the command
+                    vscode.commands.executeCommand('workbench.action.openSettings', 'testfox');
+                    vscode.window.showInformationMessage(
+                        'Please configure your application startup command in TestFox settings:\n' +
+                        '• testfox.project.devCommand (for development)\n' +
+                        '• testfox.project.runCommand (for production)'
+                    );
+                }
+                updateStatus('ready');
+                return;
+            }
+
+            try {
+                vscode.window.showInformationMessage(`TestFox: Starting application with: ${startupCommand}`);
+
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: 'TestFox: Starting application...',
+                    cancellable: false
+                }, async () => {
+                    await appRunner.start(projectInfo);
+                });
+
+                appUrl = await appRunner.waitForReady(30000);
+                if (!appUrl) {
+                    throw new Error('Application startup timeout - check the TestFox output panel for details');
+                }
+            } catch (startError: any) {
+                console.error('TestFox: Application startup failed:', startError);
+
+                const helpChoice = await vscode.window.showErrorMessage(
+                    `TestFox: Failed to start application automatically\n\n` +
+                    `Error: ${startError.message}\n\n` +
+                    `Possible solutions:\n` +
+                    `• Start your app manually: ${projectInfo.devCommand || projectInfo.runCommand || 'npm run dev'}\n` +
+                    `• Check dependencies: ${projectInfo.packageManager || 'npm'} install\n` +
+                    `• Verify port availability\n` +
+                    `• Check TestFox output panel for details`,
+                    'View Output',
+                    'Manual Testing',
+                    'Configure Command'
+                );
+
+                if (helpChoice === 'View Output') {
+                    appRunner.showOutputChannel();
+                } else if (helpChoice === 'Manual Testing') {
+                    const manualUrl = await vscode.window.showInputBox({
+                        prompt: 'Enter your application URL for manual testing',
+                        placeHolder: 'http://localhost:8080',
+                        value: 'http://localhost:8080'
+                    });
+
+                    if (manualUrl) {
+                        await runManualCrossBrowserTest(manualUrl, projectInfo);
+                    }
+                } else if (helpChoice === 'Configure Command') {
+                    vscode.commands.executeCommand('workbench.action.openSettings', 'testfox');
+                    vscode.window.showInformationMessage(
+                        'Configure your startup command:\n' +
+                        '• testfox.project.devCommand\n' +
+                        '• testfox.project.runCommand\n\n' +
+                        'Example: "npm run dev" or "yarn start"'
+                    );
+                }
+
+                updateStatus('ready');
+                return;
+            }
         }
 
         // Run cross-browser tests
@@ -1555,6 +1719,59 @@ async function runCrossBrowserTests(context: vscode.ExtensionContext): Promise<v
         await appRunner.stop();
         updateStatus('error');
         vscode.window.showErrorMessage(`TestFox Cross-Browser test failed: ${error.message}`);
+    }
+}
+
+/**
+ * Run cross-browser testing with manually provided application URL
+ */
+async function runManualCrossBrowserTest(appUrl: string, projectInfo: any): Promise<void> {
+    // Validate the URL
+    try {
+        new URL(appUrl);
+    } catch {
+        vscode.window.showErrorMessage('Invalid URL format. Please enter a valid URL like http://localhost:8080');
+        return;
+    }
+
+    // Check if the URL is accessible
+    const axios = require('axios').default;
+    try {
+        await axios.get(appUrl, { timeout: 5000 });
+    } catch (error) {
+        vscode.window.showErrorMessage(`Cannot connect to ${appUrl}. Please ensure your application is running and accessible.`);
+        return;
+    }
+
+    updateStatus('running', 'Cross-Browser Testing (Manual)...');
+
+    try {
+        // Run cross-browser tests with the provided URL
+        const tests = testStore.getAllTests();
+        const matrix = await crossBrowserRunner.runCompatibilityTests(appUrl, tests);
+
+        // Show results
+        const reportHtml = crossBrowserRunner.generateCompatibilityReport(matrix);
+        const panel = vscode.window.createWebviewPanel(
+            'testfoxCompatibility',
+            'Cross-Browser Test Results',
+            vscode.ViewColumn.One,
+            { enableScripts: true }
+        );
+
+        panel.webview.html = reportHtml;
+
+        const message = `Cross-Browser Testing Complete!\n\n` +
+            `✅ Passed: ${matrix.passedCount}\n` +
+            `❌ Failed: ${matrix.failedCount}\n` +
+            `📊 Total: ${matrix.totalCount}`;
+
+        vscode.window.showInformationMessage(message);
+
+    } catch (error: any) {
+        vscode.window.showErrorMessage(`TestFox Cross-Browser test failed: ${error.message}`);
+    } finally {
+        updateStatus('ready');
     }
 }
 

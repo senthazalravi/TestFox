@@ -2,20 +2,59 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
-## [0.4.11] - 2024-12-25
+## [0.4.13] - 2024-12-25
 
 ### Fixed
-- **WebSocket Dependency Bundling** 🔧
-  - Fixed `ws` dependency packaging issues by bundling it into the extension
-  - Removed `ws` from esbuild externals to ensure it's included in the .vsix
-  - Prevents "Cannot find module 'ws'" errors in packaged extension
-  - Ensures Socket.IO WebSocket functionality works in installed extensions
+- **Cross-Browser Testing Application Startup Failure** 🚀
+  - Improved application startup detection and error handling
+  - Checks for already running applications before attempting to start new ones
+  - Provides clear guidance when application startup fails
+  - Added manual cross-browser testing option when automatic startup fails
+  - Better error messages with specific troubleshooting steps
+
+- **Enhanced User Experience for Failed Startups** 🎯
+  - Command validation before attempting application startup
+  - Multiple recovery options when startup fails
+  - Output panel access for detailed error diagnosis
+  - Manual URL input for testing already-running applications
+  - Settings configuration guidance for startup commands
+
+### New Features:
+- **Smart Application Detection**: Automatically detects running applications on common ports
+- **Manual Testing Fallback**: Enter application URL manually when automatic startup fails
+- **Comprehensive Error Guidance**: Step-by-step troubleshooting for startup issues
+- **Command Configuration**: Easy access to configure startup commands in settings
+
+### Technical Improvements:
+- **Startup Validation**: Checks startup commands before execution
+- **Fallback Testing**: Manual URL input when automatic detection fails
+- **Better Error Context**: Detailed error messages with actionable solutions
+- **Output Channel Access**: Direct access to application startup logs
+
+## [0.4.12] - 2024-12-25
+
+### Fixed
+- **TypeError: Cannot read properties of undefined (reading 'length')** 🐛
+  - Added comprehensive defensive programming to all test generation methods
+  - Ensures `analysisResult` properties are always valid arrays before accessing `.length`
+  - Prevents crashes when analysis data is incomplete or undefined
+  - All 18 test generation methods now safely handle missing analysis data
+
+- **Missing Non-Functional Test Section Icon** 🎨
+  - Fixed icon for Non-Functional test category group
+  - Changed from invalid 'gauge' icon to valid 'dashboard' icon
+  - Ensures proper visual hierarchy in Test Explorer
+
+- **Syntax Error in OpenRouter Client** 🔧
+  - Fixed duplicate conditional blocks in error handling
+  - Removed redundant error handling code
+  - Ensures clean compilation and proper error messaging
 
 ### Technical Details:
-- **Dependency Resolution**: `ws` is now bundled instead of external
-- **Runtime Stability**: Eliminates dependency resolution issues in VS Code
-- **Cross-Platform**: Ensures WebSocket functionality works on all platforms
-- **Extension Size**: Slightly larger .vsix but guaranteed functionality
+- **Defensive Programming**: `ensureValidAnalysisResult()` called in all generation methods
+- **Icon Validation**: All category group icons use valid VS Code ThemeIcon names
+- **Code Quality**: Removed duplicate error handling blocks for cleaner code
+- **Runtime Stability**: Prevents undefined property access crashes during test generation
 
 ## [0.4.10] - 2024-12-25
 
