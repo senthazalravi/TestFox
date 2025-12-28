@@ -253,11 +253,13 @@ Available models include:
 
 ## Author
 
-Developed by [@senthazalravi](https://x.com/senthazalravi), @nithiyanandam.sundaram@gmail.com and this project seeks investments. connect with ravi.antone@gmail.com 
+Developed by [@senthazalravi](https://x.com/senthazalravi), @nithiyanandam.sundaram@gmail.com and this project seeks co-founders and investments. connect with ravi.antone@gmail.com . Developed in Stockholm, Sweden.
 
 ## Contributing
 
 Contributions are welcome! Please read our contributing guidelines before submitting PRs.
+
+Project GIT URL: https://github.com/senthazalravi/TestFox
 
 ## License
 

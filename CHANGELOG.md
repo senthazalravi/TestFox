@@ -2,6 +2,29 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
+## [0.5.3] - 2024-12-25
+
+### Fixed
+
+- **Configuration Change Handler Errors** 🔧
+  - Fixed "FAILED to handle event" errors in extension host logs
+  - Added comprehensive error handling to configuration change handler
+  - Added null checks for all components before accessing
+  - Improved error logging instead of crashing
+  - Extension now gracefully handles configuration changes
+
+- **Error Handling Improvements** 🛡️
+  - Wrapped all configuration handlers in try-catch blocks
+  - Added null checks for `openRouter`, `scheduler`, and `statusBarScheduler`
+  - Fixed async error handling in `updateSchedulerStatus()`
+  - Improved resilience when components aren't fully initialized
+
+### Technical Improvements
+
+- **Configuration Handler** - Now safely handles all configuration changes
+- **Error Logging** - Better error messages in console instead of crashes
+- **Component Safety** - All component access is now null-checked
+
 ## [0.5.2] - 2024-12-25
 
 ### New Features

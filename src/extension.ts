@@ -554,18 +554,37 @@ export async function activate(context: vscode.ExtensionContext) {
         // Listen for configuration changes
         context.subscriptions.push(
             vscode.workspace.onDidChangeConfiguration(e => {
-                if (e.affectsConfiguration('testfox.ai')) {
-                    loadAIConfiguration(context);
-                    openRouter.loadConfiguration();
-                    openRouter.updateStatusBar();
-                }
+                try {
+                    if (e.affectsConfiguration('testfox.ai')) {
+                        try {
+                            loadAIConfiguration(context);
+                            if (openRouter) {
+                                openRouter.loadConfiguration();
+                                openRouter.updateStatusBar();
+                            }
+                        } catch (error) {
+                            console.error('TestFox: Error updating AI configuration:', error);
+                        }
+                    }
 
-                if (e.affectsConfiguration('testfox.automation') || 
-                    e.affectsConfiguration('testfox.scheduleEnabled') ||
-                    e.affectsConfiguration('testfox.autoRunOnCommit')) {
-                    console.log('Automation settings changed, updating scheduler...');
-                    scheduler.updateSettings();
-                    updateSchedulerStatus();
+                    if (e.affectsConfiguration('testfox.automation') || 
+                        e.affectsConfiguration('testfox.scheduleEnabled') ||
+                        e.affectsConfiguration('testfox.autoRunOnCommit')) {
+                        try {
+                            console.log('Automation settings changed, updating scheduler...');
+                            if (scheduler) {
+                                scheduler.updateSettings();
+                                updateSchedulerStatus().catch(err => {
+                                    console.error('TestFox: Error updating scheduler status:', err);
+                                });
+                            }
+                        } catch (error) {
+                            console.error('TestFox: Error updating scheduler configuration:', error);
+                        }
+                    }
+                } catch (error) {
+                    // Catch any unexpected errors in configuration handler
+                    console.error('TestFox: Unexpected error in configuration change handler:', error);
                 }
             })
         );
@@ -604,6 +623,8 @@ async function updateSchedulerStatus(): Promise<void> {
 
     try {
         const appUrl = await checkApplicationAvailability();
+        if (!statusBarScheduler) return; // Check again after async operation
+        
         if (appUrl) {
             const port = appUrl.split(':')[2];
             statusBarScheduler.text = `$(zap) App: ${port}`;
@@ -615,9 +636,12 @@ async function updateSchedulerStatus(): Promise<void> {
             statusBarScheduler.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
         }
     } catch (error) {
-        statusBarScheduler.text = '$(error) App: Error';
-        statusBarScheduler.tooltip = 'Error checking application status\nClick to retry';
-        statusBarScheduler.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+        console.error('TestFox: Error updating scheduler status:', error);
+        if (statusBarScheduler) {
+            statusBarScheduler.text = '$(error) App: Error';
+            statusBarScheduler.tooltip = 'Error checking application status\nClick to retry';
+            statusBarScheduler.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+        }
     }
 }
 

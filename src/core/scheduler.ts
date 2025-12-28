@@ -340,22 +340,26 @@ export class TestScheduler {
      * Update settings when configuration changes
      */
     updateSettings(): void {
-        const wasEnabled = this.isEnabled;
-        const wasScheduleEnabled = this.scheduleEnabled;
-        const wasAutoRunOnCommit = this.autoRunOnCommit;
-        
-        this.loadSettings();
+        try {
+            const wasEnabled = this.isEnabled;
+            const wasScheduleEnabled = this.scheduleEnabled;
+            const wasAutoRunOnCommit = this.autoRunOnCommit;
+            
+            this.loadSettings();
 
-        // Restart if settings changed
-        if (wasEnabled !== this.isEnabled || 
-            wasScheduleEnabled !== this.scheduleEnabled ||
-            wasAutoRunOnCommit !== this.autoRunOnCommit) {
-            this.stop();
-            this.start();
-        } else if (this.isEnabled || this.scheduleEnabled) {
-            // Restart with new settings
-            this.stop();
-            this.start();
+            // Restart if settings changed
+            if (wasEnabled !== this.isEnabled || 
+                wasScheduleEnabled !== this.scheduleEnabled ||
+                wasAutoRunOnCommit !== this.autoRunOnCommit) {
+                this.stop();
+                this.start();
+            } else if (this.isEnabled || this.scheduleEnabled) {
+                // Restart with new settings
+                this.stop();
+                this.start();
+            }
+        } catch (error) {
+            console.error('TestFox: Error updating scheduler settings:', error);
         }
     }
 
