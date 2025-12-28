@@ -151,7 +151,7 @@ export class AppRunner {
             const shellFlag = isWindows ? '/c' : '-c';
 
             // Install dependencies first if needed
-            this.ensureDependencies(projectInfo).then(() => {
+            this.ensureDependencies(projectInfo).then(async () => {
                 this.process = cp.spawn(shell, [shellFlag, command], {
                     cwd: workspacePath,
                     env: {
