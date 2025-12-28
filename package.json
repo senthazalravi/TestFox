@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing extension - the final quality gate in your SDLC. Automated functional, security, performance, and API testing with ISTQB standards. Uses Grok/XAI via OpenRouter.",
-  "version": "0.4.15",
+  "version": "0.5.1",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -75,6 +75,8 @@
     "onCommand:testfox.openBrowserDashboard",
     "onCommand:testfox.startWebServer",
     "onCommand:testfox.stopWebServer",
+    "onCommand:testfox.createGitHubIssue",
+    "onCommand:testfox.createJiraIssue",
     "onView:testfox-explorer"
   ],
   "main": "./out/extension.js",
@@ -246,6 +248,31 @@
         "command": "testfox.stopWebServer",
         "title": "TestFox: Stop Web Server",
         "icon": "$(server-environment)"
+      },
+      {
+        "command": "testfox.pauseTests",
+        "title": "TestFox: Pause Tests",
+        "icon": "$(debug-pause)"
+      },
+      {
+        "command": "testfox.resumeTests",
+        "title": "TestFox: Resume Tests",
+        "icon": "$(play)"
+      },
+      {
+        "command": "testfox.stopTests",
+        "title": "TestFox: Stop Tests",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "testfox.createGitHubIssue",
+        "title": "TestFox: Create GitHub Issue",
+        "icon": "$(github)"
+      },
+      {
+        "command": "testfox.createJiraIssue",
+        "title": "TestFox: Create Jira Issue",
+        "icon": "$(issue-opened)"
       }
     ],
     "viewsContainers": {
@@ -270,6 +297,13 @@
           "name": "Test Results",
           "icon": "$(checklist)",
           "contextualTitle": "TestFox Results"
+        },
+        {
+          "id": "testfox-control-center",
+          "name": "Test Control Center",
+          "icon": "$(dashboard)",
+          "contextualTitle": "TestFox Control Center",
+          "type": "webview"
         }
       ]
     },
@@ -453,6 +487,32 @@
           "type": "boolean",
           "default": false,
           "description": "Enable automated test scheduling and execution"
+        },
+        "testfox.automation.interval": {
+          "type": "string",
+          "enum": ["15m", "1h", "daily"],
+          "default": "daily",
+          "description": "Interval for periodic test execution"
+        },
+        "testfox.showIDEToast": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show IDE toast notifications (disabled by default - use Test Control Center instead)"
+        },
+        "testfox.autoRunOnCommit": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically run tests after major commits"
+        },
+        "testfox.scheduleEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable periodic test scheduling"
+        },
+        "testfox.storeResultsInGit": {
+          "type": "boolean",
+          "default": false,
+          "description": "Store test results in .testfox/ directory (Git-backed)"
         },
         "testfox.automation.dailyTests": {
           "type": "boolean",

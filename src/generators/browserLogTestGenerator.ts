@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { v4 as uuidv4 } from 'uuid';
 import { TestCase, TestCategory } from '../types';
 
 /**
@@ -16,7 +17,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'console-no-errors',
             'Console Logs - No JavaScript Errors',
-            'Console Logs',
+            'console_logs',
             'Verify no JavaScript errors appear in the console during page load and interaction',
             ['Navigate to each page', 'Monitor console for errors', 'Interact with UI elements', 'Verify no red error messages'],
             'critical',
@@ -27,7 +28,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'console-no-unhandled-promises',
             'Console Logs - No Unhandled Promise Rejections',
-            'Console Logs',
+            'console_logs',
             'Verify all async operations handle errors properly without unhandled rejections',
             ['Trigger async operations', 'Monitor for "Unhandled" messages', 'Verify error boundaries work'],
             'high',
@@ -38,7 +39,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'console-no-framework-warnings',
             'Console Logs - No Framework Warnings',
-            'Console Logs',
+            'console_logs',
             'Verify no React, Vue, or Angular specific warnings (keys, hooks, deprecations)',
             ['Check for "Warning:" messages', 'Verify no hydration errors', 'Check for missing keys warnings'],
             'medium',
@@ -49,7 +50,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'console-no-deprecations',
             'Console Logs - No Deprecation Warnings',
-            'Console Logs',
+            'console_logs',
             'Verify no deprecated API usage warnings in the console',
             ['Monitor for "deprecated" messages', 'Check for future compatibility issues'],
             'medium',
@@ -60,7 +61,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'console-no-security-warnings',
             'Console Logs - No Security Warnings',
-            'Console Logs',
+            'console_logs',
             'Verify no CORS, CSP, or mixed content security warnings',
             ['Check for CORS errors', 'Verify CSP compliance', 'Check for mixed content warnings'],
             'high',
@@ -71,7 +72,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'console-no-memory-issues',
             'Console Logs - No Memory Issues',
-            'Console Logs',
+            'console_logs',
             'Verify no memory-related warnings or errors during extended use',
             ['Navigate through app multiple times', 'Monitor for memory warnings', 'Check for leak indicators'],
             'medium',
@@ -82,7 +83,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'console-no-missing-resources',
             'Console Logs - No Missing Resources',
-            'Console Logs',
+            'console_logs',
             'Verify no 404 errors for images, scripts, stylesheets, or fonts',
             ['Load all pages', 'Check for failed resource loads', 'Verify all assets exist'],
             'high',
@@ -93,7 +94,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'console-no-third-party-errors',
             'Console Logs - No Third-Party Script Errors',
-            'Console Logs',
+            'console_logs',
             'Verify third-party scripts (analytics, ads, widgets) load without errors',
             ['Check external script loading', 'Verify no blocked scripts', 'Monitor tracking pixel errors'],
             'low',
@@ -115,7 +116,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'account-create-admin',
             'Account Creation - Admin User',
-            'Account Management',
+            'account_management',
             'Verify admin account can be created successfully',
             ['Navigate to registration page', 'Fill admin account details', 'Submit registration form', 'Verify account creation success', 'Verify admin privileges'],
             'critical',
@@ -125,7 +126,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'account-create-user',
             'Account Creation - Regular User',
-            'Account Management',
+            'account_management',
             'Verify regular user account can be created successfully',
             ['Navigate to registration page', 'Fill user account details', 'Submit registration form', 'Verify account creation success', 'Verify user dashboard access'],
             'critical',
@@ -135,7 +136,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'account-create-validation',
             'Account Creation - Form Validation',
-            'Account Management',
+            'account_management',
             'Verify proper validation on account creation form',
             ['Submit empty form', 'Verify required field errors', 'Submit invalid email format', 'Verify email validation error', 'Submit weak password', 'Verify password strength requirements'],
             'high',
@@ -145,7 +146,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'account-create-duplicate',
             'Account Creation - Duplicate Prevention',
-            'Account Management',
+            'account_management',
             'Verify duplicate accounts cannot be created',
             ['Create first account successfully', 'Attempt to create account with same email', 'Verify duplicate email error', 'Verify account not created'],
             'high',
@@ -156,7 +157,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'account-delete-own',
             'Account Deletion - Delete Own Account',
-            'Account Management',
+            'account_management',
             'Verify users can delete their own accounts',
             ['Login as test user', 'Navigate to account settings', 'Click delete account', 'Confirm deletion', 'Verify account removal', 'Verify logout after deletion'],
             'critical',
@@ -166,7 +167,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'account-delete-admin',
             'Account Deletion - Admin Delete User',
-            'Account Management',
+            'account_management',
             'Verify admins can delete user accounts',
             ['Login as admin', 'Navigate to user management', 'Select user account', 'Delete user account', 'Verify user removal', 'Verify user cannot login'],
             'high',
@@ -176,7 +177,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'account-delete-confirmation',
             'Account Deletion - Confirmation Required',
-            'Account Management',
+            'account_management',
             'Verify account deletion requires confirmation',
             ['Attempt to delete account', 'Verify confirmation dialog appears', 'Cancel deletion', 'Verify account still exists', 'Confirm deletion', 'Verify account removed'],
             'medium',
@@ -187,7 +188,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'account-update-profile',
             'Account Update - Profile Information',
-            'Account Management',
+            'account_management',
             'Verify users can update their profile information',
             ['Login to account', 'Navigate to profile settings', 'Update name, email, phone', 'Save changes', 'Verify updates persist', 'Refresh page and verify changes'],
             'high',
@@ -197,7 +198,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'account-update-password',
             'Account Update - Password Change',
-            'Account Management',
+            'account_management',
             'Verify users can change their passwords securely',
             ['Login to account', 'Navigate to password settings', 'Enter current password', 'Enter new password', 'Confirm new password', 'Save changes', 'Login with new password', 'Verify old password fails'],
             'critical',
@@ -208,7 +209,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'account-security-session',
             'Account Security - Session Management',
-            'Account Management',
+            'account_management',
             'Verify proper session handling and logout',
             ['Login to account', 'Open multiple tabs', 'Logout from one tab', 'Verify all tabs logged out', 'Verify session cookies cleared'],
             'high',
@@ -218,7 +219,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'account-security-inactive',
             'Account Security - Inactive Account Handling',
-            'Account Management',
+            'account_management',
             'Verify inactive accounts are handled properly',
             ['Create account but don\'t verify', 'Try to login', 'Verify appropriate error message', 'Check for account lockout after multiple failed attempts'],
             'medium',
@@ -244,7 +245,8 @@ export class BrowserLogTestGenerator {
             'Account Basic - Login Functionality',
             'account_management',
             'Verify basic login functionality works',
-            'automated',
+            ['Login to application', 'Verify successful authentication'],
+            'high',
             ['account', 'login']
         ));
 
@@ -253,7 +255,8 @@ export class BrowserLogTestGenerator {
             'Account Basic - Registration Process',
             'account_management',
             'Verify user registration process works',
-            'automated',
+            ['Navigate to registration', 'Fill registration form', 'Submit and verify account creation'],
+            'high',
             ['account', 'registration']
         ));
 
@@ -262,7 +265,8 @@ export class BrowserLogTestGenerator {
             'Account Basic - Profile Management',
             'account_management',
             'Verify user profile updates work',
-            'automated',
+            ['Login to account', 'Navigate to profile', 'Update profile information', 'Verify changes saved'],
+            'medium',
             ['account', 'profile']
         ));
 
@@ -279,7 +283,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'network-no-failed-apis',
             'Network Logs - No Failed API Calls',
-            'Network Logs',
+            'network_logs',
             'Verify all API calls return successful responses (2xx or 3xx)',
             ['Monitor all fetch/XHR requests', 'Check for 4xx/5xx responses', 'Verify error handling'],
             'critical',
@@ -290,7 +294,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'network-no-server-errors',
             'Network Logs - No Server Errors (5xx)',
-            'Network Logs',
+            'network_logs',
             'Verify no internal server errors occur during testing',
             ['Trigger all API endpoints', 'Monitor for 500, 502, 503 responses', 'Verify backend stability'],
             'critical',
@@ -301,7 +305,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'network-no-404',
             'Network Logs - No 404 Not Found Errors',
-            'Network Logs',
+            'network_logs',
             'Verify all resources and API endpoints exist',
             ['Check all static resources', 'Verify API endpoints', 'Check dynamic routes'],
             'high',
@@ -312,7 +316,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'network-no-cors',
             'Network Logs - No CORS Errors',
-            'Network Logs',
+            'network_logs',
             'Verify cross-origin requests are properly configured',
             ['Test API calls', 'Check preflight requests', 'Verify CORS headers'],
             'high',
@@ -323,7 +327,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'network-api-response-time',
             'Network Logs - API Response Times < 3s',
-            'Network Logs',
+            'network_logs',
             'Verify all API calls complete within acceptable time limits',
             ['Measure response times', 'Check for slow endpoints', 'Verify no timeouts'],
             'high',
@@ -334,7 +338,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'network-payload-size',
             'Network Logs - Reasonable Payload Sizes',
-            'Network Logs',
+            'network_logs',
             'Verify API responses are not excessively large (< 1MB)',
             ['Measure response sizes', 'Check for bloated responses', 'Verify pagination'],
             'medium',
@@ -345,7 +349,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'network-https-only',
             'Network Logs - HTTPS Only (No Mixed Content)',
-            'Network Logs',
+            'network_logs',
             'Verify all requests use HTTPS (no insecure HTTP requests)',
             ['Check request protocols', 'Verify no mixed content', 'Check for http:// URLs'],
             'high',
@@ -356,7 +360,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'network-no-timeouts',
             'Network Logs - No Request Timeouts',
-            'Network Logs',
+            'network_logs',
             'Verify no network requests timeout during normal operation',
             ['Test all API endpoints', 'Monitor for timeout errors', 'Check request completion'],
             'high',
@@ -367,7 +371,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'network-proper-error-format',
             'Network Logs - Proper Error Response Format',
-            'Network Logs',
+            'network_logs',
             'Verify error responses include proper error messages and status codes',
             ['Trigger error conditions', 'Verify error response format', 'Check error messages'],
             'medium',
@@ -378,7 +382,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'network-no-duplicates',
             'Network Logs - No Duplicate API Calls',
-            'Network Logs',
+            'network_logs',
             'Verify the same API is not called multiple times unnecessarily',
             ['Monitor request patterns', 'Check for duplicate calls', 'Verify caching'],
             'medium',
@@ -389,7 +393,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'network-caching',
             'Network Logs - Proper Resource Caching',
-            'Network Logs',
+            'network_logs',
             'Verify static resources are properly cached',
             ['Check cache headers', 'Verify cached responses', 'Monitor cache hit rate'],
             'medium',
@@ -400,7 +404,7 @@ export class BrowserLogTestGenerator {
         tests.push(this.createTest(
             'network-websocket-stability',
             'Network Logs - WebSocket Connection Stability',
-            'Network Logs',
+            'network_logs',
             'Verify WebSocket connections remain stable without disconnects',
             ['Monitor WebSocket connections', 'Check for reconnection patterns', 'Verify message delivery'],
             'medium',
@@ -431,22 +435,19 @@ export class BrowserLogTestGenerator {
         tags: string[]
     ): TestCase {
         return {
-            id,
+            id: uuidv4(), // Generate unique UUID for each test
             name,
             category: category as TestCategory,
             description,
-            automationLevel: 'automated',
+            automationLevel: 'full',
             priority,
-            status: 'pending',
             tags,
             steps: steps.map((step, i) => ({
                 order: i + 1,
                 action: step,
-                expectedResult: 'Step passes without issues'
+                expected: 'Step passes without issues'
             })),
-            expectedResult: 'No errors or issues detected',
-            createdAt: new Date(),
-            updatedAt: new Date()
+            expectedResult: 'No errors or issues detected'
         };
     }
 }

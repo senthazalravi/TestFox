@@ -5,6 +5,11 @@ import { AppRunner } from './core/appRunner';
 import { DependencyManager } from './core/dependencyManager';
 import { TestExplorerProvider } from './views/testExplorer';
 import { TestResultsProvider } from './views/testResultsProvider';
+import { TestControlCenterProvider } from './views/testControlCenter';
+import { TestExecutionManager } from './core/testExecutionManager';
+import { GitIntegration } from './core/gitIntegration';
+import { GitAuth } from './core/gitAuth';
+import { IssueCreator } from './core/issueCreator';
 import { DashboardPanel } from './views/dashboard/dashboardPanel';
 import { ReportPanel } from './views/reportPanel';
 import { SettingsPanel } from './views/settingsPanel';
@@ -33,6 +38,10 @@ let testRunner: TestRunner;
 let testStore: TestStore;
 let testExplorerProvider: TestExplorerProvider;
 let testResultsProvider: TestResultsProvider;
+let testControlCenter: TestControlCenterProvider;
+let testExecutionManager: TestExecutionManager;
+let gitIntegration: GitIntegration | null = null;
+let issueCreator: IssueCreator | null = null;
 let manualTestTracker: ManualTestTracker;
 let reportGenerator: ReportGenerator;
 let dependencyManager: DependencyManager;
@@ -48,6 +57,9 @@ let statusBarMain: vscode.StatusBarItem;
 let statusBarAI: vscode.StatusBarItem;
 let statusBarStatus: vscode.StatusBarItem;
 let statusBarScheduler: vscode.StatusBarItem;
+
+// Track if extension is already activated to prevent duplicate registrations
+let isActivated = false;
 
 /**
  * Check if application is available on common ports
@@ -88,8 +100,15 @@ async function checkApplicationAvailability(): Promise<string | null> {
 }
 
 export async function activate(context: vscode.ExtensionContext) {
+    // Prevent multiple activations
+    if (isActivated) {
+        console.log('TestFox: Extension already activated, skipping duplicate activation');
+        return;
+    }
+
     console.log('TestFox is now active!');
     console.log('Initializing TestFox extension...');
+    isActivated = true;
 
     try {
         // Initialize status bar first (visible immediately)
@@ -168,6 +187,18 @@ export async function activate(context: vscode.ExtensionContext) {
         console.log('TestFox: Creating TestScheduler...');
         scheduler = new TestScheduler(context);
         console.log('TestFox: TestScheduler created');
+
+        // Initialize Git integration if workspace is available
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders && workspaceFolders.length > 0) {
+            const workspacePath = workspaceFolders[0].uri.fsPath;
+            gitIntegration = new GitIntegration(workspacePath);
+            console.log('TestFox: GitIntegration created');
+            
+            // Initialize Issue Creator
+            issueCreator = new IssueCreator(gitIntegration);
+            console.log('TestFox: IssueCreator created');
+        }
 
         console.log('TestFox: Core components initialized successfully');
     } catch (error) {
@@ -259,6 +290,8 @@ export async function activate(context: vscode.ExtensionContext) {
         console.log('Initializing view providers...');
         testExplorerProvider = new TestExplorerProvider(testStore);
         testResultsProvider = new TestResultsProvider(testStore);
+        testControlCenter = new TestControlCenterProvider(context.extensionUri, testStore);
+        testExecutionManager = new TestExecutionManager(testControlCenter);
 
         // Register tree views
         console.log('Registering tree views...');
@@ -272,7 +305,13 @@ export async function activate(context: vscode.ExtensionContext) {
             showCollapseAll: true
         });
 
-        context.subscriptions.push(testExplorerView, testResultsView);
+        // Register Test Control Center webview
+        const controlCenterRegistration = vscode.window.registerWebviewViewProvider(
+            TestControlCenterProvider.viewType,
+            testControlCenter
+        );
+
+        context.subscriptions.push(testExplorerView, testResultsView, controlCenterRegistration);
         console.log('Views registered successfully');
     } catch (error) {
         console.error('Failed to register views:', error);
@@ -475,20 +514,6 @@ export async function activate(context: vscode.ExtensionContext) {
             DefectDashboard.createOrShow(context.extensionUri, defectTracker);
         }),
 
-        vscode.commands.registerCommand('testfox.openBrowserDashboard', async () => {
-            if (!webServer.isServerRunning()) {
-                const started = await webServer.start();
-                if (!started) {
-                    vscode.window.showErrorMessage('TestFox: Failed to start web server for browser dashboard');
-                    return;
-                }
-            }
-
-            const url = webServer.getServerUrl();
-            if (url) {
-                vscode.env.openExternal(vscode.Uri.parse(url));
-            }
-        }),
 
         vscode.commands.registerCommand('testfox.startWebServer', async () => {
             const success = await webServer.start();
@@ -529,11 +554,38 @@ export async function activate(context: vscode.ExtensionContext) {
             } else {
                 vscode.window.showErrorMessage('TestFox Web Server is not running');
             }
+        }),
+
+        vscode.commands.registerCommand('testfox.pauseTests', () => {
+            testExecutionManager.pause();
+        }),
+
+        vscode.commands.registerCommand('testfox.resumeTests', () => {
+            testExecutionManager.resume();
+        }),
+
+        vscode.commands.registerCommand('testfox.stopTests', () => {
+            testExecutionManager.stop();
         })
     ];
 
-        context.subscriptions.push(...commands);
-        console.log('TestFox: Commands registered successfully');
+        // Register commands with error handling for duplicates
+        const registeredCommands: vscode.Disposable[] = [];
+        for (const cmd of commands) {
+            try {
+                registeredCommands.push(cmd);
+            } catch (error: any) {
+                // If command already exists, log but don't fail
+                if (error?.message?.includes('already exists')) {
+                    console.warn(`TestFox: Command already registered, skipping: ${error.message}`);
+                } else {
+                    throw error; // Re-throw other errors
+                }
+            }
+        }
+        
+        context.subscriptions.push(...registeredCommands);
+        console.log(`TestFox: Commands registered successfully (${registeredCommands.length}/${commands.length})`);
     } catch (error) {
         console.error('TestFox: Failed to register commands:', error);
         console.error('TestFox: Error stack:', error instanceof Error ? error.stack : 'No stack trace');
@@ -549,7 +601,9 @@ export async function activate(context: vscode.ExtensionContext) {
                     openRouter.updateStatusBar();
                 }
 
-                if (e.affectsConfiguration('testfox.automation')) {
+                if (e.affectsConfiguration('testfox.automation') || 
+                    e.affectsConfiguration('testfox.scheduleEnabled') ||
+                    e.affectsConfiguration('testfox.autoRunOnCommit')) {
                     console.log('Automation settings changed, updating scheduler...');
                     scheduler.updateSettings();
                     updateSchedulerStatus();
@@ -1234,114 +1288,155 @@ async function runAllTests(): Promise<void> {
 
     // Start a new defect tracking run
     const runNumber = defectTracker.startNewRun();
-    vscode.window.showInformationMessage(`TestFox: Starting Test Run #${runNumber}`);
+    
+    // Determine trigger type
+    const trigger = 'manual' as const; // Can be enhanced to detect scheduled/commit triggers
+    
+    // Start test execution with Control Center
+    const automatedTests = tests.filter(t => t.automationLevel !== 'manual');
+    testExecutionManager.startRun(automatedTests, `Run #${runNumber} (${trigger})`);
 
-    await vscode.window.withProgress({
-        location: vscode.ProgressLocation.Notification,
-        title: `TestFox: Test Run #${runNumber}`,
-        cancellable: true
-    }, async (progress, token) => {
+    try {
+        // Start the application
+        testExecutionManager.addLog('info', 'Starting application...');
+        const projectInfo = testStore.getProjectInfo();
+        if (projectInfo) {
+            try {
+                await appRunner.start(projectInfo);
+                // Wait for app to be ready
+                await appRunner.waitForReady(15000);
+                testExecutionManager.addLog('success', 'Application started successfully');
+            } catch (error) {
+                console.warn('Could not start application:', error);
+                testExecutionManager.addLog('warning', 'Could not start application automatically');
+            }
+        }
+
         let passed = 0;
         let failed = 0;
         let skipped = 0;
         const categoryResults = new Map<string, { total: number; passed: number; failed: number }>();
 
-        try {
-            // Start the application
-            progress.report({ message: 'Starting application...' });
-            const projectInfo = testStore.getProjectInfo();
-            if (projectInfo) {
-                try {
-                    await appRunner.start(projectInfo);
-                    // Wait for app to be ready
-                    await appRunner.waitForReady(15000);
-                } catch (error) {
-                    console.warn('Could not start application:', error);
-                }
+        // Run tests
+        for (const test of automatedTests) {
+            // Check for pause/stop
+            await testExecutionManager.checkPause();
+            if (testExecutionManager.isStopped()) {
+                skipped += automatedTests.length - (passed + failed + skipped);
+                break;
             }
 
-            // Run tests
-            const automatedTests = tests.filter(t => t.automationLevel !== 'manual');
-            let completed = 0;
-
-            for (const test of automatedTests) {
-                if (token.isCancellationRequested) {
-                    skipped++;
-                    break;
-                }
-
-                progress.report({ 
-                    message: `Running: ${test.name}`,
-                    increment: (100 / automatedTests.length)
-                });
-
-                const result = await testRunner.runTest(test);
-                testStore.updateTestResult(test.id, result);
-                completed++;
-
-                // Track category results
-                const catResult = categoryResults.get(test.category) || { total: 0, passed: 0, failed: 0 };
-                catResult.total++;
-
-                // Track defects
-                if (result.status === 'passed') {
-                    passed++;
-                    catResult.passed++;
-                    // Check if this fixes a defect
-                    defectTracker.reportPass(test.id);
-                } else if (result.status === 'failed') {
-                    failed++;
-                    catResult.failed++;
-                    // Report as defect
-                    defectTracker.reportFailure(
-                        test.id,
-                        test.name,
-                        test.category,
-                        result.error || 'Test failed',
-                        test.priority === 'critical' ? 'critical' : 
-                            test.priority === 'high' ? 'high' : 'medium'
-                    );
-                } else {
-                    skipped++;
-                }
-
-                categoryResults.set(test.category, catResult);
-
-                // Update views periodically
-                if (completed % 5 === 0) {
-                    testResultsProvider.refresh();
-                }
-            }
-
-            // Stop the application
-            await appRunner.stop();
-
-            // Complete the defect tracking run
-            const duration = Date.now() - startTime;
-            const catResultsArray = Array.from(categoryResults.entries()).map(([category, result]) => ({
-                category,
-                ...result
-            }));
+            const result = await testRunner.runTest(test);
+            testStore.updateTestResult(test.id, result);
             
-            const testRun = defectTracker.completeRun(
-                passed + failed + skipped,
-                passed,
-                failed,
-                skipped,
-                duration,
-                catResultsArray
-            );
+            // Update Control Center
+            testExecutionManager.updateTestProgress(test, result);
 
-            // Notify web server of data changes
-            webServer.notifyDataChange();
+            // Track category results
+            const catResult = categoryResults.get(test.category) || { total: 0, passed: 0, failed: 0 };
+            catResult.total++;
 
-            // Refresh final results
-            testExplorerProvider.refresh();
-            testResultsProvider.refresh();
-            updateStatus('ready');
+            // Track defects
+            if (result.status === 'passed') {
+                passed++;
+                catResult.passed++;
+                // Check if this fixes a defect
+                defectTracker.reportPass(test.id);
+            } else if (result.status === 'failed') {
+                failed++;
+                catResult.failed++;
+                // Report as defect
+                defectTracker.reportFailure(
+                    test.id,
+                    test.name,
+                    test.category,
+                    result.error || 'Test failed',
+                    test.priority === 'critical' ? 'critical' : 
+                        test.priority === 'high' ? 'high' : 'medium'
+                );
+            } else {
+                skipped++;
+            }
 
+            categoryResults.set(test.category, catResult);
+
+            // Update views periodically
+            if ((passed + failed + skipped) % 5 === 0) {
+                testResultsProvider.refresh();
+            }
+        }
+
+        // Stop the application
+        await appRunner.stop();
+
+        // Complete the defect tracking run
+        const duration = Date.now() - startTime;
+        const catResultsArray = Array.from(categoryResults.entries()).map(([category, result]) => ({
+            category,
+            ...result
+        }));
+        
+        const testRun = defectTracker.completeRun(
+            passed + failed + skipped,
+            passed,
+            failed,
+            skipped,
+            duration,
+            catResultsArray
+        );
+
+        // Notify web server of data changes
+        webServer.notifyDataChange();
+
+        // Store test run results
+        if (gitIntegration) {
+            try {
+                const allTests = testStore.getAllTests();
+                const testRunData = {
+                    trigger: trigger,
+                    duration,
+                    summary: {
+                        total: passed + failed + skipped,
+                        passed,
+                        failed,
+                        skipped
+                    },
+                    tests: automatedTests.map(test => {
+                        const result = testStore.getTestResult(test.id);
+                        return {
+                            testId: test.id,
+                            testName: test.name,
+                            category: test.category,
+                            status: result?.status || 'pending',
+                            duration: result?.duration,
+                            error: result?.error
+                        };
+                    }),
+                    categoryResults: catResultsArray
+                };
+
+                await gitIntegration.storeTestRun(testRunData);
+                testExecutionManager.addLog('info', 'Test run stored in .testfox/');
+            } catch (error) {
+                console.error('Failed to store test run:', error);
+                testExecutionManager.addLog('warning', 'Failed to store test run results');
+            }
+        }
+
+        // Complete test execution
+        testExecutionManager.completeRun();
+
+        // Refresh final results
+        testExplorerProvider.refresh();
+        testResultsProvider.refresh();
+        updateStatus('ready');
+
+        // Only show critical notifications (optional - can be disabled via settings)
+        const config = vscode.workspace.getConfiguration('testfox');
+        const showIDEToast = config.get<boolean>('showIDEToast', false);
+
+        if (showIDEToast) {
             const manual = tests.filter(t => t.automationLevel === 'manual').length;
-
             vscode.window.showInformationMessage(
                 `TestFox: Run #${runNumber} complete - ${passed} passed, ${failed} failed (${testRun.passRate}% pass rate). ` +
                 `${testRun.newDefects} new defects, ${testRun.fixedDefects} fixed.`
@@ -1360,12 +1455,20 @@ async function runAllTests(): Promise<void> {
                     vscode.commands.executeCommand('testfox.openBrowserDashboard');
                 }
             }
-        } catch (error) {
-            await appRunner.stop();
-            updateStatus('error');
+        }
+    } catch (error) {
+        await appRunner.stop();
+        updateStatus('error');
+        testExecutionManager.addLog('error', `Test execution failed: ${error}`);
+        testExecutionManager.completeRun();
+        
+        // Only show error notification if enabled
+        const config = vscode.workspace.getConfiguration('testfox');
+        const showIDEToast = config.get<boolean>('showIDEToast', false);
+        if (showIDEToast) {
             vscode.window.showErrorMessage(`TestFox: Test execution failed - ${error}`);
         }
-    });
+    }
 }
 
 async function runFullCycleTests(): Promise<void> {
@@ -1937,6 +2040,124 @@ async function generateWebReport(context: vscode.ExtensionContext): Promise<void
     ReportPanel.createOrShow(context.extensionUri, testStore, manualTestTracker);
 }
 
+/**
+ * Create issue for failed test
+ */
+async function createIssue(platform: 'github' | 'jira', testId?: string): Promise<void> {
+    if (!issueCreator) {
+        vscode.window.showErrorMessage('TestFox: Issue creation requires a workspace folder.');
+        return;
+    }
+
+    // Get test ID if not provided
+    if (!testId) {
+        // Get failed tests
+        const allTests = testStore.getAllTests();
+        const failedTests = allTests.filter(test => {
+            const result = testStore.getTestResult(test.id);
+            return result?.status === 'failed';
+        });
+
+        if (failedTests.length === 0) {
+            vscode.window.showInformationMessage('TestFox: No failed tests found to create an issue for.');
+            return;
+        }
+
+        // Let user select a test
+        const items = failedTests.map(test => ({
+            label: test.name,
+            description: test.category,
+            detail: testStore.getTestResult(test.id)?.error || 'Test failed',
+            testId: test.id
+        }));
+
+        const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select a failed test to create an issue for'
+        });
+
+        if (!selected) return;
+        testId = selected.testId;
+    }
+
+    const test = testStore.getTest(testId);
+    if (!test) {
+        vscode.window.showErrorMessage('TestFox: Test not found.');
+        return;
+    }
+
+    const result = testStore.getTestResult(testId);
+    if (!result || result.status !== 'failed') {
+        vscode.window.showWarningMessage('TestFox: Selected test did not fail. Cannot create issue.');
+        return;
+    }
+
+    try {
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: `TestFox: Creating ${platform === 'github' ? 'GitHub' : 'Jira'} issue...`,
+            cancellable: false
+        }, async (progress) => {
+            progress.report({ message: 'Generating issue content with AI...' });
+
+            // Get run ID from latest test run
+            const runId = gitIntegration ? 
+                (await gitIntegration.getStorage().getLatest())?.id || `run-${Date.now()}` :
+                `run-${Date.now()}`;
+
+            // Get historical failures
+            const allRuns = gitIntegration ? gitIntegration.getStorage().getAllRuns() : [];
+            const historicalFailures = allRuns
+                .filter(run => run.tests.some(t => t.testName === test.name && t.status === 'failed'))
+                .slice(0, 5)
+                .map(run => ({
+                    test_name: test.name,
+                    run_id: run.id,
+                    timestamp: run.timestamp
+                }));
+
+            // Generate issue content
+            const issueContent = await issueCreator.generateIssueContent({
+                platform,
+                test,
+                result,
+                runId,
+                logs: Array.isArray(result.logs) ? result.logs.join('\n') : undefined,
+                stackTrace: result.error,
+                commit: gitIntegration ? {
+                    hash: await gitIntegration.getCurrentCommit() || undefined
+                } : undefined,
+                historicalFailures: historicalFailures.length > 0 ? historicalFailures : undefined
+            });
+
+            progress.report({ message: `Creating ${platform === 'github' ? 'GitHub' : 'Jira'} issue...` });
+
+            // Create the issue
+            let issueUrl: string | null = null;
+            if (platform === 'github') {
+                issueUrl = await issueCreator.createGitHubIssue(issueContent);
+            } else {
+                issueUrl = await issueCreator.createJiraIssue(issueContent);
+            }
+
+            if (issueUrl) {
+                vscode.window.showInformationMessage(
+                    `TestFox: Issue created successfully!`,
+                    'Open Issue'
+                ).then(selection => {
+                    if (selection === 'Open Issue') {
+                        vscode.env.openExternal(vscode.Uri.parse(issueUrl!));
+                    }
+                });
+            } else {
+                vscode.window.showInformationMessage('TestFox: Issue content prepared. Check clipboard or follow instructions.');
+            }
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        vscode.window.showErrorMessage(`TestFox: Failed to create issue - ${message}`);
+    }
+}
+
 export function deactivate() {
     // Clean up resources
     if (appRunner) {
@@ -1945,5 +2166,6 @@ export function deactivate() {
     if (webServer) {
         webServer.stop();
     }
+    isActivated = false;
     console.log('TestFox has been deactivated');
 }

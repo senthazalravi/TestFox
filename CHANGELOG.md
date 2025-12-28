@@ -2,6 +2,130 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
+## [0.5.1] - 2024-12-25
+
+### New Features
+
+- **AI-Powered Issue Creation** 🐛
+  - Create GitHub issues directly from failed tests
+  - AI-generated issue content using deterministic system prompt
+  - Automatic deduplication detection based on historical failures
+  - Commit hash linking for traceability
+  - Severity inference from test priority
+  - Context menu on failed tests in Test Explorer
+  - Jira issue formatting (ready for API integration)
+
+- **Issue Creation Commands** 📝
+  - `TestFox: Create GitHub Issue` - Create GitHub issue from failed test
+  - `TestFox: Create Jira Issue` - Format Jira issue content
+  - Right-click failed tests to create issues
+  - Test selection dialog for batch issue creation
+
+### Technical Improvements
+
+- **Issue Creator Service** - Centralized issue creation with AI integration
+- **GitHub API Integration** - Seamless issue creation via GitHub API
+- **Historical Analysis** - Checks past test runs for duplicate detection
+- **Structured Output** - JSON-based issue content generation
+
+## [0.5.0] - 2024-12-25
+
+### 🎉 Major Release: Test Control Center & Git Integration
+
+#### New Features
+
+- **Test Control Center** 🎛️
+  - New dedicated view for real-time test execution monitoring
+  - Live progress bars with percentage tracking
+  - Real-time log stream (last 20 entries)
+  - Current test display
+  - Summary statistics (Total/Passed/Failed/Skipped)
+  - Control buttons: Pause, Resume, Stop, Rerun
+  - Elapsed time tracking
+  - Trigger information display (manual/scheduled/commit)
+
+- **Pause/Resume/Stop Functionality** ⏸️▶️⏹️
+  - Pause test execution at any time
+  - Resume from where you left off
+  - Stop execution gracefully
+  - State management for test runs
+
+- **Git Integration** 🔗
+  - GitHub authentication using VS Code auth API
+  - Automatic commit hash detection
+  - Git-backed test result storage
+  - Auto-commit test results with descriptive messages
+  - `.testfox/` directory structure for test run storage
+
+- **Enhanced Scheduling** ⏰
+  - Periodic test execution (15m, 1h, daily intervals)
+  - Commit-triggered test runs
+  - Automatic detection of major commits
+  - Multiple trigger types: manual, scheduled, commit
+
+- **Test Run Storage** 💾
+  - Persistent storage in `.testfox/runs/` directory
+  - Latest run tracking in `.testfox/latest.json`
+  - Timestamped test run files
+  - Full test result history
+
+#### Improvements
+
+- **Notification System** 🔕
+  - IDE toast notifications disabled by default
+  - All events routed to Test Control Center
+  - Optional `showIDEToast` setting for critical failures
+  - Zero notification spam
+
+- **Test Execution** 🚀
+  - Real-time progress tracking
+  - Per-test status updates
+  - Category-based result tracking
+  - Improved error handling
+
+- **Settings** ⚙️
+  - `testfox.showIDEToast` - Control IDE notifications
+  - `testfox.autoRunOnCommit` - Auto-run on commits
+  - `testfox.scheduleEnabled` - Enable periodic scheduling
+  - `testfox.storeResultsInGit` - Git-backed storage
+  - `testfox.automation.interval` - Schedule interval (15m/1h/daily)
+
+#### Technical Improvements
+
+- **Test Execution Manager** - Centralized state management
+- **Git Integration** - Seamless Git workflow integration
+- **Storage System** - Persistent test run history
+- **Event System** - Real-time updates to Control Center
+- **State Machine** - Proper pause/resume/stop handling
+
+### Fixed
+
+- **Browser Log Tests UI** 🔧
+  - Fixed category name mismatches (Console Logs → console_logs)
+  - Fixed Network Logs category (Network Logs → network_logs)
+  - Fixed Account Management category (Account Management → account_management)
+  - Tests now properly appear in UI and are runnable
+  - Fixed test ID generation to use UUIDs
+
+- **Duplicate Command Registration** 🔧
+  - Fixed "command already exists" error on extension startup
+  - Added activation guard to prevent multiple activations
+  - Improved error handling for command registration
+
+## [0.4.16] - 2024-12-25
+
+### Fixed
+- **Duplicate Command Registration Error** 🔧
+  - Fixed "command 'testfox.openBrowserDashboard' already exists" error on extension startup
+  - Added activation guard to prevent multiple activations
+  - Improved error handling for command registration
+  - Extension now handles multiple activation attempts gracefully
+
+### Technical Improvements:
+- **Activation Guard**: Prevents duplicate extension activations
+- **Command Registration**: Better error handling for duplicate command registrations
+- **Extension Lifecycle**: Proper cleanup on deactivation
+
 ## [0.4.13] - 2024-12-25
 
 ### Fixed

@@ -139,10 +139,20 @@ export class TestExplorerProvider implements vscode.TreeDataProvider<TestTreeIte
         const result = this.testStore.getTestResult(test.id);
         const status = result?.status || 'pending';
 
+        // Determine context value based on status
+        let contextValue: string;
+        if (test.automationLevel === 'manual') {
+            contextValue = 'manualTest';
+        } else if (status === 'failed') {
+            contextValue = 'failedTest';
+        } else {
+            contextValue = 'automatedTest';
+        }
+
         const item = new TestTreeItem(
             test.name,
             vscode.TreeItemCollapsibleState.None,
-            test.automationLevel === 'manual' ? 'manualTest' : 'automatedTest'
+            contextValue
         );
 
         item.testId = test.id;
