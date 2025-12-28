@@ -112,14 +112,46 @@ export class TestStore {
     }
 
     // Tests
-    addTest(test: TestCase): void {
+    addTest(test: TestCase, coverageTracker?: any): boolean {
+        // Check for duplicates if coverage tracker is provided
+        if (coverageTracker && coverageTracker.isDuplicate(test)) {
+            return false; // Duplicate, not added
+        }
+
         this.tests.set(test.id, test);
+        
+        // Register with coverage tracker if provided
+        if (coverageTracker) {
+            const sourceFile = test.targetElement?.file || 
+                              (test.targetElement?.path ? this.getFileFromPath(test.targetElement.path) : undefined);
+            coverageTracker.registerTest(test, sourceFile);
+        }
+        
         this.saveToStorage();
+        return true; // Successfully added
     }
 
-    addTests(tests: TestCase[]): void {
-        tests.forEach(test => this.tests.set(test.id, test));
-        this.saveToStorage();
+    addTests(tests: TestCase[], coverageTracker?: any): { added: number; skipped: number } {
+        let added = 0;
+        let skipped = 0;
+
+        for (const test of tests) {
+            if (this.addTest(test, coverageTracker)) {
+                added++;
+            } else {
+                skipped++;
+            }
+        }
+
+        return { added, skipped };
+    }
+
+    /**
+     * Extract file path from route/endpoint path (heuristic)
+     */
+    private getFileFromPath(path: string): string | undefined {
+        // This is a heuristic - in real implementation, we'd track this during analysis
+        return undefined;
     }
 
     getTest(id: string): TestCase | undefined {

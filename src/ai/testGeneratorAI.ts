@@ -110,7 +110,17 @@ export class TestGeneratorAI {
                 console.log('AI test generation failed, falling back to rule-based:', message);
 
                 // Show warning but don't block test generation
-                vscode.window.showWarningMessage(`TestFox AI failed: ${message}. Using rule-based generation.`);
+                // Only show error if AI was explicitly enabled but failed
+                // Don't show error if AI is simply not configured (onboarding will handle that)
+                const config = vscode.workspace.getConfiguration('testfox');
+                const apiKey = config.get<string>('ai.apiKey');
+                if (apiKey) {
+                    // API key exists but connection failed - show error
+                    vscode.window.showWarningMessage(`TestFox AI failed: ${message}. Using rule-based generation.`);
+                } else {
+                    // No API key - silently fall back (onboarding will prompt if needed)
+                    console.log('TestFox: AI not configured, using rule-based generation');
+                }
 
                 // Return empty array to trigger fallback to rule-based generation
                 return [];

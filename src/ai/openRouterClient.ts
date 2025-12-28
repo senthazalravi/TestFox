@@ -125,6 +125,43 @@ export class OpenRouterClient {
     }
 
     /**
+     * Test API connection
+     */
+    async testConnection(): Promise<boolean> {
+        if (!this.apiKey) {
+            throw new Error('API key is not configured');
+        }
+
+        try {
+            // Make a minimal test request
+            const response = await this.client.post('/chat/completions', {
+                model: this.fallbackModel, // Use free model for testing
+                messages: [
+                    { role: 'user', content: 'test' }
+                ],
+                max_tokens: 5
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`
+                },
+                timeout: 10000 // 10 second timeout for test
+            });
+
+            return response.status === 200 && response.data?.choices?.length > 0;
+        } catch (error: any) {
+            if (error.response?.status === 401) {
+                throw new Error('Invalid API key. Please check your key and try again.');
+            } else if (error.response?.status === 429) {
+                throw new Error('Rate limit exceeded. Please try again later.');
+            } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+                throw new Error('Connection timeout. Please check your internet connection.');
+            } else {
+                throw new Error(`Connection failed: ${error.message || 'Unknown error'}`);
+            }
+        }
+    }
+
+    /**
      * Send a chat completion request
      */
     async chat(messages: ChatMessage[], options?: {

@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing extension - the final quality gate in your SDLC. Automated functional, security, performance, and API testing with ISTQB standards. Uses Grok/XAI via OpenRouter.",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -273,6 +273,11 @@
         "command": "testfox.createJiraIssue",
         "title": "TestFox: Create Jira Issue",
         "icon": "$(issue-opened)"
+      },
+      {
+        "command": "testfox.showOnboarding",
+        "title": "TestFox: Show Setup Guide",
+        "icon": "$(rocket)"
       }
     ],
     "viewsContainers": {

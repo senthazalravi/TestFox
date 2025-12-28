@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { TestStore } from '../store/testStore';
+import { TestCoverageTracker } from '../core/testCoverageTracker';
 import {
     TestCase,
     TestStep,
@@ -21,9 +22,17 @@ import { SecurityPatterns } from '../utils/securityPatterns';
  */
 export class TestGeneratorManager {
     private analysisResult: AnalysisResult | null;
+    private coverageTracker: TestCoverageTracker | null = null;
+    private incrementalMode: boolean = false;
 
-    constructor(private testStore: TestStore) {
+    constructor(
+        private testStore: TestStore,
+        coverageTracker?: TestCoverageTracker,
+        incrementalMode: boolean = false
+    ) {
         this.analysisResult = testStore.getAnalysisResult();
+        this.coverageTracker = coverageTracker || null;
+        this.incrementalMode = incrementalMode;
         // Ensure analysis result has all required properties
         this.ensureValidAnalysisResult();
     }
@@ -71,9 +80,22 @@ export class TestGeneratorManager {
 
         const tests: TestCase[] = [];
 
+        // Get routes to test (filter by coverage if in incremental mode)
+        let routesToTest = this.analysisResult.routes.slice(0, 10);
+        if (this.incrementalMode && this.coverageTracker) {
+            const newOrChanged = this.coverageTracker.getNewOrChangedItems(this.analysisResult);
+            routesToTest = [...newOrChanged.newRoutes, ...newOrChanged.changedRoutes].slice(0, 10);
+        }
+
         // Generate smoke tests for critical routes
-        for (const route of this.analysisResult.routes.slice(0, 10)) {
-            tests.push(this.createTest({
+        for (const route of routesToTest) {
+            // Skip if already tested (in incremental mode)
+            if (this.incrementalMode && this.coverageTracker && 
+                this.coverageTracker.isRouteTested(route.method, route.path, 'smoke')) {
+                continue;
+            }
+
+            const test = this.createTest({
                 name: `Smoke: ${route.method} ${route.path} is accessible`,
                 description: `Verify that ${route.path} responds with a valid status code`,
                 category: 'smoke',
@@ -84,8 +106,13 @@ export class TestGeneratorManager {
                     { order: 2, action: 'Check response status', expected: 'Status is 2xx or valid redirect' }
                 ],
                 expectedResult: 'Route is accessible and responds correctly',
-                targetElement: { type: 'route', path: route.path, method: route.method }
-            }));
+                targetElement: { type: 'route', path: route.path, method: route.method, file: route.file }
+            });
+
+            // Check for duplicate before adding
+            if (!this.coverageTracker || !this.coverageTracker.isDuplicate(test)) {
+                tests.push(test);
+            }
         }
 
         // Generate smoke tests for main pages/components
@@ -123,7 +150,7 @@ export class TestGeneratorManager {
             }));
         }
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     async generateFunctionalTests(): Promise<void> {
@@ -251,7 +278,21 @@ export class TestGeneratorManager {
             }));
         }
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
+    }
+
+    /**
+     * Add tests with coverage tracking and duplicate detection
+     */
+    private addTestsWithCoverage(tests: TestCase[]): void {
+        if (this.coverageTracker) {
+            const result = this.testStore.addTests(tests, this.coverageTracker);
+            if (result.skipped > 0) {
+                console.log(`TestGenerator: Skipped ${result.skipped} duplicate tests, added ${result.added} new tests`);
+            }
+        } else {
+            this.addTestsWithCoverage(tests);
+        }
     }
 
     async generateApiTests(): Promise<void> {
@@ -334,7 +375,7 @@ export class TestGeneratorManager {
             }));
         }
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     async generateSecurityTests(): Promise<void> {
@@ -470,7 +511,7 @@ export class TestGeneratorManager {
             }));
         }
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     async generatePerformanceTests(): Promise<void> {
@@ -537,7 +578,7 @@ export class TestGeneratorManager {
             expectedResult: 'No memory leaks detected'
         }));
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     async generateEdgeCaseTests(): Promise<void> {
@@ -664,7 +705,7 @@ export class TestGeneratorManager {
             expectedResult: 'Concurrent operations handled safely'
         }));
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     async generateMonkeyTests(): Promise<void> {
@@ -709,7 +750,7 @@ export class TestGeneratorManager {
             expectedResult: 'API handles random inputs gracefully'
         }));
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     async generateFeatureTests(): Promise<void> {
@@ -754,7 +795,7 @@ export class TestGeneratorManager {
             }));
         }
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     async generateLoadTests(): Promise<void> {
@@ -797,7 +838,7 @@ export class TestGeneratorManager {
             expectedResult: 'Application handles stress gracefully'
         }));
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     /**
@@ -905,7 +946,7 @@ export class TestGeneratorManager {
             }));
         }
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     /**
@@ -982,7 +1023,7 @@ export class TestGeneratorManager {
             }
         }
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     /**
@@ -1072,7 +1113,7 @@ export class TestGeneratorManager {
             }));
         }
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     /**
@@ -1129,7 +1170,7 @@ export class TestGeneratorManager {
             }));
         }
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     /**
@@ -1159,7 +1200,7 @@ export class TestGeneratorManager {
             }));
         }
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     /**
@@ -1211,7 +1252,7 @@ export class TestGeneratorManager {
             }
         }
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     /**
@@ -1265,7 +1306,7 @@ export class TestGeneratorManager {
             expectedResult: 'Application is usable on mobile'
         }));
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     /**
@@ -1307,7 +1348,7 @@ export class TestGeneratorManager {
             expectedResult: 'All requirements are met or gaps documented'
         }));
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     /**
@@ -1353,7 +1394,7 @@ export class TestGeneratorManager {
             }));
         }
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     /**
@@ -1399,7 +1440,7 @@ export class TestGeneratorManager {
             }));
         }
 
-        this.testStore.addTests(tests);
+        this.addTestsWithCoverage(tests);
     }
 
     private createTest(params: {

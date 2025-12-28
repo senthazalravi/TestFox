@@ -253,7 +253,7 @@ Available models include:
 
 ## Author
 
-Developed by [@senthazalravi](https://x.com/senthazalravi),@nithiyanandam.sundaram@gmail.com
+Developed by [@senthazalravi](https://x.com/senthazalravi), @nithiyanandam.sundaram@gmail.com and this project seeks investments. connect with ravi.antone@gmail.com 
 
 ## Contributing
 

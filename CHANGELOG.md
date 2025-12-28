@@ -2,6 +2,55 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
+## [0.5.2] - 2024-12-25
+
+### New Features
+
+- **Seamless Onboarding Experience** 🚀
+  - Automatic onboarding panel on first launch
+  - Beautiful step-by-step setup guide
+  - API key validation with connection testing
+  - Model selection (free and premium options)
+  - Skip option for later configuration
+  - One-time prompt (won't spam users)
+
+- **Duplicate Test Prevention** 🔒
+  - Test fingerprinting system to detect duplicates
+  - Coverage tracking for files, routes, endpoints, forms
+  - File change detection for incremental generation
+  - Persistent coverage data in `.testfox/coverage.json`
+  - Automatic deduplication during test generation
+  - Only generates tests for new/changed files
+
+### Improvements
+
+- **Onboarding Panel** 📋
+  - Webview-based setup UI matching VS Code theme
+  - Real-time API key validation
+  - Test connection before saving
+  - Clear instructions and helpful links
+  - Model selection with free options highlighted
+
+- **Error Handling** 🛡️
+  - No error messages when AI is simply not configured
+  - Only shows errors if API key exists but fails
+  - Silent fallback to rule-based generation
+  - Better user experience
+
+- **Test Generation** ⚡
+  - Incremental generation mode (only new/changed items)
+  - Coverage statistics and tracking
+  - Prevents duplicate test creation
+  - Faster generation by skipping already-tested items
+
+### Technical Improvements
+
+- **TestFingerprint System** - Unique identification for tests
+- **TestCoverageTracker** - Tracks what has been tested
+- **OnboardingPanel** - Beautiful setup experience
+- **API Connection Testing** - Validates keys before saving
+- **Coverage Persistence** - Survives extension restarts
+
 ## [0.5.1] - 2024-12-25
 
 ### New Features
