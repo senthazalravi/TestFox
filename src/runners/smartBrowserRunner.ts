@@ -153,6 +153,28 @@ export class SmartBrowserRunner {
     }
 
     /**
+     * Get current page HTML content
+     */
+    async getPageHTML(): Promise<string | null> {
+        if (!this.page) return null;
+
+        try {
+            const html = await this.page.content();
+            return html;
+        } catch (error: any) {
+            this.log(`Failed to get page HTML: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * Get current page URL
+     */
+    getCurrentURL(): string | null {
+        return this.page?.url() || null;
+    }
+
+    /**
      * Attempt to login with discovered credentials
      */
     async attemptLogin(credential: DiscoveredCredential): Promise<boolean> {

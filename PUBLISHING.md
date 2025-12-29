@@ -1,161 +1,85 @@
-# Publishing TestFox to VS Code Marketplace
+# Publishing TestFox Extension
+
+**⚠️ IMPORTANT: Always publish to BOTH marketplaces using `npm run publish:all`**
+
+This document describes how to publish TestFox to both VS Code Marketplace and OpenVSX.
 
 ## Prerequisites
 
-1. **Azure DevOps Account**: You need a Microsoft/Azure account
-2. **Personal Access Token (PAT)**: Required for publishing
+1. **VS Code Marketplace PAT**: Stored in `VSCE_PAT` environment variable
+2. **OpenVSX Access Token**: Stored in `OVSX_PAT` environment variable
+   - Current token: `ovsxat_d16bbdb8-247e-42fc-b609-671ecc522b5d`
 
-## Step 1: Create a Publisher
+## Publishing to Both Marketplaces
 
-1. Go to [Visual Studio Marketplace Publisher Management](https://marketplace.visualstudio.com/manage)
-2. Sign in with your Microsoft account
-3. Click **"Create Publisher"**
-4. Fill in the details:
-   - **Publisher ID**: `testfox` (or your preferred unique ID)
-   - **Display Name**: `TestFox`
-   - **Description**: Testing tools for developers
+### Automatic (Recommended)
 
-## Step 2: Create a Personal Access Token (PAT)
-
-1. Go to [Azure DevOps](https://dev.azure.com)
-2. Sign in and create an organization if you don't have one
-3. Click on your profile icon → **Personal access tokens**
-4. Click **"New Token"**
-5. Configure:
-   - **Name**: `vsce-publish`
-   - **Organization**: All accessible organizations
-   - **Expiration**: Choose a suitable period
-   - **Scopes**: Select **"Custom defined"** then:
-     - Under **Marketplace**, check **"Acquire"** and **"Manage"**
-6. Click **Create** and **copy the token** (you won't see it again!)
-
-## Step 3: Update Publisher in package.json
-
-Update the `publisher` field in `package.json` to match your publisher ID:
-
-```json
-{
-  "publisher": "your-publisher-id"
-}
-```
-
-## Step 4: Create the Icon
-
-The extension requires a 128x128 PNG icon. Convert the SVG:
-
-### Option A: Online converter
-1. Go to https://cloudconvert.com/svg-to-png
-2. Upload `media/testfox-icon.svg`
-3. Set size to 128x128
-4. Download and save as `media/testfox-icon.png`
-
-### Option B: Using ImageMagick (if installed)
-```bash
-magick convert -background none -size 128x128 media/testfox-icon.svg media/testfox-icon.png
-```
-
-### Option C: Using Inkscape (if installed)
-```bash
-inkscape media/testfox-icon.svg --export-type=png --export-filename=media/testfox-icon.png --export-width=128 --export-height=128
-```
-
-## Step 5: Install vsce
+To publish to both marketplaces automatically:
 
 ```bash
-npm install -g @vscode/vsce
+npm run publish:all
 ```
 
-Or it's already in devDependencies, so you can use `npx vsce`.
+This will:
+1. Package the extension
+2. Publish to VS Code Marketplace
+3. Publish to OpenVSX
 
-## Step 6: Login to vsce
+### Manual Publishing
 
-```bash
-npx vsce login your-publisher-id
-```
+#### VS Code Marketplace Only
 
-When prompted, paste your Personal Access Token.
-
-## Step 7: Package the Extension
-
-Test packaging first:
-
-```bash
-npm run package
-```
-
-This creates `testfox-0.1.0.vsix`. You can install this locally to test:
-- In VS Code: Extensions → ... → Install from VSIX
-
-## Step 8: Publish
-
-### Publish current version:
 ```bash
 npm run publish
 ```
 
-### Publish with version bump:
-```bash
-npm run publish:patch  # 0.1.0 → 0.1.1
-npm run publish:minor  # 0.1.0 → 0.2.0
-npm run publish:major  # 0.1.0 → 1.0.0
-```
-
-## Step 9: Verify Publication
-
-1. Go to [VS Code Marketplace](https://marketplace.visualstudio.com/vscode)
-2. Search for "TestFox"
-3. Your extension should appear within a few minutes
-
-## Updating the Extension
-
-1. Make your changes
-2. Update `CHANGELOG.md`
-3. Run `npm run publish:patch` (or minor/major)
-
-## Repository Setup (Optional but Recommended)
-
-For the GitHub links in package.json to work:
-
-1. Create a GitHub repository: `testfox-vscode`
-2. Push your code:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit - TestFox v0.1.0"
-   git remote add origin https://github.com/YOUR_USERNAME/testfox-vscode.git
-   git push -u origin main
-   ```
-3. Update `package.json` with your actual GitHub URLs
-
-## Troubleshooting
-
-### "Personal access token verification failed"
-- Make sure you selected "All accessible organizations"
-- Ensure Marketplace → Manage and Acquire are checked
-
-### "Missing icon"
-- Icon must be PNG format, 128x128 minimum
-- Path must match `icon` field in package.json
-
-### "Extension not appearing"
-- Wait a few minutes; indexing takes time
-- Check the [Publisher Management](https://marketplace.visualstudio.com/manage) page
-
-## Quick Commands Reference
+#### OpenVSX Only
 
 ```bash
-# Package locally
-npm run package
-
-# Publish
-npm run publish
-
-# Version bumps
-npm run publish:patch
-npm run publish:minor
-npm run publish:major
+npm run publish:openvsx
 ```
 
----
+## Environment Variables
 
-Happy Publishing! 🦊
+### VS Code Marketplace (VSCE_PAT)
+
+The PAT is stored in the user environment variable. To verify:
+
+```powershell
+[System.Environment]::GetEnvironmentVariable('VSCE_PAT', 'User')
+```
+
+### OpenVSX (OVSX_PAT)
+
+The access token is stored in the user environment variable. To verify:
+
+```powershell
+[System.Environment]::GetEnvironmentVariable('OVSX_PAT', 'User')
+```
+
+To update the token:
+
+```powershell
+[System.Environment]::SetEnvironmentVariable('OVSX_PAT', 'your-token-here', 'User')
+```
+
+## Publishing Checklist
+
+Before publishing a new version:
+
+1. ✅ Update version in `package.json`
+2. ✅ Update `CHANGELOG.md` with new features/fixes
+3. ✅ Run `npm run compile` to ensure code compiles
+4. ✅ Test the extension locally
+5. ✅ Run `npm run publish:all` to publish to both marketplaces
+
+## Marketplace Links
+
+- **VS Code Marketplace**: https://marketplace.visualstudio.com/items?itemName=TestFox.testfox
+- **OpenVSX Registry**: https://open-vsx.org/extension/TestFox/testfox
+
+## Notes
+
+- Always use `npm run publish:all` for future versions to ensure both marketplaces are updated
+- The OpenVSX namespace "TestFox" already exists and doesn't need to be created again
+- Both marketplaces may take a few minutes to reflect the new version

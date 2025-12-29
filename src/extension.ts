@@ -64,6 +64,28 @@ let statusBarScheduler: vscode.StatusBarItem;
 // Track if extension is already activated to prevent duplicate registrations
 let isActivated = false;
 
+// Output channel for diagnostic logging
+let outputChannel: vscode.OutputChannel;
+
+/**
+ * Log diagnostic message to output channel
+ */
+function logDiagnostic(message: string, type: 'info' | 'warn' | 'error' = 'info'): void {
+    if (!outputChannel) {
+        outputChannel = vscode.window.createOutputChannel('TestFox Diagnostics');
+    }
+    const timestamp = new Date().toISOString();
+    const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : 'ℹ️';
+    outputChannel.appendLine(`[${timestamp}] ${prefix} ${message}`);
+    if (type === 'error') {
+        console.error(`TestFox: ${message}`);
+    } else if (type === 'warn') {
+        console.warn(`TestFox: ${message}`);
+    } else {
+        console.log(`TestFox: ${message}`);
+    }
+}
+
 /**
  * Check if application is available on common ports
  */
@@ -222,15 +244,45 @@ export async function activate(context: vscode.ExtensionContext) {
 
     try {
         // Initialize AI client with status bar
-        console.log('Initializing AI client...');
+        logDiagnostic('Initializing AI client...');
         const openRouter = getOpenRouterClient();
         openRouter.initStatusBar(statusBarAI);
 
         // Load AI configuration (including API key from settings)
         loadAIConfiguration(context);
-        console.log('AI configuration loaded');
+        
+        // Check if AI is configured
+        const config = vscode.workspace.getConfiguration('testfox');
+        const apiKey = config.get<string>('ai.apiKey');
+        const model = config.get<string>('ai.model');
+        
+        if (apiKey) {
+            logDiagnostic(`AI API key found: ${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}`);
+            logDiagnostic(`AI model configured: ${model || 'default (Gemini 2.0 Flash)'}`);
+            
+            // Test connection in background
+            openRouter.testConnection().then(result => {
+                if (result.success) {
+                    logDiagnostic('✅ AI connection test successful');
+                } else {
+                    logDiagnostic(`❌ AI connection test failed: ${result.error}`, 'error');
+                    vscode.window.showWarningMessage(
+                        `TestFox: AI connection failed - ${result.error}`,
+                        'Open Diagnostics'
+                    ).then(selection => {
+                        if (selection === 'Open Diagnostics') {
+                            outputChannel.show(true);
+                        }
+                    });
+                }
+            }).catch(err => {
+                logDiagnostic(`❌ AI connection test error: ${err.message}`, 'error');
+            });
+        } else {
+            logDiagnostic('⚠️ AI API key not configured - AI features will be disabled', 'warn');
+        }
     } catch (error) {
-        console.error('Failed to initialize AI:', error);
+        logDiagnostic(`Failed to initialize AI: ${error}`, 'error');
     }
 
     try {
@@ -428,11 +480,17 @@ export async function activate(context: vscode.ExtensionContext) {
 
         vscode.commands.registerCommand('testfox.configureAI', async () => {
             // Show onboarding panel for seamless configuration
-            OnboardingPanel.createOrShow(context.extensionUri);
+                    const config = vscode.workspace.getConfiguration('testfox');
+            const apiKey = config.get<string>('ai.apiKey');
+            const isGitHubAuthenticated = await GitAuth.isAuthenticated();
+            OnboardingPanel.createOrShow(context.extensionUri, !apiKey, !isGitHubAuthenticated);
         }),
 
         vscode.commands.registerCommand('testfox.showOnboarding', async () => {
-            OnboardingPanel.createOrShow(context.extensionUri);
+                    const config = vscode.workspace.getConfiguration('testfox');
+            const apiKey = config.get<string>('ai.apiKey');
+            const isGitHubAuthenticated = await GitAuth.isAuthenticated();
+            OnboardingPanel.createOrShow(context.extensionUri, !apiKey, !isGitHubAuthenticated);
         }),
 
         vscode.commands.registerCommand('testfox.showTestDetails', (testId: string) => {
@@ -558,6 +616,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 if (e.affectsConfiguration('testfox.ai')) {
                         try {
                     loadAIConfiguration(context);
+                            const openRouter = getOpenRouterClient();
                             if (openRouter) {
                     openRouter.loadConfiguration();
                     openRouter.updateStatusBar();
@@ -703,6 +762,15 @@ function loadAIConfiguration(context: vscode.ExtensionContext): void {
     if (apiKey) {
         const openRouter = getOpenRouterClient();
         openRouter.setApiKey(apiKey);
+        openRouter.loadConfiguration(); // Reload to ensure model is set correctly
+        
+        // If no model is configured, default to free Gemini
+        const model = config.get<string>('ai.model');
+        if (!model) {
+            config.update('ai.model', 'google/gemini-2.0-flash-exp:free', vscode.ConfigurationTarget.Global).then(() => {
+                console.log('TestFox: Set default model to Gemini 2.0 Flash (free)');
+            });
+        }
     }
 }
 
@@ -713,16 +781,28 @@ async function checkAndShowOnboarding(context: vscode.ExtensionContext): Promise
     const config = vscode.workspace.getConfiguration('testfox');
     const apiKey = config.get<string>('ai.apiKey');
     const onboardingShown = context.globalState.get<boolean>('testfox.onboardingShown', false);
+    const githubAuthShown = context.globalState.get<boolean>('testfox.githubAuthShown', false);
     
-    // Show onboarding if API key is not configured and onboarding hasn't been shown
-    if (!apiKey && !onboardingShown) {
+    // Check GitHub authentication status
+    const isGitHubAuthenticated = await GitAuth.isAuthenticated();
+    
+    // Show onboarding if:
+    // 1. API key is not configured OR GitHub is not authenticated
+    // 2. Onboarding hasn't been shown yet
+    if ((!apiKey || !isGitHubAuthenticated) && !onboardingShown) {
         // Mark as shown immediately to prevent multiple prompts
         await context.globalState.update('testfox.onboardingShown', true);
         
         // Show onboarding panel after a short delay to let extension fully load
         setTimeout(() => {
-            OnboardingPanel.createOrShow(context.extensionUri);
+            OnboardingPanel.createOrShow(context.extensionUri, !apiKey, !isGitHubAuthenticated);
         }, 1500);
+    } else if (!isGitHubAuthenticated && !githubAuthShown) {
+        // Show GitHub auth prompt separately if AI is already configured
+        await context.globalState.update('testfox.githubAuthShown', true);
+        setTimeout(() => {
+            OnboardingPanel.showGitHubAuth(context.extensionUri);
+        }, 2000);
     }
 }
 
@@ -822,6 +902,30 @@ async function analyzeProject(silent = false): Promise<void> {
             // Analyze code structure
             progress.report({ message: 'Analyzing code structure...' });
             const analysisResult = await codeAnalyzer.analyze(workspacePath, projectInfo);
+            
+            // Ensure analysis result has all required properties
+            if (!analysisResult.routes || !Array.isArray(analysisResult.routes)) {
+                analysisResult.routes = [];
+            }
+            if (!analysisResult.forms || !Array.isArray(analysisResult.forms)) {
+                analysisResult.forms = [];
+            }
+            if (!analysisResult.endpoints || !Array.isArray(analysisResult.endpoints)) {
+                analysisResult.endpoints = [];
+            }
+            if (!analysisResult.authFlows || !Array.isArray(analysisResult.authFlows)) {
+                analysisResult.authFlows = [];
+            }
+            if (!analysisResult.databaseQueries || !Array.isArray(analysisResult.databaseQueries)) {
+                analysisResult.databaseQueries = [];
+            }
+            if (!analysisResult.externalApis || !Array.isArray(analysisResult.externalApis)) {
+                analysisResult.externalApis = [];
+            }
+            if (!analysisResult.components || !Array.isArray(analysisResult.components)) {
+                analysisResult.components = [];
+            }
+            
             testStore.setAnalysisResult(analysisResult);
 
             // Refresh views
@@ -932,15 +1036,23 @@ async function generateTests(): Promise<void> {
                 try {
                     const aiTests = await testGeneratorAI.generateWithAI();
                     
-                    if (aiTests.length > 0) {
+                    if (aiTests && aiTests.length > 0) {
+                        vscode.window.showInformationMessage(
+                            `TestFox AI: Generated ${aiTests.length} test cases using AI`
+                        );
                         testExplorerProvider.refresh();
                         testResultsProvider.refresh();
                         updateStatus('ready');
                         return;
+                    } else {
+                        console.log('TestFox: AI generation returned no tests, falling back to rule-based');
                     }
                 } catch (error) {
                     console.error('AI generation failed, falling back to rule-based:', error);
+                    // Don't show error to user - fallback is expected behavior
                 }
+            } else {
+                console.log('TestFox: AI not enabled, using rule-based generation');
             }
 
             // Fall back to rule-based generation
@@ -1017,8 +1129,9 @@ async function generateTests(): Promise<void> {
             updateStatus('ready');
 
             const tests = testStore.getAllTests();
+            const testCount = Array.isArray(tests) ? tests.length : 0;
             vscode.window.showInformationMessage(
-                `TestFox: Generated ${tests.length} test cases across all categories`
+                `TestFox: Generated ${testCount} test cases across all categories`
             );
         } catch (error) {
             updateStatus('error');
@@ -1246,9 +1359,9 @@ async function generateTestCategory(categoryOrItem?: string | { category?: strin
             // Count tests for categories that use the TestGeneratorManager
             if (category !== 'database' && category !== 'ui' && category !== 'e2e' &&
                 category !== 'console_logs' && category !== 'network_logs' && category !== 'account_management') {
-                const allTests = testStore.getAllTests();
-                const categoryTests = allTests.filter(test => test.category === category);
-                testsGenerated = categoryTests.length;
+                const allTests = testStore?.getAllTests() || [];
+                const categoryTests = Array.isArray(allTests) ? allTests.filter(test => test.category === category) : [];
+                testsGenerated = Array.isArray(categoryTests) ? categoryTests.length : 0;
             }
 
             // Refresh views
@@ -1268,8 +1381,13 @@ async function generateTestCategory(categoryOrItem?: string | { category?: strin
 }
 
 async function runAllTests(): Promise<void> {
+    if (!testStore) {
+        vscode.window.showErrorMessage('TestFox: Extension not fully initialized. Please try again.');
+        return;
+    }
+    
     const tests = testStore.getAllTests();
-    if (tests.length === 0) {
+    if (!tests || !Array.isArray(tests) || tests.length === 0) {
         vscode.window.showWarningMessage('TestFox: No tests to run. Generate tests first.');
         return;
     }
@@ -1307,7 +1425,11 @@ async function runAllTests(): Promise<void> {
     const trigger = 'manual' as const; // Can be enhanced to detect scheduled/commit triggers
     
     // Start test execution with Control Center
-    const automatedTests = tests.filter(t => t.automationLevel !== 'manual');
+    const automatedTests = Array.isArray(tests) ? tests.filter(t => t.automationLevel !== 'manual') : [];
+    if (!Array.isArray(automatedTests) || automatedTests.length === 0) {
+        vscode.window.showWarningMessage('TestFox: No automated tests to run.');
+        return;
+    }
     testExecutionManager.startRun(automatedTests, `Run #${runNumber} (${trigger})`);
 
         try {
@@ -1336,7 +1458,8 @@ async function runAllTests(): Promise<void> {
             // Check for pause/stop
             await testExecutionManager.checkPause();
             if (testExecutionManager.isStopped()) {
-                skipped += automatedTests.length - (passed + failed + skipped);
+                const remainingTests = Array.isArray(automatedTests) ? automatedTests.length - (passed + failed + skipped) : 0;
+                skipped += remainingTests;
                     break;
                 }
 
@@ -1415,7 +1538,7 @@ async function runAllTests(): Promise<void> {
                         failed,
                         skipped
                     },
-                    tests: automatedTests.map(test => {
+                    tests: Array.isArray(automatedTests) ? automatedTests.map(test => {
                         const result = testStore.getTestResult(test.id);
                         return {
                             testId: test.id,
@@ -1425,7 +1548,7 @@ async function runAllTests(): Promise<void> {
                             duration: result?.duration,
                             error: result?.error
                         };
-                    }),
+                    }) : [],
                     categoryResults: catResultsArray
                 };
 
@@ -1523,10 +1646,10 @@ async function runTestCategory(categoryOrItem?: string | { category?: string }):
     }
 
     const categoryLower = typeof category === 'string' ? category.toLowerCase() : String(category).toLowerCase();
-    const tests = testStore.getTestsByCategory(categoryLower);
+    const tests = testStore?.getTestsByCategory(categoryLower) || [];
     const categoryDisplay = category.charAt(0).toUpperCase() + category.slice(1);
     
-    if (tests.length === 0) {
+    if (!Array.isArray(tests) || tests.length === 0) {
         vscode.window.showWarningMessage(`TestFox: No ${categoryDisplay} tests found`);
         return;
     }
@@ -1549,7 +1672,12 @@ async function runTestCategory(categoryOrItem?: string | { category?: string }):
                 }
             }
 
-            const automatedTests = tests.filter(t => t.automationLevel !== 'manual');
+            const automatedTests = Array.isArray(tests) ? tests.filter(t => t.automationLevel !== 'manual') : [];
+            
+            if (!Array.isArray(automatedTests) || automatedTests.length === 0) {
+                vscode.window.showWarningMessage(`TestFox: No automated ${categoryDisplay} tests found.`);
+                return;
+            }
             
             for (const test of automatedTests) {
                 if (token.isCancellationRequested) {
@@ -1558,7 +1686,7 @@ async function runTestCategory(categoryOrItem?: string | { category?: string }):
 
                 progress.report({ 
                     message: `Running: ${test.name}`,
-                    increment: (100 / automatedTests.length)
+                    increment: automatedTests.length > 0 ? (100 / automatedTests.length) : 0
                 });
 
                 const result = await testRunner.runTest(test);
@@ -1961,10 +2089,15 @@ async function markManualTest(testId?: string): Promise<void> {
 }
 
 async function exportReport(): Promise<void> {
+    if (!testStore) {
+        vscode.window.showErrorMessage('TestFox: Extension not fully initialized. Please try again.');
+        return;
+    }
+    
     const tests = testStore.getAllTests();
     const results = testStore.getTestResults();
 
-    if (tests.length === 0) {
+    if (!tests || !Array.isArray(tests) || tests.length === 0) {
         vscode.window.showWarningMessage('TestFox: No test data to export');
         return;
     }
@@ -2044,9 +2177,14 @@ async function exportReport(): Promise<void> {
 }
 
 async function generateWebReport(context: vscode.ExtensionContext): Promise<void> {
+    if (!testStore) {
+        vscode.window.showErrorMessage('TestFox: Extension not fully initialized. Please try again.');
+        return;
+    }
+    
     const tests = testStore.getAllTests();
     
-    if (tests.length === 0) {
+    if (!tests || !Array.isArray(tests) || tests.length === 0) {
         vscode.window.showWarningMessage('TestFox: No test data available. Generate and run tests first.');
         return;
     }
@@ -2065,14 +2203,19 @@ async function createIssue(platform: 'github' | 'jira', testId?: string): Promis
 
     // Get test ID if not provided
     if (!testId) {
+        if (!testStore) {
+            vscode.window.showErrorMessage('TestFox: Extension not fully initialized. Please try again.');
+            return;
+        }
+        
         // Get failed tests
-        const allTests = testStore.getAllTests();
-        const failedTests = allTests.filter(test => {
+        const allTests = testStore.getAllTests() || [];
+        const failedTests = Array.isArray(allTests) ? allTests.filter(test => {
             const result = testStore.getTestResult(test.id);
             return result?.status === 'failed';
-        });
+        }) : [];
 
-        if (failedTests.length === 0) {
+        if (!Array.isArray(failedTests) || failedTests.length === 0) {
             vscode.window.showInformationMessage('TestFox: No failed tests found to create an issue for.');
             return;
         }

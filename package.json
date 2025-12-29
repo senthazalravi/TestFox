@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing extension - the final quality gate in your SDLC. Automated functional, security, performance, and API testing with ISTQB standards. Uses Grok/XAI via OpenRouter.",
-  "version": "0.5.4",
+  "version": "0.5.9",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -235,11 +235,6 @@
         "icon": "$(browser)"
       },
       {
-        "command": "testfox.openBrowserDashboard",
-        "title": "TestFox: View Dashboard in Browser",
-        "icon": "$(browser)"
-      },
-      {
         "command": "testfox.startWebServer",
         "title": "TestFox: Start Web Server",
         "icon": "$(server)"
@@ -449,6 +444,7 @@
         "testfox.ai.model": {
           "type": "string",
           "default": "google/gemini-2.0-flash-exp:free",
+          "markdownDescription": "AI model to use for test generation. **FREE models recommended** - Gemini 2.0 Flash, DeepSeek R1, and Qwen3 Coder are excellent free options.",
           "enum": [
             "google/gemini-2.0-flash-exp:free",
             "deepseek/deepseek-r1-0528:free",
@@ -551,6 +547,8 @@
     "prepackage": "npm run generate-icon",
     "package": "vsce package",
     "publish": "vsce publish",
+    "publish:openvsx": "powershell -ExecutionPolicy Bypass -File scripts/publish-openvsx.ps1",
+    "publish:all": "powershell -ExecutionPolicy Bypass -File scripts/publish-all.ps1",
     "publish:patch": "vsce publish patch",
     "publish:minor": "vsce publish minor",
     "publish:major": "vsce publish major"

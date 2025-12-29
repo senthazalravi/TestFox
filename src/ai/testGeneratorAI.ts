@@ -9,12 +9,14 @@ import {
     TestPriority,
     AnalysisResult
 } from '../types';
+import { ContextAnalyzer, PageContext } from '../core/contextAnalyzer';
 
 /**
  * AI-enhanced test generator using OpenRouter
  */
 export class TestGeneratorAI {
     private openRouter = getOpenRouterClient();
+    private contextAnalyzer = new ContextAnalyzer();
 
     constructor(private testStore: TestStore) {}
 
@@ -80,29 +82,92 @@ export class TestGeneratorAI {
             try {
                 progress.report({ message: 'Analyzing project structure...' });
 
+                // Ensure arrays exist before mapping (defensive programming)
+                const routes = Array.isArray(analysisResult.routes) ? analysisResult.routes : [];
+                const forms = Array.isArray(analysisResult.forms) ? analysisResult.forms : [];
+                const endpoints = Array.isArray(analysisResult.endpoints) ? analysisResult.endpoints : [];
+                const authFlows = Array.isArray(analysisResult.authFlows) ? analysisResult.authFlows : [];
+
+                // Analyze page contexts if application is running
+                let pageContexts: PageContext[] = [];
+                try {
+                    progress.report({ message: 'Analyzing page contexts...' });
+                    pageContexts = await this.analyzePageContexts(projectInfo);
+                    console.log(`TestFox AI: Analyzed ${pageContexts.length} page contexts`);
+                } catch (error) {
+                    console.log('TestFox AI: Could not analyze page contexts:', error);
+                    // Continue without page contexts
+                }
+
                 const context = {
                     projectType: projectInfo.type,
                     framework: projectInfo.framework || 'unknown',
-                    routes: analysisResult.routes.map(r => `${r.method} ${r.path}`),
-                    forms: analysisResult.forms.map(f => f.name),
-                    endpoints: analysisResult.endpoints.map(e => `${e.method} ${e.path}`),
-                    authFlows: analysisResult.authFlows.map(a => a.type)
+                    routes: routes.map(r => `${r.method || 'GET'} ${r.path || '/'}`),
+                    forms: forms.map(f => f.name || 'Unnamed Form'),
+                    endpoints: endpoints.map(e => `${e.method || 'GET'} ${e.path || '/'}`),
+                    authFlows: authFlows.map(a => a.type || 'unknown'),
+                    pageContexts: pageContexts.map(pc => ({
+                        url: pc.url,
+                        title: pc.title,
+                        pageType: pc.pageType,
+                        hasLogin: pc.hasLogin,
+                        hasSignup: pc.hasSignup,
+                        hasSearch: pc.hasSearch,
+                        hasForms: pc.hasForms,
+                        mainContent: pc.mainContent,
+                        suggestedTests: pc.suggestedTests
+                    }))
                 };
 
                 progress.report({ message: 'Calling AI model...' });
 
+                console.log('TestFox AI: Calling OpenRouter to generate test cases...');
+                console.log('TestFox AI: Context:', {
+                    projectType: context.projectType,
+                    framework: context.framework,
+                    routesCount: context.routes.length,
+                    formsCount: context.forms.length,
+                    endpointsCount: context.endpoints.length,
+                    pageContextsCount: context.pageContexts.length
+                });
+
                 const response = await this.openRouter.generateTestCases(context);
+                console.log('TestFox AI: Received response from OpenRouter, length:', response?.length || 0);
 
                 progress.report({ message: 'Processing AI response...' });
 
                 const tests = this.parseAIResponse(response);
 
-                // Add tests to store
-                this.testStore.addTests(tests);
+                // Ensure tests is an array
+                if (!tests || !Array.isArray(tests)) {
+                    console.warn('TestFox AI: parseAIResponse returned invalid result, using empty array');
+                    return [];
+                }
 
-                vscode.window.showInformationMessage(
-                    `TestFox AI: Generated ${tests.length} test cases`
-                );
+                // Add contextual tests from page analysis
+                if (pageContexts.length > 0) {
+                    progress.report({ message: 'Generating contextual tests from page analysis...' });
+                    for (const pageContext of pageContexts) {
+                        try {
+                            const contextualTests = await this.contextAnalyzer.generateContextualTests(pageContext);
+                            tests.push(...contextualTests);
+                            console.log(`TestFox AI: Generated ${contextualTests.length} contextual tests for ${pageContext.url}`);
+                        } catch (error) {
+                            console.error(`TestFox AI: Failed to generate contextual tests for ${pageContext.url}:`, error);
+                        }
+                    }
+                }
+
+                // Add tests to store
+                if (tests.length > 0) {
+                    this.testStore.addTests(tests);
+                    const contextualCount = pageContexts.length > 0 ? ` (including ${pageContexts.length} page${pageContexts.length > 1 ? 's' : ''} analyzed)` : '';
+                    vscode.window.showInformationMessage(
+                        `TestFox AI: Generated ${tests.length} test cases${contextualCount}`
+                    );
+                } else {
+                    console.log('TestFox AI: No tests generated from AI response');
+                }
 
                 return tests;
             } catch (error) {
@@ -126,6 +191,89 @@ export class TestGeneratorAI {
                 return [];
             }
         });
+    }
+
+    /**
+     * Analyze page contexts from running application
+     */
+    private async analyzePageContexts(projectInfo: any): Promise<PageContext[]> {
+        const contexts: PageContext[] = [];
+        
+        try {
+            // Check if application is running
+            const axios = require('axios').default;
+            const portsToCheck = [3000, 8080, 4200, 5000, 8000, 4000, 5173];
+            let appUrl: string | null = null;
+
+            for (const port of portsToCheck) {
+                try {
+                    const url = `http://localhost:${port}`;
+                    const response = await axios.get(url, {
+                        timeout: 2000,
+                        validateStatus: () => true
+                    });
+                    if (response.status < 500) {
+                        appUrl = url;
+                        break;
+                    }
+                } catch {
+                    continue;
+                }
+            }
+
+            if (!appUrl) {
+                console.log('TestFox AI: Application not running, skipping page context analysis');
+                return contexts;
+            }
+
+            // Analyze main page
+            try {
+                const response = await axios.get(appUrl, {
+                    timeout: 5000,
+                    headers: {
+                        'User-Agent': 'TestFox/1.0'
+                    }
+                });
+                
+                if (response.data && typeof response.data === 'string') {
+                    const pageContext = await this.contextAnalyzer.analyzePageContent(response.data, appUrl);
+                    contexts.push(pageContext);
+                }
+            } catch (error) {
+                console.error('TestFox AI: Failed to analyze main page:', error);
+            }
+
+            // Analyze additional routes if available
+            const analysisResult = this.testStore.getAnalysisResult();
+            if (analysisResult && analysisResult.routes && analysisResult.routes.length > 0) {
+                // Analyze top 5 routes
+                const routesToAnalyze = analysisResult.routes.slice(0, 5);
+                for (const route of routesToAnalyze) {
+                    try {
+                        const routeUrl = `${appUrl}${route.path}`;
+                        const response = await axios.get(routeUrl, {
+                            timeout: 3000,
+                            headers: {
+                                'User-Agent': 'TestFox/1.0'
+                            },
+                            validateStatus: () => true
+                        });
+                        
+                        if (response.status === 200 && typeof response.data === 'string') {
+                            const pageContext = await this.contextAnalyzer.analyzePageContent(response.data, routeUrl);
+                            contexts.push(pageContext);
+                        }
+                    } catch (error) {
+                        // Skip routes that fail
+                        continue;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('TestFox AI: Error analyzing page contexts:', error);
+        }
+
+        return contexts;
     }
 
     /**
@@ -197,16 +345,27 @@ export class TestGeneratorAI {
     private normalizeCategory(category: string): TestCategory {
         const categoryMap: Record<string, TestCategory> = {
             'smoke': 'smoke',
+            'sanity': 'sanity',
+            'regression': 'regression',
             'functional': 'functional',
             'api': 'api',
+            'ui': 'ui',
+            'e2e': 'e2e',
+            'integration': 'integration',
+            'database': 'database',
             'security': 'security',
             'performance': 'performance',
             'load': 'load',
-            'edge_cases': 'edge_cases',
-            'edge': 'edge_cases',
-            'boundary': 'edge_cases',
-            'monkey': 'monkey',
-            'feature': 'feature'
+            'stress': 'stress',
+            'edge_cases': 'functional', // Map edge cases to functional
+            'edge': 'functional',
+            'boundary': 'functional',
+            'monkey': 'ui', // Map monkey testing to UI
+            'feature': 'functional', // Map feature to functional
+            'exploratory': 'ui',
+            'usability': 'ui',
+            'accessibility': 'ui',
+            'compatibility': 'ui'
         };
 
         const normalized = (category || 'functional').toLowerCase().replace(/\s+/g, '_');

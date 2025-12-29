@@ -480,7 +480,7 @@ export class DatabaseTestGenerator {
     private async enhanceTestsWithAI(tests: TestCase[], connections: DatabaseConnection[]): Promise<void> {
         const openRouter = getOpenRouterClient();
         
-        if (!openRouter.isEnabled()) {
+        if (!openRouter.isConfigured()) {
             this.log('AI not configured - using basic database tests');
             return;
         }
