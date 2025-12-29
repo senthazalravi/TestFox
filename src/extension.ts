@@ -555,25 +555,25 @@ export async function activate(context: vscode.ExtensionContext) {
         context.subscriptions.push(
             vscode.workspace.onDidChangeConfiguration(e => {
                 try {
-                    if (e.affectsConfiguration('testfox.ai')) {
+                if (e.affectsConfiguration('testfox.ai')) {
                         try {
-                            loadAIConfiguration(context);
+                    loadAIConfiguration(context);
                             if (openRouter) {
-                                openRouter.loadConfiguration();
-                                openRouter.updateStatusBar();
+                    openRouter.loadConfiguration();
+                    openRouter.updateStatusBar();
                             }
                         } catch (error) {
                             console.error('TestFox: Error updating AI configuration:', error);
                         }
-                    }
+                }
 
                     if (e.affectsConfiguration('testfox.automation') || 
                         e.affectsConfiguration('testfox.scheduleEnabled') ||
                         e.affectsConfiguration('testfox.autoRunOnCommit')) {
                         try {
-                            console.log('Automation settings changed, updating scheduler...');
+                    console.log('Automation settings changed, updating scheduler...');
                             if (scheduler) {
-                                scheduler.updateSettings();
+                    scheduler.updateSettings();
                                 updateSchedulerStatus().catch(err => {
                                     console.error('TestFox: Error updating scheduler status:', err);
                                 });
@@ -638,9 +638,9 @@ async function updateSchedulerStatus(): Promise<void> {
     } catch (error) {
         console.error('TestFox: Error updating scheduler status:', error);
         if (statusBarScheduler) {
-            statusBarScheduler.text = '$(error) App: Error';
-            statusBarScheduler.tooltip = 'Error checking application status\nClick to retry';
-            statusBarScheduler.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+        statusBarScheduler.text = '$(error) App: Error';
+        statusBarScheduler.tooltip = 'Error checking application status\nClick to retry';
+        statusBarScheduler.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
         }
     }
 }
@@ -2051,7 +2051,7 @@ async function generateWebReport(context: vscode.ExtensionContext): Promise<void
         return;
     }
 
-    ReportPanel.createOrShow(context.extensionUri, testStore, manualTestTracker);
+    ReportPanel.createOrShow(context.extensionUri, testStore, manualTestTracker, defectTracker, issueCreator || null);
 }
 
 /**

@@ -2,6 +2,44 @@
 
 All notable changes to the "TestFox" extension will be documented in this file.
 
+## [0.5.4] - 2024-12-25
+
+### New Features
+
+- **Enhanced Reporting System** 📊
+  - Failed Tests tab with defect IDs displayed prominently
+  - Direct GitHub issue creation from report
+  - Direct Jira issue creation from report
+  - Copy issue button for detailed issue content
+  - Expandable test details with full error information
+  - Defect information (status, severity, run history) in report
+
+- **Report Storage** 💾
+  - All reports stored in `.testfox/reports/` directory
+  - Timestamped filenames for easy tracking
+  - "Open Reports Folder" option in export dialog
+  - Persistent report history
+
+### Improvements
+
+- **Failed Tests Tab** 🐛
+  - Defect ID column with unique identifiers
+  - Priority/Severity badges
+  - Action buttons (GitHub, Jira, Copy) for each failed test
+  - Expandable rows with complete error details
+  - Defect tracking information integrated
+
+- **Issue Creation** 🔗
+  - One-click GitHub issue creation from report
+  - One-click Jira issue creation from report
+  - Copy formatted issue content to clipboard
+  - Includes defect ID, error details, logs, and metadata
+
+- **Report Export** 📤
+  - Export saves to `.testfox/reports/` directory
+  - Timestamped filenames: `testfox-report-YYYY-MM-DDTHH-MM-SS.html`
+  - Easy access to report history
+
 ## [0.5.3] - 2024-12-25
 
 ### Fixed

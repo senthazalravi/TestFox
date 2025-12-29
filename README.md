@@ -255,6 +255,12 @@ Available models include:
 
 Developed by [@senthazalravi](https://x.com/senthazalravi), @nithiyanandam.sundaram@gmail.com and this project seeks co-founders and investments. connect with ravi.antone@gmail.com . Developed in Stockholm, Sweden.
 
+## Requests
+
+- Sponsor our LLM Credits
+- Sponsor our Domain Name and Hosting
+- Sponsor Rewards Program for Educators
+
 ## Contributing
 
 Contributions are welcome! Please read our contributing guidelines before submitting PRs.
