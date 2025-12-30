@@ -313,6 +313,52 @@ export async function activate(context: vscode.ExtensionContext) {
                 case 'clearData':
                     await defectTracker.clearAllData();
                     return { message: 'All data cleared' };
+                case 'run':
+                    await runAllTests();
+                    return { message: 'Tests started' };
+                case 'generateReport':
+                    await generateWebReport(context);
+                    return { message: 'Report generated' };
+                case 'openDefects':
+                    DefectDashboard.createOrShow(context.extensionUri, defectTracker);
+                    return { message: 'Defect dashboard opened' };
+                case 'configureAI':
+                    await vscode.commands.executeCommand('testfox.configureAI');
+                    return { message: 'AI configuration opened' };
+                case 'openSettings':
+                    await vscode.commands.executeCommand('testfox.openSettings');
+                    return { message: 'Settings opened' };
+                case 'authenticateGitHub':
+                    try {
+                        const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true });
+                        return { message: 'GitHub authenticated successfully' };
+                    } catch (error) {
+                        throw new Error('GitHub authentication failed');
+                    }
+                case 'logoutGitHub':
+                    try {
+                        await GitAuth.signOut();
+                        return { message: 'GitHub disconnected' };
+                    } catch (error) {
+                        throw new Error('GitHub logout failed');
+                    }
+                case 'getGitProfile':
+                    try {
+                        const session = await GitAuth.getSession(false);
+                        const username = await GitAuth.getUsername();
+                        return {
+                            authenticated: !!session,
+                            username: username,
+                            repo: null // Will be filled by data callback
+                        };
+                    } catch (error) {
+                        return { authenticated: false };
+                    }
+                case 'getTestHistory':
+                    return defectTracker.getAllRuns().slice(-10).reverse();
+                case 'viewRunDetails':
+                    // Could implement detailed run view here
+                    return { message: 'Run details not implemented yet' };
                 default:
                     throw new Error(`Unknown command: ${command}`);
             }
@@ -346,6 +392,47 @@ export async function activate(context: vscode.ExtensionContext) {
                     ...defectTracker.getImprovementMetrics(),
                     stats: defectTracker.getDefectStats()
                 };
+            case 'gitProfile':
+                try {
+                    const session = await GitAuth.getSession(false);
+                    const username = await GitAuth.getUsername();
+
+                    // Get repo info
+                    let repoInfo = null;
+                    try {
+                        const gitExtension = vscode.extensions.getExtension('vscode.git');
+                        if (gitExtension && gitExtension.isActive) {
+                            const git = gitExtension.exports.getAPI(1);
+                            const repositories = git.repositories;
+
+                            if (repositories.length > 0) {
+                                const repo = repositories[0];
+                                const remote = repo.state.remotes.find(r => r.name === 'origin');
+                                if (remote && remote.fetchUrl) {
+                                    const match = remote.fetchUrl.match(/github\.com[/:]([^/]+)\/([^/]+?)(?:\.git)?$/);
+                                    if (match) {
+                                        repoInfo = {
+                                            owner: match[1],
+                                            name: match[2]
+                                        };
+                                    }
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.log('Could not get repo info:', error);
+                    }
+
+                    return {
+                        authenticated: !!session,
+                        username: username,
+                        repo: repoInfo ? `${repoInfo.owner}/${repoInfo.name}` : null
+                    };
+                } catch (error) {
+                    return { authenticated: false };
+                }
+            case 'testHistory':
+                return defectTracker.getAllRuns().slice(-10).reverse(); // Last 10 runs, most recent first
             default:
                 throw new Error(`Unknown data type: ${type}`);
         }
@@ -583,6 +670,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
         vscode.commands.registerCommand('testfox.stopTests', () => {
             testExecutionManager.stop();
+        }),
+
+        vscode.commands.registerCommand('testfox.createGitHubIssue', async () => {
+            await createIssue('github');
+        }),
+
+        vscode.commands.registerCommand('testfox.createJiraIssue', async () => {
+            await createIssue('jira');
         })
     ];
 

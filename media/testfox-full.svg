@@ -1,48 +1,129 @@
 <svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-  <!-- Fox Tail -->
-  <path d="M80 180 C 40 180, 30 140, 50 120 C 70 95, 110 95, 125 120 C 140 145, 135 180, 100 195 Z"
-        fill="#FF8A3C" stroke="#1D2540" stroke-width="4"/>
-  <path d="M100 195 C 120 180, 125 155, 118 140 C 103 150, 90 160, 80 180 Z"
-        fill="#FFFFFF" stroke="#1D2540" stroke-width="4"/>
+  <defs>
+    <!-- Main background gradient -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
 
-  <!-- Fox Body -->
-  <path d="M90 110 C 80 135, 75 170, 85 190 L 115 190 C 125 170, 120 135, 110 110 Z"
-        fill="#FF8A3C" stroke="#1D2540" stroke-width="4"/>
-  <path d="M95 120 C 88 140, 88 170, 95 185 L 108 185 C 115 170, 115 140, 108 120 Z"
-        fill="#FFFFFF" stroke="#1D2540" stroke-width="4"/>
+    <!-- Fox body gradient -->
+    <linearGradient id="foxBodyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b6b;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#ee5a24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ff4757;stop-opacity:1" />
+    </linearGradient>
 
-  <!-- Fox Legs -->
-  <rect x="92" y="185" width="10" height="20" rx="3"
-        fill="#173A66" stroke="#1D2540" stroke-width="2"/>
-  <rect x="108" y="185" width="10" height="20" rx="3"
-        fill="#173A66" stroke="#1D2540" stroke-width="2"/>
-  <ellipse cx="85" cy="205" rx="10" ry="6"
-           fill="#173A66" stroke="#1D2540" stroke-width="2"/>
-  <ellipse cx="120" cy="205" rx="10" ry="6"
-           fill="#173A66" stroke="#1D2540" stroke-width="2"/>
+    <!-- Fox face gradient -->
+    <linearGradient id="foxFaceGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff9a76;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ffb142;stop-opacity:1" />
+    </linearGradient>
 
-  <!-- Fox Head -->
-  <g transform="translate(75,60)">
-    <path d="M50 0 C 30 0, 15 20, 18 40 C 22 65, 40 80, 50 80 C 60 80, 78 65, 82 40 C 85 20, 70 0, 50 0 Z"
-          fill="#FF8A3C" stroke="#1D2540" stroke-width="4"/>
-    <path d="M35 40 C 28 45, 25 55, 30 63 C 36 70, 45 73, 50 73 C 55 73, 64 70, 70 63 C 75 55, 72 45, 65 40 Z"
-          fill="#FFFFFF" stroke="#1D2540" stroke-width="4"/>
-    <circle cx="50" cy="46" r="4" fill="#1D2540"/>
-    <path d="M42 56 Q 50 60, 58 56" fill="none" stroke="#1D2540" stroke-width="2" stroke-linecap="round"/>
-    <path d="M40 36 Q 44 38, 48 36" fill="none" stroke="#1D2540" stroke-width="2" stroke-linecap="round"/>
-    <path d="M52 36 Q 56 38, 60 36" fill="none" stroke="#1D2540" stroke-width="2" stroke-linecap="round"/>
+    <!-- Test tube gradient -->
+    <linearGradient id="testTubeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4ecdc4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#44a08d;stop-opacity:1" />
+    </linearGradient>
 
-    <!-- Left Ear -->
-    <path d="M32 5 L 20 -15 L 15 15 Z"
-          fill="#FF8A3C" stroke="#1D2540" stroke-width="3"/>
-    <path d="M28 3 L 21 -10 L 18 10 Z"
-          fill="#2C9CF0" stroke="#1D2540" stroke-width="2"/>
+    <!-- Shadow filter -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="rgba(0,0,0,0.4)"/>
+    </filter>
 
-    <!-- Right Ear -->
-    <path d="M68 5 L 80 -15 L 85 15 Z"
-          fill="#FF8A3C" stroke="#1D2540" stroke-width="3"/>
-    <path d="M72 3 L 79 -10 L 82 10 Z"
-          fill="#2C9CF0" stroke="#1D2540" stroke-width="2"/>
+    <!-- Inner glow -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Large background circle with gradient -->
+  <circle cx="128" cy="128" r="120" fill="url(#bgGradient)" filter="url(#shadow)"/>
+  <circle cx="128" cy="128" r="118" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
+
+  <!-- Fox Body - Modern, sleek design -->
+  <g transform="translate(128, 140)">
+    <!-- Main body silhouette -->
+    <path d="M-45,-25 C-55,-15 -58,10 -50,30 C-40,45 -20,50 0,50 C20,50 40,45 50,30 C58,10 55,-15 45,-25 C40,-35 25,-38 0,-38 C-25,-38 -40,-35 -45,-25 Z"
+          fill="url(#foxBodyGradient)"
+          filter="url(#glow)"/>
+
+    <!-- Fox face details -->
+    <ellipse cx="0" cy="8" rx="28" ry="18" fill="url(#foxFaceGradient)" opacity="0.95"/>
+
+    <!-- Modern fox ears - triangular and sleek -->
+    <polygon points="-32,-30 -20,-12 -26,-36" fill="url(#foxBodyGradient)" opacity="0.9"/>
+    <polygon points="32,-30 20,-12 26,-36" fill="url(#foxBodyGradient)" opacity="0.9"/>
+
+    <!-- Inner ear details -->
+    <polygon points="-28,-26 -22,-14 -24,-32" fill="rgba(255,255,255,0.4)"/>
+    <polygon points="28,-26 22,-14 24,-32" fill="rgba(255,255,255,0.4)"/>
+
+    <!-- Modern fox eyes - sharp and alert -->
+    <ellipse cx="-12" cy="-4" rx="6" ry="8" fill="#1a1a2e"/>
+    <ellipse cx="12" cy="-4" rx="6" ry="8" fill="#1a1a2e"/>
+
+    <!-- Eye highlights -->
+    <circle cx="-8" cy="-5" r="2" fill="#fff"/>
+    <circle cx="16" cy="-5" r="2" fill="#fff"/>
+
+    <!-- Fox nose - small and refined -->
+    <ellipse cx="0" cy="12" rx="4" ry="3.5" fill="#1a1a2e"/>
+
+    <!-- Mouth - subtle and clean -->
+    <path d="M-8,16 Q0,22 8,16" fill="none" stroke="#1a1a2e" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- Whiskers - clean and minimal -->
+    <line x1="-28" y1="4" x2="-12" y2="6" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="-28" y1="10" x2="-12" y2="10" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="28" y1="4" x2="12" y2="6" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="28" y1="10" x2="12" y2="10" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/>
   </g>
+
+  <!-- Test tube elements - represents testing capabilities -->
+  <g transform="translate(180, 80)">
+    <!-- Test tube body -->
+    <rect x="-5" y="-16" width="10" height="32" rx="5" fill="url(#testTubeGradient)" opacity="0.9"/>
+    <!-- Test tube neck -->
+    <rect x="-2" y="-32" width="4" height="16" fill="url(#testTubeGradient)" opacity="0.8"/>
+    <!-- Liquid in tube -->
+    <rect x="-3" y="-12" width="6" height="16" fill="#4ecdc4" opacity="0.8"/>
+    <!-- Bubbles -->
+    <circle cx="0" cy="-8" r="2" fill="#fff" opacity="0.7"/>
+    <circle cx="-2" cy="-4" r="1" fill="#fff" opacity="0.5"/>
+    <circle cx="1" cy="0" r="1.5" fill="#fff" opacity="0.6"/>
+  </g>
+
+  <!-- Second test tube -->
+  <g transform="translate(200, 100)">
+    <rect x="-3" y="-12" width="6" height="24" rx="3" fill="url(#testTubeGradient)" opacity="0.7"/>
+    <rect x="-1.5" y="-24" width="3" height="12" fill="url(#testTubeGradient)" opacity="0.6"/>
+    <rect x="-2" y="-8" width="4" height="12" fill="#44a08d" opacity="0.6"/>
+  </g>
+
+  <!-- Checkmark badge - success/completion indicator -->
+  <g transform="translate(80, 180)">
+    <circle cx="0" cy="0" r="24" fill="#4ecdc4" opacity="0.95"/>
+    <circle cx="0" cy="0" r="22" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+    <!-- Modern checkmark -->
+    <path d="M-8,0 L-2,6 8,-6" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Performance metrics indicator -->
+  <g transform="translate(60, 70)">
+    <circle cx="0" cy="0" r="18" fill="#ffd93d" opacity="0.9"/>
+    <circle cx="0" cy="0" r="16" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+    <!-- Lightning bolt for performance -->
+    <path d="M-4,-2 L-1,-2 L1,2 L4,2 L0,-4 Z" fill="#fff"/>
+  </g>
+
+  <!-- Subtle sparkle effects for premium feel -->
+  <circle cx="50" cy="50" r="3" fill="#fff" opacity="0.6"/>
+  <circle cx="200" cy="60" r="2" fill="#fff" opacity="0.4"/>
+  <circle cx="190" cy="190" r="2.5" fill="#4ecdc4" opacity="0.5"/>
+  <circle cx="40" cy="200" r="1.5" fill="#ffd93d" opacity="0.7"/>
 </svg>
 
