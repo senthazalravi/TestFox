@@ -1,33 +1,46 @@
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="foxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:currentColor;stop-opacity:0.8" />
+      <stop offset="0%" style="stop-color:currentColor;stop-opacity:0.9" />
       <stop offset="100%" style="stop-color:currentColor;stop-opacity:1" />
     </linearGradient>
   </defs>
 
-  <!-- Modern fox silhouette for sidebar -->
-  <g transform="translate(12, 13)">
-    <!-- Fox body/head silhouette - clean and modern -->
-    <path d="M-4,-2 C-4.5,-1.5 -5,0 -4.5,1.5 C-4,2.5 -2,3 0,3 C2,3 4,2.5 4.5,1.5 C5,0 4.5,-1.5 4,-2 C3.5,-2.5 2,-2.8 0,-2.8 C-2,-2.8 -3.5,-2.5 -4,-2 Z"
-          fill="url(#foxGrad)"/>
+  <!-- Prominent Fox Icon for VS Code Sidebar -->
+  <g transform="translate(12, 12)">
 
-    <!-- Fox ears - triangular and sleek -->
-    <polygon points="-2.5,-2 -1.5,-0.5 -2,-2.5" fill="url(#foxGrad)" opacity="0.9"/>
-    <polygon points="2.5,-2 1.5,-0.5 2,-2.5" fill="url(#foxGrad)" opacity="0.9"/>
+    <!-- Fox Head - Main body -->
+    <ellipse cx="0" cy="1" rx="5" ry="4" fill="url(#foxGrad)"/>
 
-    <!-- Fox eyes - simple dots -->
-    <circle cx="-1" cy="-0.5" r="0.4" fill="currentColor" opacity="0.8"/>
-    <circle cx="1" cy="-0.5" r="0.4" fill="currentColor" opacity="0.8"/>
+    <!-- Fox Ears - Large and prominent -->
+    <polygon points="-4,-2 -2.5,0.5 -3.5,-1" fill="url(#foxGrad)"/>
+    <polygon points="4,-2 2.5,0.5 3.5,-1" fill="url(#foxGrad)"/>
 
-    <!-- Fox nose - small dot -->
-    <circle cx="0" cy="1" r="0.3" fill="currentColor" opacity="0.9"/>
+    <!-- Inner ear details -->
+    <polygon points="-3.8,-1.5 -3,0 -3.5,-0.5" fill="currentColor" opacity="0.3"/>
+    <polygon points="3.8,-1.5 3,0 3.5,-0.5" fill="currentColor" opacity="0.3"/>
+
+    <!-- Fox Eyes - Bigger and more visible -->
+    <circle cx="-1.5" cy="-0.5" r="0.8" fill="currentColor"/>
+    <circle cx="1.5" cy="-0.5" r="0.8" fill="currentColor"/>
+
+    <!-- Fox Nose - Prominent -->
+    <polygon points="-0.5,2 0.5,2 0,3" fill="currentColor"/>
+
+    <!-- Fox Mouth - Simple but visible -->
+    <path d="M-2,2.5 Q0,3 2,2.5" fill="none" stroke="currentColor" stroke-width="0.5" stroke-linecap="round"/>
   </g>
 
-  <!-- Test tube element - represents testing (very subtle) -->
-  <g transform="translate(17, 8)">
-    <rect x="-0.3" y="-1" width="0.6" height="2" rx="0.3" fill="currentColor" opacity="0.6"/>
-    <rect x="-0.2" y="-2" width="0.4" height="1" fill="currentColor" opacity="0.5"/>
-    <rect x="-0.15" y="-0.8" width="0.3" height="1" fill="currentColor" opacity="0.7"/>
+  <!-- Test Tube - More visible representation of testing -->
+  <g transform="translate(18, 6)">
+    <!-- Test tube body -->
+    <rect x="-0.5" y="-2" width="1" height="3" rx="0.5" fill="currentColor" opacity="0.8"/>
+    <!-- Test tube neck -->
+    <rect x="-0.3" y="-4" width="0.6" height="2" fill="currentColor" opacity="0.6"/>
+    <!-- Liquid in tube -->
+    <rect x="-0.4" y="-1.5" width="0.8" height="1.5" fill="currentColor" opacity="0.9"/>
   </g>
+
+  <!-- Small sparkle for premium feel -->
+  <circle cx="4" cy="4" r="0.3" fill="currentColor" opacity="0.5"/>
 </svg>
