@@ -72,9 +72,17 @@ function configureAI() {
     vscode.postMessage({ command: 'configureAI' });
 }
 
-function openSettings() {
-    vscode.postMessage({ command: 'openSettings' });
-}
+        function openSettings() {
+            vscode.postMessage({ command: 'openSettings' });
+        }
+
+        function testAIConnection() {
+            vscode.postMessage({ command: 'testAIConnection' });
+        }
+
+        function generateTestsFromControlCenter() {
+            vscode.postMessage({ command: 'generateTestsFromControlCenter' });
+        }
 
 // Format elapsed time
 function formatTime(seconds) {
@@ -228,9 +236,23 @@ window.addEventListener('message', event => {
         case 'gitAuthenticated':
             loadGitProfile();
             break;
-        case 'gitLoggedOut':
-            updateGitProfile(null);
-            break;
+                case 'gitLoggedOut':
+                    updateGitProfile(null);
+                    break;
+                case 'aiTestStatus':
+                    // Show AI test status
+                    showNotification(message.message, 'info');
+                    break;
+                case 'aiTestResult':
+                    showNotification(message.message, message.success ? 'success' : 'error');
+                    break;
+                case 'generateTestStatus':
+                    // Show test generation status
+                    showNotification(message.message, 'info');
+                    break;
+                case 'generateTestResult':
+                    showNotification(message.message, message.success ? 'success' : 'error');
+                    break;
     }
 });
 
@@ -247,6 +269,69 @@ document.getElementById('stopBtn').addEventListener('click', () => {
 document.getElementById('rerunBtn').addEventListener('click', () => {
     vscode.postMessage({ command: 'rerun' });
 });
+
+// Notification system
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 16px;
+        border-radius: 6px;
+        color: white;
+        font-weight: 500;
+        z-index: 10000;
+        max-width: 300px;
+        word-wrap: break-word;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        animation: slideIn 0.3s ease-out;
+    `;
+
+    // Set background color based on type
+    switch (type) {
+        case 'success':
+            notification.style.backgroundColor = '#4CAF50';
+            break;
+        case 'error':
+            notification.style.backgroundColor = '#f44336';
+            break;
+        case 'warning':
+            notification.style.backgroundColor = '#FF9800';
+            break;
+        default:
+            notification.style.backgroundColor = '#2196F3';
+    }
+
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    // Remove after 4 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 4000);
+}
+
+// Add notification styles
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);
 
 // Initial update
 updateUI(currentState);

@@ -567,11 +567,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
         vscode.commands.registerCommand('testfox.configureAI', async () => {
             // Show onboarding panel for seamless configuration
-            OnboardingPanel.createOrShow(context.extensionUri);
+            OnboardingPanel.createOrShow(context.extensionUri, context);
         }),
 
         vscode.commands.registerCommand('testfox.showOnboarding', async () => {
-            OnboardingPanel.createOrShow(context.extensionUri);
+            OnboardingPanel.createOrShow(context.extensionUri, context);
         }),
 
         vscode.commands.registerCommand('testfox.showTestDetails', (testId: string) => {
@@ -869,10 +869,15 @@ function loadAIConfiguration(context: vscode.ExtensionContext): void {
 async function checkAndShowOnboarding(context: vscode.ExtensionContext): Promise<void> {
     const config = vscode.workspace.getConfiguration('testfox');
     const apiKey = config.get<string>('ai.apiKey');
-    const onboardingShown = context.globalState.get<boolean>('testfox.onboardingShown', false);
+    const setupCompleted = context.globalState.get<boolean>('testfox.setupCompleted', false);
+
+    // Don't show onboarding if setup is already completed
+    if (setupCompleted) {
+        return;
+    }
 
     // Show onboarding if AI is not configured
-    if (!apiKey && !onboardingShown) {
+    if (!apiKey) {
         // Mark as shown immediately to prevent multiple prompts
         await context.globalState.update('testfox.onboardingShown', true);
 
@@ -886,7 +891,7 @@ async function checkAndShowOnboarding(context: vscode.ExtensionContext): Promise
 
             if (result === 'Set Up AI') {
                 // Show the onboarding panel for AI setup
-                OnboardingPanel.createOrShow(context.extensionUri);
+                OnboardingPanel.createOrShow(context.extensionUri, context);
             }
         }, 2000);
     }

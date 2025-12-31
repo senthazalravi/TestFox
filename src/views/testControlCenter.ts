@@ -79,6 +79,12 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
                 case 'openSettings':
                     await vscode.commands.executeCommand('testfox.openSettings');
                     break;
+                case 'testAIConnection':
+                    await this._handleTestAIConnection(webviewView.webview);
+                    break;
+                case 'generateTestsFromControlCenter':
+                    await this._handleGenerateTestsFromControlCenter(webviewView.webview);
+                    break;
                 case 'authenticateGitHub':
                     try {
                         const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true });
@@ -193,6 +199,110 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
      */
     private async _refreshGitProfile(webview: vscode.Webview): Promise<void> {
         await this._sendGitProfile(webview);
+    }
+
+    /**
+     * Handle AI connection test
+     */
+    private async _handleTestAIConnection(webview: vscode.Webview): Promise<void> {
+        try {
+            const config = vscode.workspace.getConfiguration('testfox');
+            const apiKey = config.get<string>('ai.apiKey');
+
+            if (!apiKey) {
+                webview.postMessage({
+                    command: 'aiTestResult',
+                    success: false,
+                    message: 'No API key configured. Please configure AI first.'
+                });
+                return;
+            }
+
+            // Import the OpenRouter client
+            const { getOpenRouterClient } = await import('../ai/openRouterClient');
+            const openRouter = getOpenRouterClient();
+
+            webview.postMessage({
+                command: 'aiTestStatus',
+                status: 'testing',
+                message: 'Testing AI connection...'
+            });
+
+            const testResult = await openRouter.testConnection();
+
+            webview.postMessage({
+                command: 'aiTestResult',
+                success: testResult.success,
+                message: testResult.success
+                    ? `✅ AI connection successful! Using ${openRouter.getCurrentModel()}`
+                    : `❌ AI connection failed: ${testResult.error || 'Unknown error'}`
+            });
+        } catch (error) {
+            webview.postMessage({
+                command: 'aiTestResult',
+                success: false,
+                message: `❌ Connection test failed: ${error instanceof Error ? error.message : String(error)}`
+            });
+        }
+    }
+
+    /**
+     * Handle test generation from control center
+     */
+    private async _handleGenerateTestsFromControlCenter(webview: vscode.Webview): Promise<void> {
+        try {
+            const config = vscode.workspace.getConfiguration('testfox');
+            const apiKey = config.get<string>('ai.apiKey');
+
+            if (!apiKey) {
+                vscode.window.showErrorMessage('TestFox: No API key configured. Please configure AI first.');
+                webview.postMessage({
+                    command: 'generateTestResult',
+                    success: false,
+                    message: 'No API key configured'
+                });
+                return;
+            }
+
+            // Check if project is analyzed
+            const projectInfo = this._testStore.getProjectInfo();
+            if (!projectInfo) {
+                vscode.window.showWarningMessage('TestFox: Project not analyzed. Analyzing now...');
+                webview.postMessage({
+                    command: 'generateTestStatus',
+                    status: 'analyzing',
+                    message: 'Analyzing project...'
+                });
+
+                // Import and run analysis
+                const { analyzeProject } = await import('../core/codeAnalyzer');
+                await analyzeProject();
+
+                // Wait a moment for analysis to complete
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            webview.postMessage({
+                command: 'generateTestStatus',
+                status: 'generating',
+                message: 'Generating AI-powered tests...'
+            });
+
+            // Generate tests
+            await vscode.commands.executeCommand('testfox.generateTests');
+
+            webview.postMessage({
+                command: 'generateTestResult',
+                success: true,
+                message: '✅ Tests generated successfully!'
+            });
+        } catch (error) {
+            webview.postMessage({
+                command: 'generateTestResult',
+                success: false,
+                message: `❌ Test generation failed: ${error instanceof Error ? error.message : String(error)}`
+            });
+        }
     }
 
     /**
@@ -801,6 +911,21 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             <button class="action-btn" onclick="configureAI()">
                 <i class="fas fa-robot action-icon"></i>
                 <div class="action-label">AI Config</div>
+            </button>
+
+            <button class="action-btn" onclick="configureAI()">
+                <i class="fas fa-robot action-icon"></i>
+                <div class="action-label">AI Config</div>
+            </button>
+
+            <button class="action-btn" onclick="testAIConnection()">
+                <i class="fas fa-plug action-icon"></i>
+                <div class="action-label">Test AI</div>
+            </button>
+
+            <button class="action-btn" onclick="generateTestsFromControlCenter()">
+                <i class="fas fa-magic action-icon"></i>
+                <div class="action-label">Generate Tests</div>
             </button>
 
             <button class="action-btn" onclick="openSettings()">

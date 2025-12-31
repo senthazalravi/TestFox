@@ -10,11 +10,13 @@ export class OnboardingPanel {
     public static currentPanel: OnboardingPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
+    private readonly _context: vscode.ExtensionContext;
     private _disposables: vscode.Disposable[] = [];
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
         this._panel = panel;
         this._extensionUri = extensionUri;
+        this._context = context;
 
         // Set the webview's initial html content
         this._update();
@@ -38,9 +40,18 @@ export class OnboardingPanel {
                     case 'analyzeProject':
                         await this._handleAnalyzeProject();
                         return;
-                    case 'completeSetup':
-                        await this._handleCompleteSetup();
-                        return;
+                case 'completeSetup':
+                    await this._handleCompleteSetup();
+                    return;
+                case 'skip':
+                    await this._handleSkip();
+                    return;
+                case 'discoverModels':
+                    await this._handleDiscoverModels(message.apiKey);
+                    return;
+                case 'selectModel':
+                    await this._handleSelectModel(message.apiKey, message.model);
+                    return;
                     case 'openSettings':
                         await vscode.commands.executeCommand('workbench.action.openSettings', 'testfox');
                         return;
@@ -70,7 +81,7 @@ export class OnboardingPanel {
         }
     }
 
-    public static createOrShow(extensionUri: vscode.Uri): void {
+    public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext): void {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
@@ -93,10 +104,10 @@ export class OnboardingPanel {
             }
         );
 
-        OnboardingPanel.currentPanel = new OnboardingPanel(panel, extensionUri);
+        OnboardingPanel.currentPanel = new OnboardingPanel(panel, extensionUri, context);
     }
 
-    public static showGitHubAuth(extensionUri: vscode.Uri): void {
+    public static showGitHubAuth(extensionUri: vscode.Uri, context: vscode.ExtensionContext): void {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
@@ -112,13 +123,13 @@ export class OnboardingPanel {
             }
         );
 
-        const authPanel = new OnboardingPanel(panel, extensionUri, false, true);
+        const authPanel = new OnboardingPanel(panel, extensionUri, context);
         // Override HTML to show only GitHub auth
         authPanel._panel.webview.html = authPanel._getGitHubAuthHtml(authPanel._panel.webview);
     }
 
-    public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri): void {
-        OnboardingPanel.currentPanel = new OnboardingPanel(panel, extensionUri);
+    public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext): void {
+        OnboardingPanel.currentPanel = new OnboardingPanel(panel, extensionUri, context);
     }
 
     private async _handleSaveApiKey(apiKey: string): Promise<void> {
@@ -429,6 +440,14 @@ export class OnboardingPanel {
 
     private async _handleCompleteSetup(): Promise<void> {
         try {
+            // Mark setup as completed in global state
+            const config = vscode.workspace.getConfiguration('testfox');
+            const apiKey = config.get<string>('ai.apiKey');
+            if (apiKey) {
+                // Mark setup as completed in global state
+                await this._context.globalState.update('testfox.setupCompleted', true);
+            }
+
             this._panel.webview.postMessage({
                 command: 'setupComplete',
                 message: 'TestFox setup completed successfully!'
@@ -708,6 +727,10 @@ export class OnboardingPanel {
         const testResult = document.getElementById('testResult');
         const authGitHubBtn = document.getElementById('authGitHub');
         const authStatus = document.getElementById('authStatus');
+        const analyzeProjectBtn = document.getElementById('analyzeProject');
+        const analyzeStatus = document.getElementById('analyzeStatus');
+        const discoverModelsBtn = document.getElementById('discoverModels');
+        const discoverStatus = document.getElementById('discoverStatus');
         const discoverModelsBtn = document.getElementById('discoverModels');
         const discoverStatus = document.getElementById('discoverStatus');
         const modelSelection = document.getElementById('modelSelection');
