@@ -16,17 +16,17 @@ async function generateIcon() {
         // Try to use sharp if available
         const sharp = require('sharp');
         
-        // Use the full colorful SVG for marketplace icon
-        const svgPath = path.join(__dirname, '..', 'media', 'testfox-full.svg');
+        // Use the white background black fox SVG for icon
+        const svgPath = path.join(__dirname, '..', 'media', 'testfox-icon.svg');
         const pngPath = path.join(__dirname, '..', 'media', 'testfox-icon.png');
-        
-        // Check if full SVG exists, fallback to simple one
+
+        // Check if icon SVG exists
         let svgContent;
         if (fs.existsSync(svgPath)) {
             svgContent = fs.readFileSync(svgPath);
         } else {
-            // Fallback to simple SVG
-            const fallbackPath = path.join(__dirname, '..', 'media', 'testfox.svg');
+            // Fallback to full SVG if needed
+            const fallbackPath = path.join(__dirname, '..', 'media', 'testfox-full.svg');
             svgContent = fs.readFileSync(fallbackPath);
         }
         

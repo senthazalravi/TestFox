@@ -1,112 +1,64 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <defs>
-    <!-- Main background gradient -->
-    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
-    </linearGradient>
+  <!-- White background -->
+  <rect width="128" height="128" fill="#ffffff" rx="16"/>
 
-    <!-- Fox body gradient -->
-    <linearGradient id="foxBodyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ff6b6b;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#ee5a24;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#ff4757;stop-opacity:1" />
-    </linearGradient>
-
-    <!-- Fox face gradient -->
-    <linearGradient id="foxFaceGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ff9a76;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#ffb142;stop-opacity:1" />
-    </linearGradient>
-
-    <!-- Test tube gradient -->
-    <linearGradient id="testTubeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4ecdc4;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#44a08d;stop-opacity:1" />
-    </linearGradient>
-
-    <!-- Shadow filter -->
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="rgba(0,0,0,0.3)"/>
-    </filter>
-
-    <!-- Inner glow -->
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-      <feMerge>
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
-
-  <!-- Background circle with gradient and subtle border -->
-  <circle cx="64" cy="64" r="60" fill="url(#bgGradient)" filter="url(#shadow)"/>
-  <circle cx="64" cy="64" r="59" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
-
-  <!-- Fox silhouette with modern, clean design -->
+  <!-- Black fox silhouette -->
   <g transform="translate(64, 64)">
-    <!-- Fox body/head - clean, modern silhouette -->
-    <path d="M-28,-15 C-35,-10 -38,5 -32,18 C-25,28 -15,32 0,32 C15,32 25,28 32,18 C38,5 35,-10 28,-15 C25,-20 20,-22 0,-22 C-20,-22 -25,-20 -28,-15 Z"
-          fill="url(#foxBodyGradient)"
-          filter="url(#glow)"/>
+    <!-- Fox body/head -->
+    <path d="M-24,-12 C-30,-8 -32,6 -28,16 C-22,24 -14,26 0,26 C14,26 22,24 28,16 C32,6 30,-8 24,-12 C22,-16 18,-18 0,-18 C-18,-18 -22,-16 -24,-12 Z"
+          fill="#000000"/>
 
     <!-- Fox face details -->
-    <ellipse cx="0" cy="5" rx="18" ry="12" fill="url(#foxFaceGradient)" opacity="0.9"/>
+    <ellipse cx="0" cy="4" rx="16" ry="10" fill="#000000" opacity="0.9"/>
 
-    <!-- Modern fox ears - triangular and sleek -->
-    <polygon points="-20,-18 -12,-8 -16,-22" fill="url(#foxBodyGradient)" opacity="0.8"/>
-    <polygon points="20,-18 12,-8 16,-22" fill="url(#foxBodyGradient)" opacity="0.8"/>
+    <!-- Fox ears -->
+    <polygon points="-18,-14 -12,-6 -14,-18" fill="#000000" opacity="0.8"/>
+    <polygon points="18,-14 12,-6 14,-18" fill="#000000" opacity="0.8"/>
 
     <!-- Inner ear details -->
-    <polygon points="-18,-16 -14,-10 -16,-20" fill="rgba(255,255,255,0.3)"/>
-    <polygon points="18,-16 14,-10 16,-20" fill="rgba(255,255,255,0.3)"/>
+    <polygon points="-16,-12 -13,-7 -14,-16" fill="#ffffff" opacity="0.6"/>
+    <polygon points="16,-12 13,-7 14,-16" fill="#ffffff" opacity="0.6"/>
 
-    <!-- Modern fox eyes - sharp and alert -->
-    <ellipse cx="-8" cy="-2" rx="4" ry="5" fill="#1a1a2e"/>
-    <ellipse cx="8" cy="-2" rx="4" ry="5" fill="#1a1a2e"/>
+    <!-- Fox eyes -->
+    <ellipse cx="-7" cy="-1" rx="3" ry="4" fill="#000000"/>
+    <ellipse cx="7" cy="-1" rx="3" ry="4" fill="#000000"/>
 
     <!-- Eye highlights -->
-    <circle cx="-6" cy="-3" r="1.5" fill="#fff"/>
-    <circle cx="10" cy="-3" r="1.5" fill="#fff"/>
+    <circle cx="-5.5" cy="-2" r="1.2" fill="#ffffff"/>
+    <circle cx="8.5" cy="-2" r="1.2" fill="#ffffff"/>
 
-    <!-- Fox nose - small and refined -->
-    <ellipse cx="0" cy="8" rx="3" ry="2.5" fill="#1a1a2e"/>
+    <!-- Fox nose -->
+    <ellipse cx="0" cy="6" rx="2.5" ry="2" fill="#000000"/>
 
-    <!-- Mouth - subtle and clean -->
-    <path d="M-6,10 Q0,14 6,10" fill="none" stroke="#1a1a2e" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Mouth -->
+    <path d="M-5,7 Q0,10 5,7" fill="none" stroke="#000000" stroke-width="1.2" stroke-linecap="round"/>
 
-    <!-- Whiskers - clean and minimal -->
-    <line x1="-18" y1="2" x2="-8" y2="4" stroke="#1a1a2e" stroke-width="1" stroke-linecap="round"/>
-    <line x1="-18" y1="6" x2="-8" y2="6" stroke="#1a1a2e" stroke-width="1" stroke-linecap="round"/>
-    <line x1="18" y1="2" x2="8" y2="4" stroke="#1a1a2e" stroke-width="1" stroke-linecap="round"/>
-    <line x1="18" y1="6" x2="8" y2="6" stroke="#1a1a2e" stroke-width="1" stroke-linecap="round"/>
+    <!-- Whiskers -->
+    <line x1="-16" y1="1" x2="-8" y2="2.5" stroke="#000000" stroke-width="0.8" stroke-linecap="round"/>
+    <line x1="-16" y1="4" x2="-8" y2="4" stroke="#000000" stroke-width="0.8" stroke-linecap="round"/>
+    <line x1="16" y1="1" x2="8" y2="2.5" stroke="#000000" stroke-width="0.8" stroke-linecap="round"/>
+    <line x1="16" y1="4" x2="8" y2="4" stroke="#000000" stroke-width="0.8" stroke-linecap="round"/>
   </g>
 
-  <!-- Test tube element - represents testing -->
-  <g transform="translate(88, 40)">
+  <!-- Test tube element -->
+  <g transform="translate(90, 45)">
     <!-- Test tube body -->
-    <rect x="-3" y="-8" width="6" height="16" rx="3" fill="url(#testTubeGradient)" opacity="0.9"/>
+    <rect x="-2.5" y="-6" width="5" height="12" rx="2.5" fill="#000000" opacity="0.8"/>
     <!-- Test tube neck -->
-    <rect x="-1" y="-16" width="2" height="8" fill="url(#testTubeGradient)" opacity="0.8"/>
+    <rect x="-0.8" y="-12" width="1.6" height="6" fill="#000000" opacity="0.7"/>
     <!-- Liquid in tube -->
-    <rect x="-2" y="-6" width="4" height="8" fill="#4ecdc4" opacity="0.7"/>
+    <rect x="-1.5" y="-4" width="3" height="6" fill="#000000" opacity="0.6"/>
     <!-- Bubbles -->
-    <circle cx="0" cy="-4" r="1" fill="#fff" opacity="0.6"/>
-    <circle cx="-1" cy="-2" r="0.5" fill="#fff" opacity="0.4"/>
+    <circle cx="0" cy="-3" r="0.8" fill="#ffffff" opacity="0.7"/>
+    <circle cx="-0.8" cy="-1.5" r="0.4" fill="#ffffff" opacity="0.5"/>
   </g>
 
-  <!-- Checkmark badge - success/completion indicator -->
-  <g transform="translate(40, 88)">
-    <circle cx="0" cy="0" r="12" fill="#4ecdc4" opacity="0.9"/>
-    <circle cx="0" cy="0" r="11" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
-    <!-- Modern checkmark -->
-    <path d="M-4,0 L-1,3 L4,-3" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Checkmark badge -->
+  <g transform="translate(45, 90)">
+    <circle cx="0" cy="0" r="10" fill="#000000" opacity="0.8"/>
+    <circle cx="0" cy="0" r="9" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.3"/>
+    <!-- Checkmark -->
+    <path d="M-3,0 L-0.5,2.5 L3,-2.5" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
-
-  <!-- Subtle sparkle effects for premium feel -->
-  <circle cx="25" cy="25" r="1.5" fill="#fff" opacity="0.6"/>
-  <circle cx="100" cy="30" r="1" fill="#fff" opacity="0.4"/>
-  <circle cx="95" cy="95" r="1.2" fill="#4ecdc4" opacity="0.5"/>
 </svg>
 
