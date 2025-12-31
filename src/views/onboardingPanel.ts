@@ -13,6 +13,26 @@ export class OnboardingPanel {
     private readonly _context: vscode.ExtensionContext;
     private _disposables: vscode.Disposable[] = [];
 
+    // Setup requirement flags
+    private get needsProjectAnalysis(): boolean {
+        // For now, assume project analysis is needed if onboarding is shown
+        // This can be made smarter later
+        return false;
+    }
+
+    private get needsAISetup(): boolean {
+        // Check if AI is configured and setup is completed
+        const config = vscode.workspace.getConfiguration('testfox');
+        const apiKey = config.get<string>('ai.apiKey');
+        const setupCompleted = this._context.globalState.get<boolean>('testfox.setupCompleted', false);
+        return !apiKey || !setupCompleted;
+    }
+
+    private get needsGitHubAuth(): boolean {
+        // GitHub auth is optional
+        return false;
+    }
+
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
         this._panel = panel;
         this._extensionUri = extensionUri;
@@ -82,6 +102,24 @@ export class OnboardingPanel {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
+
+        // Check if setup is already completed
+        const setupCompleted = context.globalState.get<boolean>('testfox.setupCompleted', false);
+        const config = vscode.workspace.getConfiguration('testfox');
+        const apiKey = config.get<string>('ai.apiKey');
+
+        if (setupCompleted && apiKey) {
+            // Setup is complete, show management panel instead
+            vscode.window.showInformationMessage(
+                'TestFox: AI is already configured. Use "TestFox: Open Settings" to modify configuration.',
+                'Open Settings'
+            ).then(selection => {
+                if (selection === 'Open Settings') {
+                    vscode.commands.executeCommand('workbench.action.openSettings', 'testfox');
+                }
+            });
+            return;
+        }
 
         // If we already have a panel, show it
         if (OnboardingPanel.currentPanel) {

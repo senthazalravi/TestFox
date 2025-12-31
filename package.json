@@ -431,17 +431,7 @@
         "testfox.ai.provider": {
           "type": "string",
           "default": "openrouter",
-          "enum": [
-            "openrouter",
-            "openai",
-            "anthropic"
-          ],
-          "enumDescriptions": [
-            "OpenRouter - Access multiple AI models (Grok, Claude, GPT, Llama)",
-            "OpenAI - GPT-4, GPT-3.5 models",
-            "Anthropic - Claude models"
-          ],
-          "description": "AI provider to use for test generation"
+          "description": "AI provider (managed through TestFox onboarding)"
         },
         "testfox.ai.apiKey": {
           "type": "string",
