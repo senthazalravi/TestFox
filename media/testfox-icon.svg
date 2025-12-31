@@ -1,64 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <!-- White background -->
-  <rect width="128" height="128" fill="#ffffff" rx="16"/>
-
-  <!-- Black fox silhouette -->
+  <!-- White fox silhouette - no background, transparent -->
   <g transform="translate(64, 64)">
-    <!-- Fox body/head -->
-    <path d="M-24,-12 C-30,-8 -32,6 -28,16 C-22,24 -14,26 0,26 C14,26 22,24 28,16 C32,6 30,-8 24,-12 C22,-16 18,-18 0,-18 C-18,-18 -22,-16 -24,-12 Z"
-          fill="#000000"/>
+    <!-- Fox body/head - simple clean silhouette -->
+    <path d="M-20,-10 C-26,-6 -28,8 -24,18 C-18,26 -12,28 0,28 C12,28 18,26 24,18 C28,8 26,-6 20,-10 C18,-14 14,-16 0,-16 C-14,-16 -18,-14 -20,-10 Z"
+          fill="#ffffff"/>
 
-    <!-- Fox face details -->
-    <ellipse cx="0" cy="4" rx="16" ry="10" fill="#000000" opacity="0.9"/>
+    <!-- Fox face details - simplified -->
+    <ellipse cx="0" cy="6" rx="14" ry="9" fill="#ffffff"/>
 
-    <!-- Fox ears -->
-    <polygon points="-18,-14 -12,-6 -14,-18" fill="#000000" opacity="0.8"/>
-    <polygon points="18,-14 12,-6 14,-18" fill="#000000" opacity="0.8"/>
+    <!-- Fox ears - simple triangles -->
+    <polygon points="-16,-12 -10,-4 -12,-16" fill="#ffffff"/>
+    <polygon points="16,-12 10,-4 12,-16" fill="#ffffff"/>
 
-    <!-- Inner ear details -->
-    <polygon points="-16,-12 -13,-7 -14,-16" fill="#ffffff" opacity="0.6"/>
-    <polygon points="16,-12 13,-7 14,-16" fill="#ffffff" opacity="0.6"/>
+    <!-- Fox eyes - simple dots -->
+    <circle cx="-6" cy="0" r="2" fill="#ffffff"/>
+    <circle cx="6" cy="0" r="2" fill="#ffffff"/>
 
-    <!-- Fox eyes -->
-    <ellipse cx="-7" cy="-1" rx="3" ry="4" fill="#000000"/>
-    <ellipse cx="7" cy="-1" rx="3" ry="4" fill="#000000"/>
+    <!-- Fox nose - simple triangle -->
+    <polygon points="-2,9 2,9 0,12" fill="#ffffff"/>
 
-    <!-- Eye highlights -->
-    <circle cx="-5.5" cy="-2" r="1.2" fill="#ffffff"/>
-    <circle cx="8.5" cy="-2" r="1.2" fill="#ffffff"/>
-
-    <!-- Fox nose -->
-    <ellipse cx="0" cy="6" rx="2.5" ry="2" fill="#000000"/>
-
-    <!-- Mouth -->
-    <path d="M-5,7 Q0,10 5,7" fill="none" stroke="#000000" stroke-width="1.2" stroke-linecap="round"/>
-
-    <!-- Whiskers -->
-    <line x1="-16" y1="1" x2="-8" y2="2.5" stroke="#000000" stroke-width="0.8" stroke-linecap="round"/>
-    <line x1="-16" y1="4" x2="-8" y2="4" stroke="#000000" stroke-width="0.8" stroke-linecap="round"/>
-    <line x1="16" y1="1" x2="8" y2="2.5" stroke="#000000" stroke-width="0.8" stroke-linecap="round"/>
-    <line x1="16" y1="4" x2="8" y2="4" stroke="#000000" stroke-width="0.8" stroke-linecap="round"/>
-  </g>
-
-  <!-- Test tube element -->
-  <g transform="translate(90, 45)">
-    <!-- Test tube body -->
-    <rect x="-2.5" y="-6" width="5" height="12" rx="2.5" fill="#000000" opacity="0.8"/>
-    <!-- Test tube neck -->
-    <rect x="-0.8" y="-12" width="1.6" height="6" fill="#000000" opacity="0.7"/>
-    <!-- Liquid in tube -->
-    <rect x="-1.5" y="-4" width="3" height="6" fill="#000000" opacity="0.6"/>
-    <!-- Bubbles -->
-    <circle cx="0" cy="-3" r="0.8" fill="#ffffff" opacity="0.7"/>
-    <circle cx="-0.8" cy="-1.5" r="0.4" fill="#ffffff" opacity="0.5"/>
-  </g>
-
-  <!-- Checkmark badge -->
-  <g transform="translate(45, 90)">
-    <circle cx="0" cy="0" r="10" fill="#000000" opacity="0.8"/>
-    <circle cx="0" cy="0" r="9" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.3"/>
-    <!-- Checkmark -->
-    <path d="M-3,0 L-0.5,2.5 L3,-2.5" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Mouth - simple curve -->
+    <path d="M-4,10 Q0,13 4,10" fill="none" stroke="#ffffff" stroke-width="1" stroke-linecap="round"/>
   </g>
 </svg>
 

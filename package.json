@@ -280,7 +280,7 @@
         {
           "id": "testfox-container",
           "title": "TestFox",
-          "icon": "media/testfox.svg"
+          "icon": "media/testfox-icon.svg"
         }
       ]
     },
