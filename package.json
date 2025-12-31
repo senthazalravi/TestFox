@@ -81,6 +81,13 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "chatParticipants": [
+      {
+        "id": "testfox",
+        "name": "TestFox AI",
+        "description": "AI-powered testing assistant using OpenRouter"
+      }
+    ],
     "walkthroughs": [
       {
         "id": "testfoxWelcome",
