@@ -913,11 +913,6 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
                 <div class="action-label">AI Config</div>
             </button>
 
-            <button class="action-btn" onclick="configureAI()">
-                <i class="fas fa-robot action-icon"></i>
-                <div class="action-label">AI Config</div>
-            </button>
-
             <button class="action-btn" onclick="testAIConnection()">
                 <i class="fas fa-plug action-icon"></i>
                 <div class="action-label">Test AI</div>
