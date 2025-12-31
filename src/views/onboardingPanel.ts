@@ -31,8 +31,11 @@ export class OnboardingPanel {
                     case 'saveApiKey':
                         await this._handleSaveApiKey(message.apiKey);
                         return;
-                    case 'testApiKey':
-                        await this._handleTestApiKey(message.apiKey);
+                    case 'testConnection':
+                        await this._handleTestConnection(message.apiKey, message.modelId);
+                        return;
+                    case 'saveAndContinue':
+                        await this._handleSaveAndContinue(message.apiKey, message.modelId);
                         return;
                     case 'authenticateGitHub':
                         await this._handleGitHubAuth();
@@ -40,17 +43,11 @@ export class OnboardingPanel {
                     case 'analyzeProject':
                         await this._handleAnalyzeProject();
                         return;
-                case 'completeSetup':
-                    await this._handleCompleteSetup();
-                    return;
+                    case 'completeSetup':
+                        await this._handleCompleteSetup();
+                        return;
                 case 'skip':
                     await this._handleSkip();
-                    return;
-                case 'discoverModels':
-                    await this._handleDiscoverModels(message.apiKey);
-                    return;
-                case 'selectModel':
-                    await this._handleSelectModel(message.apiKey, message.model);
                     return;
                     case 'openSettings':
                         await vscode.commands.executeCommand('workbench.action.openSettings', 'testfox');
@@ -181,12 +178,21 @@ export class OnboardingPanel {
         }
     }
 
-    private async _handleTestApiKey(apiKey: string): Promise<void> {
+    private async _handleTestConnection(apiKey: string, modelId: string): Promise<void> {
         if (!apiKey || !apiKey.trim()) {
             this._panel.webview.postMessage({
-                command: 'testResult',
+                command: 'connectionStatus',
                 success: false,
                 message: 'Please enter an API key first'
+            });
+            return;
+        }
+
+        if (!modelId) {
+            this._panel.webview.postMessage({
+                command: 'connectionStatus',
+                success: false,
+                message: 'Please select an AI model'
             });
             return;
         }
@@ -194,20 +200,99 @@ export class OnboardingPanel {
         try {
             const openRouter = getOpenRouterClient();
             openRouter.setApiKey(apiKey);
-            const testResult = await openRouter.testConnection();
-            
+            openRouter.setModel(modelId);
+
             this._panel.webview.postMessage({
-                command: 'testResult',
+                command: 'connectionStatus',
+                success: true,
+                message: '🧪 Testing connection...'
+            });
+
+            const testResult = await openRouter.testConnection(modelId);
+
+            this._panel.webview.postMessage({
+                command: 'connectionStatus',
                 success: testResult.success,
-                message: testResult.success 
-                    ? 'API key is valid and working! Connected to free AI model.' 
-                    : (testResult.error || 'API key test failed. Please check your key.')
+                message: testResult.success
+                    ? `✅ Connection successful! ${modelId.split('/').pop()} is ready to use.`
+                    : `❌ Connection failed: ${testResult.error || 'Please check your API key and try again.'}`
             });
         } catch (error) {
             this._panel.webview.postMessage({
-                command: 'testResult',
+                command: 'connectionStatus',
                 success: false,
-                message: `Connection test failed: ${error instanceof Error ? error.message : String(error)}`
+                message: `❌ Connection test failed: ${error instanceof Error ? error.message : String(error)}`
+            });
+        }
+    }
+
+    private async _handleSaveAndContinue(apiKey: string, modelId: string): Promise<void> {
+        if (!apiKey || !apiKey.trim()) {
+            this._panel.webview.postMessage({
+                command: 'connectionStatus',
+                success: false,
+                message: 'Please enter an API key'
+            });
+            return;
+        }
+
+        if (!modelId) {
+            this._panel.webview.postMessage({
+                command: 'connectionStatus',
+                success: false,
+                message: 'Please select an AI model'
+            });
+            return;
+        }
+
+        try {
+            // Save settings
+            const config = vscode.workspace.getConfiguration('testfox');
+            await config.update('ai.apiKey', apiKey, vscode.ConfigurationTarget.Global);
+            await config.update('ai.model', modelId, vscode.ConfigurationTarget.Global);
+
+            // Update OpenRouter client
+            const openRouter = getOpenRouterClient();
+            openRouter.setApiKey(apiKey);
+            openRouter.loadConfiguration();
+
+            // Quick test to ensure it works
+            const testResult = await openRouter.testConnection(modelId);
+
+            if (testResult.success) {
+                this._panel.webview.postMessage({
+                    command: 'connectionStatus',
+                    success: true,
+                    message: `✅ AI configured successfully! Using ${modelId.split('/').pop()}`
+                });
+
+                // Mark setup as completed
+                await this._context.globalState.update('testfox.setupCompleted', true);
+
+                // Close panel after success
+                setTimeout(() => {
+                    this._panel.dispose();
+                    vscode.window.showInformationMessage(
+                        `🎉 TestFox is ready! Configured with ${modelId.split('/').pop()}`,
+                        'Generate Tests'
+                    ).then(selection => {
+                        if (selection === 'Generate Tests') {
+                            vscode.commands.executeCommand('testfox.generateTests');
+                        }
+                    });
+                }, 2000);
+            } else {
+                this._panel.webview.postMessage({
+                    command: 'connectionStatus',
+                    success: false,
+                    message: `❌ Configuration failed: ${testResult.error || 'Unable to connect to the model'}`
+                });
+            }
+        } catch (error) {
+            this._panel.webview.postMessage({
+                command: 'connectionStatus',
+                success: false,
+                message: `❌ Configuration failed: ${error instanceof Error ? error.message : String(error)}`
             });
         }
     }
@@ -574,17 +659,22 @@ export class OnboardingPanel {
 
         // Get available models
         const freeModels = [
-            { value: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash (FREE)' },
-            { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B (FREE)' },
-            { value: 'google/gemma-2-9b-it:free', label: 'Gemma 2 9B (FREE)' },
-            { value: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B (FREE)' }
+            { value: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash - Google ⭐' },
+            { value: 'deepseek/deepseek-r1:free', label: 'DeepSeek R1 - DeepSeek ⭐' },
+            { value: 'qwen/qwen3-coder:free', label: 'Qwen3 Coder - Alibaba 💻 ⭐' },
+            { value: 'nvidia/nemotron-3-nano-30b-a3b:free', label: 'Nemotron 3 Nano - NVIDIA ⭐' },
+            { value: 'mistralai/devstral-2512:free', label: 'Devstral - Mistral AI 💻 ⭐' },
+            { value: 'z-ai/glm-4.5-air:free', label: 'GLM 4.5 Air - Zhipu AI ⭐' },
+            { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B - Meta ⭐' },
+            { value: 'google/gemma-2-9b-it:free', label: 'Gemma 2 9B - Google ⭐' },
+            { value: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B - Mistral AI ⭐' }
         ];
 
         const premiumModels = [
-            { value: 'x-ai/grok-beta', label: 'Grok Beta' },
-            { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet' },
-            { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini' },
-            { value: 'openai/gpt-4o', label: 'GPT-4o' }
+            { value: 'x-ai/grok-beta', label: 'Grok Beta - xAI 💰' },
+            { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet - Anthropic 💰' },
+            { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini - OpenAI 💰' },
+            { value: 'openai/gpt-4o', label: 'GPT-4o - OpenAI 💰' }
         ];
 
         let stepNumber = 0;
@@ -611,55 +701,45 @@ export class OnboardingPanel {
 
         const aiSetupHtml = this.needsAISetup ? `
             <div class="step">
-                <h2>${this.needsProjectAnalysis ? ++stepNumber : ++stepNumber}: Get Your API Key</h2>
-                <p>TestFox uses OpenRouter to access multiple AI models. You can get a free API key:</p>
-                <div class="info-box">
-                    <p><strong>Free Tier Available:</strong> OpenRouter offers free credits for testing</p>
-                    <a href="https://openrouter.ai/keys" target="_blank" class="button-link">
-                        Get Free API Key →
-                    </a>
-                </div>
+                <h2>${this.needsProjectAnalysis ? ++stepNumber : ++stepNumber}: Choose Your AI Model</h2>
+                <p>TestFox uses OpenRouter to access multiple AI models. Select your preferred model and enter its API key:</p>
+
+                <div class="form-group">
+                    <label for="aiModel">AI Model</label>
+                    <select id="aiModel" class="input-field">
+                        <optgroup label="⭐ FREE Models">
+                            ${freeModels.map(model => `<option value="${model.value}">${model.label}</option>`).join('')}
+                        </optgroup>
+                        <optgroup label="💰 Premium Models">
+                            ${premiumModels.map(model => `<option value="${model.value}">${model.label}</option>`).join('')}
+                        </optgroup>
+                    </select>
+                    <small>Choose from our curated selection of the best AI models for testing</small>
             </div>
 
-            <div class="step">
-                <h2>${this.needsProjectAnalysis ? ++stepNumber : ++stepNumber}: Enter Your API Key</h2>
                 <div class="form-group">
-                    <label for="apiKey">OpenRouter API Key</label>
+                    <label for="apiKey">API Key</label>
                     <input
                         type="password"
                         id="apiKey"
-                        placeholder="sk-or-v1-..."
+                        placeholder="Enter your API key..."
                         class="input-field"
                         autocomplete="off"
                     />
-                    <small>Your API key starts with "sk-" and is stored securely in VS Code settings</small>
+                    <small>Your API key is stored securely in VS Code settings</small>
                 </div>
-                <div class="button-group">
-                    <button id="testKey" class="button secondary">Test Connection</button>
-                    <button id="saveKey" class="button primary">Save & Continue</button>
-                </div>
-                <div id="testResult" class="test-result hidden"></div>
+
+                <div class="info-box">
+                    <p><strong>🔑 Need an API Key?</strong></p>
+                    <p>Get free credits for testing from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a></p>
+                    <p>For premium models, get keys from the respective providers</p>
             </div>
 
-            <div class="step">
-                <h2>${this.needsProjectAnalysis ? ++stepNumber : ++stepNumber}: Discover & Choose AI Model</h2>
-                <p>Let TestFox discover which AI models are available and working with your API key:</p>
                 <div class="button-group">
-                    <button id="discoverModels" class="button primary">🔍 Discover Available Models</button>
+                    <button id="testConnection" class="button secondary">🧪 Test Connection</button>
+                    <button id="saveAndContinue" class="button primary">💾 Save & Continue</button>
                 </div>
-                <div id="discoverStatus" class="test-result hidden"></div>
-
-                <div id="modelSelection" class="hidden" style="margin-top: 20px;">
-                    <h3>Available Models</h3>
-                    <p id="discoverSummary" style="margin-bottom: 15px;"></p>
-                    <div id="modelsList" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--vscode-input-border); border-radius: 4px; padding: 10px;">
-                        <!-- Models will be populated here -->
-                    </div>
-                    <div class="button-group" style="margin-top: 15px;">
-                        <button id="selectModel" class="button primary" disabled>Select Model & Continue</button>
-                    </div>
-                    <div id="selectResult" class="test-result hidden"></div>
-                </div>
+                <div id="connectionStatus" class="test-result hidden"></div>
             </div>
         ` : '';
 
@@ -719,57 +799,67 @@ export class OnboardingPanel {
         
         // Elements (may be null if not needed)
         const apiKeyInput = document.getElementById('apiKey');
-        const modelSelect = document.getElementById('model');
-        const testKeyBtn = document.getElementById('testKey');
-        const saveKeyBtn = document.getElementById('saveKey');
-        const saveBtn = document.getElementById('save');
+        const aiModelSelect = document.getElementById('aiModel');
+        const testConnectionBtn = document.getElementById('testConnection');
+        const saveAndContinueBtn = document.getElementById('saveAndContinue');
         const skipBtn = document.getElementById('skip');
-        const testResult = document.getElementById('testResult');
+        const connectionStatus = document.getElementById('connectionStatus');
         const authGitHubBtn = document.getElementById('authGitHub');
         const authStatus = document.getElementById('authStatus');
         const analyzeProjectBtn = document.getElementById('analyzeProject');
         const analyzeStatus = document.getElementById('analyzeStatus');
-        const discoverModelsBtn = document.getElementById('discoverModels');
-        const discoverStatus = document.getElementById('discoverStatus');
-        const discoverModelsBtn = document.getElementById('discoverModels');
-        const discoverStatus = document.getElementById('discoverStatus');
-        const modelSelection = document.getElementById('modelSelection');
-        const modelsList = document.getElementById('modelsList');
-        const discoverSummary = document.getElementById('discoverSummary');
-        const selectModelBtn = document.getElementById('selectModel');
-        const selectResult = document.getElementById('selectResult');
-        
-        let selectedModelId = null;
 
-        // Test API key (if element exists)
-        if (testKeyBtn && apiKeyInput) {
-            testKeyBtn.addEventListener('click', () => {
+        // Test connection (if elements exist)
+        if (testConnectionBtn && apiKeyInput && aiModelSelect) {
+            testConnectionBtn.addEventListener('click', () => {
                 const apiKey = apiKeyInput.value.trim();
+                const modelId = aiModelSelect.value;
+
                 if (!apiKey) {
-                    showTestResult(false, 'Please enter an API key');
+                    showConnectionStatus(false, 'Please enter an API key');
                     return;
                 }
                 
-                testKeyBtn.disabled = true;
-                testKeyBtn.textContent = 'Testing...';
+                if (!modelId) {
+                    showConnectionStatus(false, 'Please select an AI model');
+                    return;
+                }
+
+                testConnectionBtn.disabled = true;
+                testConnectionBtn.textContent = '🧪 Testing...';
+
                 vscode.postMessage({
-                    command: 'testApiKey',
-                    apiKey: apiKey
+                    command: 'testConnection',
+                    apiKey: apiKey,
+                    modelId: modelId
                 });
             });
         }
 
-        // Save API key (if element exists)
-        if (saveKeyBtn) {
-            saveKeyBtn.addEventListener('click', () => {
-                saveApiKey();
-            });
-        }
+        // Save and continue (if elements exist)
+        if (saveAndContinueBtn && apiKeyInput && aiModelSelect) {
+            saveAndContinueBtn.addEventListener('click', () => {
+                const apiKey = apiKeyInput.value.trim();
+                const modelId = aiModelSelect.value;
 
-        // Complete setup (if element exists)
-        if (saveBtn) {
-            saveBtn.addEventListener('click', () => {
-                saveApiKey();
+                if (!apiKey) {
+                    showConnectionStatus(false, 'Please enter an API key');
+                    return;
+                }
+
+                if (!modelId) {
+                    showConnectionStatus(false, 'Please select an AI model');
+                    return;
+                }
+
+                saveAndContinueBtn.disabled = true;
+                saveAndContinueBtn.textContent = '💾 Saving...';
+
+                vscode.postMessage({
+                    command: 'saveAndContinue',
+                    apiKey: apiKey,
+                    modelId: modelId
+                });
             });
         }
 
@@ -925,129 +1015,33 @@ export class OnboardingPanel {
             });
         }
 
-        function showTestResult(success, message) {
-            if (!testResult) return;
-            testResult.className = 'test-result ' + (success ? 'success' : 'error');
-            testResult.textContent = message;
-            testResult.classList.remove('hidden');
+        function showConnectionStatus(success, message) {
+            if (!connectionStatus) return;
+            connectionStatus.className = 'test-result ' + (success ? 'success' : 'error');
+            connectionStatus.textContent = message;
+            connectionStatus.classList.remove('hidden');
         }
 
         // Handle messages from extension
         window.addEventListener('message', event => {
             const message = event.data;
             switch (message.command) {
-                case 'testResult':
-                    if (testKeyBtn) {
-                        testKeyBtn.disabled = false;
-                        testKeyBtn.textContent = 'Test Connection';
+                case 'connectionStatus':
+                    if (testConnectionBtn) {
+                        testConnectionBtn.disabled = false;
+                        testConnectionBtn.textContent = '🧪 Test Connection';
                     }
-                    showTestResult(message.success, message.message);
-                    break;
-            if (message.command === 'discoverStatus') {
-                    if (discoverStatus) {
-                        discoverStatus.className = 'test-result ' + message.status;
-                        discoverStatus.textContent = message.message;
-                        discoverStatus.classList.remove('hidden');
+                    if (saveAndContinueBtn) {
+                        saveAndContinueBtn.disabled = false;
+                        saveAndContinueBtn.textContent = '💾 Save & Continue';
                     }
-                    break;
-            if (message.command === 'discoverResult') {
-                    if (discoverModelsBtn) {
-                        discoverModelsBtn.disabled = false;
-                        discoverModelsBtn.textContent = '🔍 Discover Available Models';
-                    }
-                    
-                    if (message.success && modelSelection && modelsList && discoverSummary) {
-                        const models = message.models || [];
-                        const workingModels = models.filter(m => m.isWorking);
-                        const failedModels = models.filter(m => !m.isWorking);
-                        
-                        discoverSummary.textContent = \`Found \${workingModels.length} working model(s) out of \${models.length} tested\`;
-                        
-                        // Show working models first
-                        let html = '';
-                        if (workingModels.length > 0) {
-                            html += '<div style="margin-bottom: 15px;"><strong style="color: var(--vscode-textLink-foreground);">✅ Working Models:</strong></div>';
-                            workingModels.forEach(model => {
-                                const displayName = model.name || model.id.split('/').pop();
-                                const responseTime = model.responseTime ? \` (\${model.responseTime}ms)\` : '';
-                                html += \`
-                                    <label style="display: block; padding: 10px; margin: 5px 0; border: 1px solid var(--vscode-input-border); border-radius: 4px; cursor: pointer; background: var(--vscode-input-background);">
-                                        <input type="radio" name="model" value="\${model.id}" style="margin-right: 10px;" />
-                                        <strong>\${displayName}</strong>\${responseTime}
-                                        \${model.isFree ? '<span style="color: var(--vscode-textLink-foreground); margin-left: 10px;">(FREE)</span>' : ''}
-                                    </label>
-                                \`;
-                            });
-                        }
-                        
-                        if (failedModels.length > 0) {
-                            html += '<div style="margin-top: 20px; margin-bottom: 10px;"><strong style="color: var(--vscode-errorForeground);">❌ Unavailable Models:</strong></div>';
-                            failedModels.forEach(model => {
-                                const displayName = model.name || model.id.split('/').pop();
-                                html += \`
-                                    <div style="padding: 8px; margin: 5px 0; border: 1px solid var(--vscode-input-border); border-radius: 4px; opacity: 0.6;">
-                                        <strong>\${displayName}</strong>
-                                        <span style="color: var(--vscode-errorForeground); margin-left: 10px;">\${model.error || 'Failed'}</span>
-                                    </div>
-                                \`;
-                            });
-                        }
-                        
-                        modelsList.innerHTML = html;
-                        
-                        // Add radio button listeners
-                        const radioButtons = modelsList.querySelectorAll('input[type="radio"]');
-                        radioButtons.forEach(radio => {
-                            radio.addEventListener('change', (e) => {
-                                selectedModelId = e.target.value;
-                                if (selectModelBtn) {
-                                    selectModelBtn.disabled = false;
-                                }
-                            });
-                        });
-                        
-                        // Auto-select first working model
-                        if (workingModels.length > 0 && radioButtons.length > 0) {
-                            radioButtons[0].checked = true;
-                            selectedModelId = workingModels[0].id;
-                            if (selectModelBtn) {
-                                selectModelBtn.disabled = false;
-                            }
-                        }
-                        
-                        modelSelection.classList.remove('hidden');
-                        
-                        if (discoverStatus) {
-                            discoverStatus.className = 'test-result success';
-                            discoverStatus.textContent = message.message;
-                        }
-                    } else {
-                        if (discoverStatus) {
-                            discoverStatus.className = 'test-result error';
-                            discoverStatus.textContent = message.message || 'Model discovery failed';
-                        }
-                    }
-                    break;
-            if (message.command === 'selectResult') {
-                    if (selectModelBtn) {
-                        selectModelBtn.disabled = false;
-                        selectModelBtn.textContent = 'Select Model & Continue';
-                    }
-                    if (selectResult) {
-                        selectResult.className = 'test-result ' + (message.success ? 'success' : 'error');
-                        selectResult.textContent = message.message;
-                        selectResult.classList.remove('hidden');
-                    }
+                    showConnectionStatus(message.success, message.message);
                     break;
                 case 'success':
-                    showTestResult(true, message.message);
+                    showConnectionStatus(true, message.message);
                     break;
                 case 'error':
-                    if (saveBtn) {
-                        saveBtn.disabled = false;
-                        saveBtn.textContent = 'Complete Setup';
-                    }
-                    showTestResult(false, message.message);
+                    showConnectionStatus(false, message.message);
                     break;
                 case 'authStatus':
                     if (authStatus) {

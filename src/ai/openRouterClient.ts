@@ -380,13 +380,13 @@ export class OpenRouterClient {
     /**
      * Test API connection
      */
-    async testConnection(): Promise<{ success: boolean; error?: string }> {
+    async testConnection(specificModel?: string): Promise<{ success: boolean; error?: string }> {
         if (!this.apiKey) {
             return { success: false, error: 'API key is not configured' };
         }
 
-        // Try free models first for connection testing
-        const testModels = [
+        // If a specific model is provided, test only that model
+        const testModels = specificModel ? [specificModel] : [
             'google/gemini-2.0-flash-exp:free',
             'deepseek/deepseek-r1-0528:free',
             'meta-llama/llama-3.1-8b-instruct:free'
@@ -396,7 +396,7 @@ export class OpenRouterClient {
             try {
                 console.log(`TestFox: Testing connection with ${testModel}...`);
                 console.log(`TestFox: API key present: ${!!this.apiKey}, length: ${this.apiKey?.length || 0}`);
-                
+
                 // Make a minimal test request
                 const response = await this.client.post('/chat/completions', {
                     model: testModel,
