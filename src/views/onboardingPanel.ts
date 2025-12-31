@@ -4,7 +4,7 @@ import { getOpenRouterClient } from '../ai/openRouterClient';
 import { GitAuth } from '../core/gitAuth';
 
 /**
- * Onboarding panel for first-time setup
+ * Simple onboarding panel for TestFox setup
  */
 export class OnboardingPanel {
     public static currentPanel: OnboardingPanel | undefined;
@@ -12,22 +12,14 @@ export class OnboardingPanel {
     private readonly _extensionUri: vscode.Uri;
     private _disposables: vscode.Disposable[] = [];
 
-    private needsAISetup: boolean = true;
-    private needsGitHubAuth: boolean = false;
-    private needsProjectAnalysis: boolean = false;
-
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, needsAISetup: boolean = true, needsGitHubAuth: boolean = false, needsProjectAnalysis: boolean = false) {
+    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
         this._panel = panel;
         this._extensionUri = extensionUri;
-        this.needsAISetup = needsAISetup;
-        this.needsGitHubAuth = needsGitHubAuth;
-        this.needsProjectAnalysis = needsProjectAnalysis;
 
         // Set the webview's initial html content
         this._update();
 
         // Listen for when the panel is disposed
-        // This happens when the user closes the panel or when the panel is closed programmatically
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
         // Handle messages from the webview
@@ -35,28 +27,22 @@ export class OnboardingPanel {
             async (message) => {
                 switch (message.command) {
                     case 'saveApiKey':
-                        await this._handleSaveApiKey(message.apiKey, message.model);
+                        await this._handleSaveApiKey(message.apiKey);
                         return;
                     case 'testApiKey':
                         await this._handleTestApiKey(message.apiKey);
                         return;
-                    case 'discoverModels':
-                        await this._handleDiscoverModels(message.apiKey);
-                        return;
-                    case 'selectModel':
-                        await this._handleSelectModel(message.apiKey, message.model);
-                        return;
                     case 'authenticateGitHub':
                         await this._handleGitHubAuth();
                         return;
-                    case 'skip':
-                        await this._handleSkip();
-                        return;
-                    case 'openSettings':
-                        await vscode.commands.executeCommand('workbench.action.openSettings', 'testfox.ai');
-                        return;
                     case 'analyzeProject':
                         await this._handleAnalyzeProject();
+                        return;
+                    case 'completeSetup':
+                        await this._handleCompleteSetup();
+                        return;
+                    case 'openSettings':
+                        await vscode.commands.executeCommand('workbench.action.openSettings', 'testfox');
                         return;
                 }
             },
@@ -65,7 +51,26 @@ export class OnboardingPanel {
         );
     }
 
-    public static createOrShow(extensionUri: vscode.Uri, needsAISetup: boolean = true, needsGitHubAuth: boolean = false, needsProjectAnalysis: boolean = false): void {
+    private _update(): void {
+        const webview = this._panel.webview;
+        webview.html = this._getHtmlForWebview(webview);
+    }
+
+    public dispose(): void {
+        OnboardingPanel.currentPanel = undefined;
+
+        // Clean up our resources
+        this._panel.dispose();
+
+        while (this._disposables.length) {
+            const x = this._disposables.pop();
+            if (x) {
+                x.dispose();
+            }
+        }
+    }
+
+    public static createOrShow(extensionUri: vscode.Uri): void {
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
@@ -79,7 +84,7 @@ export class OnboardingPanel {
         // Otherwise, create a new panel
         const panel = vscode.window.createWebviewPanel(
             'testfoxOnboarding',
-            'TestFox Setup',
+            'TestFox Setup Wizard',
             column || vscode.ViewColumn.One,
             {
                 enableScripts: true,
@@ -88,7 +93,7 @@ export class OnboardingPanel {
             }
         );
 
-        OnboardingPanel.currentPanel = new OnboardingPanel(panel, extensionUri, needsAISetup, needsGitHubAuth, needsProjectAnalysis);
+        OnboardingPanel.currentPanel = new OnboardingPanel(panel, extensionUri);
     }
 
     public static showGitHubAuth(extensionUri: vscode.Uri): void {
@@ -116,91 +121,50 @@ export class OnboardingPanel {
         OnboardingPanel.currentPanel = new OnboardingPanel(panel, extensionUri);
     }
 
-    public dispose(): void {
-        OnboardingPanel.currentPanel = undefined;
-
-        // Clean up our resources
-        while (this._disposables.length) {
-            const x = this._disposables.pop();
-            if (x) {
-                x.dispose();
-            }
-        }
-    }
-
-    private async _update(): Promise<void> {
-        const webview = this._panel.webview;
-        this._panel.webview.html = this._getHtmlForWebview(webview);
-    }
-
-    private async _handleSaveApiKey(apiKey: string, model: string): Promise<void> {
+    private async _handleSaveApiKey(apiKey: string): Promise<void> {
         if (!apiKey || !apiKey.trim()) {
             this._panel.webview.postMessage({
-                command: 'error',
-                message: 'API key is required'
+                command: 'apiKeySaved',
+                success: false,
+                message: 'Please enter an API key'
             });
             return;
         }
 
         if (!apiKey.startsWith('sk-')) {
             this._panel.webview.postMessage({
-                command: 'error',
+                command: 'apiKeySaved',
+                success: false,
                 message: 'Invalid API key format. OpenRouter keys should start with "sk-"'
             });
             return;
         }
 
         try {
-            // Save API key
             const config = vscode.workspace.getConfiguration('testfox');
             await config.update('ai.apiKey', apiKey, vscode.ConfigurationTarget.Global);
-            
-            // Save model if provided
-            if (model) {
-                await config.update('ai.model', model, vscode.ConfigurationTarget.Global);
-            }
+            await config.update('ai.model', 'google/gemini-2.0-flash-exp:free', vscode.ConfigurationTarget.Global);
 
             // Update OpenRouter client
             const openRouter = getOpenRouterClient();
             openRouter.setApiKey(apiKey);
             openRouter.loadConfiguration();
 
-            // Test the connection
-            try {
-                const testResult = await openRouter.testConnection();
-                if (testResult.success) {
-                    this._panel.webview.postMessage({
-                        command: 'success',
-                        message: 'API key saved and verified successfully!'
-                    });
+            this._panel.webview.postMessage({
+                command: 'apiKeySaved',
+                success: true,
+                message: 'AI configured successfully!'
+            });
 
-                    // Close panel after a short delay
-                    setTimeout(() => {
-                        this._panel.dispose();
-                        vscode.window.showInformationMessage(
-                            'TestFox: AI configuration complete! You can now generate tests with AI.',
-                            'Generate Tests'
-                        ).then(selection => {
-                            if (selection === 'Generate Tests') {
-                                vscode.commands.executeCommand('testfox.generateTests');
-                            }
-                        });
-                    }, 1500);
-                } else {
-                    this._panel.webview.postMessage({
-                        command: 'error',
-                        message: `API key saved but connection test failed: ${testResult.error || 'Unknown error'}`
-                    });
-                }
-            } catch (error) {
-                this._panel.webview.postMessage({
-                    command: 'error',
-                    message: `API key saved but connection test failed: ${error instanceof Error ? error.message : String(error)}`
-                });
-            }
+            // Close panel after success
+            setTimeout(() => {
+                this._handleCompleteSetup();
+            }, 1500);
+
         } catch (error) {
             this._panel.webview.postMessage({
-                command: 'error',
+                command: 'apiKeySaved',
+                success: false,
                 message: `Failed to save API key: ${error instanceof Error ? error.message : String(error)}`
             });
         }
@@ -280,67 +244,52 @@ export class OnboardingPanel {
     }
 
     private async _handleSelectModel(apiKey: string, modelId: string): Promise<void> {
-        if (!apiKey || !apiKey.trim()) {
-            this._panel.webview.postMessage({
-                command: 'selectResult',
-                success: false,
-                message: 'API key is required'
-            });
-            return;
-        }
-
         if (!modelId) {
             this._panel.webview.postMessage({
-                command: 'selectResult',
-                success: false,
+                command: 'stepError',
+                step: 'ai-setup',
                 message: 'Please select a model'
             });
             return;
         }
 
         try {
-            // Save API key and model
+            // Save model
             const config = vscode.workspace.getConfiguration('testfox');
-            await config.update('ai.apiKey', apiKey, vscode.ConfigurationTarget.Global);
             await config.update('ai.model', modelId, vscode.ConfigurationTarget.Global);
 
             // Update OpenRouter client
             const openRouter = getOpenRouterClient();
-            openRouter.setApiKey(apiKey);
             openRouter.loadConfiguration();
 
             // Test the selected model
             const testResult = await openRouter.testConnection();
-            
+
             if (testResult.success) {
                 this._panel.webview.postMessage({
-                    command: 'selectResult',
+                    command: 'modelSelected',
                     success: true,
                     message: `Model "${modelId}" selected and verified successfully!`
                 });
 
-                // Close panel after a short delay
+                // Mark AI setup as completed
+                this.completedSteps.add(this.steps.findIndex(s => s.id === 'ai-setup'));
+                this.stepData['ai-setup'] = { apiKey, model: modelId };
+
+                // Auto-advance to next step after a delay
                 setTimeout(() => {
-                    this._panel.dispose();
-                    vscode.window.showInformationMessage(
-                        `TestFox: AI configured with ${modelId}! You can now generate tests with AI.`,
-                        'Generate Tests'
-                    ).then(selection => {
-                        if (selection === 'Generate Tests') {
-                            vscode.commands.executeCommand('testfox.generateTests');
-                        }
-                    });
+                    this._handleNextStep({ apiKey, model: modelId });
                 }, 1500);
             } else {
                 this._panel.webview.postMessage({
-                    command: 'selectResult',
+                    command: 'modelSelected',
                     success: false,
                     message: `Model selected but verification failed: ${testResult.error}`
                 });
             }
         } catch (error) {
             this._panel.webview.postMessage({
-                command: 'selectResult',
+                command: 'modelSelected',
                 success: false,
                 message: `Failed to select model: ${error instanceof Error ? error.message : String(error)}`
             });
@@ -464,6 +413,49 @@ export class OnboardingPanel {
                 command: 'analyzeResult',
                 success: false,
                 message: `Project analysis failed: ${error instanceof Error ? error.message : String(error)}`
+            });
+        }
+    }
+
+    private async _handleSkipGitHub(): Promise<void> {
+        // Mark GitHub auth as completed (skipped)
+        this.completedSteps.add(this.steps.findIndex(s => s.id === 'github-auth'));
+        this.stepData['github-auth'] = { skipped: true };
+
+        // Move to complete step
+        this.currentStep = this.steps.length - 1;
+        this._update();
+    }
+
+    private async _handleCompleteSetup(): Promise<void> {
+        try {
+            this._panel.webview.postMessage({
+                command: 'setupComplete',
+                message: 'TestFox setup completed successfully!'
+            });
+
+            // Close panel after a delay
+            setTimeout(() => {
+                this._panel.dispose();
+
+                // Show completion message with action
+                vscode.window.showInformationMessage(
+                    '🎉 TestFox is ready! Your AI-powered testing companion is now configured.',
+                    'Generate Tests',
+                    'Open Test Control Center'
+                ).then(selection => {
+                    if (selection === 'Generate Tests') {
+                        vscode.commands.executeCommand('testfox.generateTests');
+                    } else if (selection === 'Open Test Control Center') {
+                        vscode.commands.executeCommand('testfox.openTestControlCenter');
+                    }
+                });
+            }, 2000);
+
+        } catch (error) {
+            this._panel.webview.postMessage({
+                command: 'setupError',
+                message: `Setup completion failed: ${error instanceof Error ? error.message : String(error)}`
             });
         }
     }

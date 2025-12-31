@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing extension - the final quality gate in your SDLC. Automated functional, security, performance, and API testing with ISTQB standards. Uses Grok/XAI via OpenRouter.",
-  "version": "0.6.3",
+  "version": "0.6.5",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -287,6 +287,13 @@
     "views": {
       "testfox-container": [
         {
+          "id": "testfox-control-center",
+          "name": "Test Control Center",
+          "icon": "$(dashboard)",
+          "contextualTitle": "TestFox Control Center",
+          "type": "webview"
+        },
+        {
           "id": "testfox-explorer",
           "name": "Test Explorer",
           "icon": "$(beaker)",
@@ -297,13 +304,6 @@
           "name": "Test Results",
           "icon": "$(checklist)",
           "contextualTitle": "TestFox Results"
-        },
-        {
-          "id": "testfox-control-center",
-          "name": "Test Control Center",
-          "icon": "$(dashboard)",
-          "contextualTitle": "TestFox Control Center",
-          "type": "webview"
         }
       ]
     },
@@ -491,7 +491,11 @@
         },
         "testfox.automation.interval": {
           "type": "string",
-          "enum": ["15m", "1h", "daily"],
+          "enum": [
+            "15m",
+            "1h",
+            "daily"
+          ],
           "default": "daily",
           "description": "Interval for periodic test execution"
         },
@@ -564,7 +568,7 @@
     "@typescript-eslint/parser": "^6.13.0",
     "@vscode/test-electron": "^2.3.8",
     "@vscode/vsce": "^2.32.0",
-    "esbuild": "^0.20.0",
+    "esbuild": "^0.27.2",
     "eslint": "^8.55.0",
     "glob": "^10.3.10",
     "mocha": "^10.2.0",

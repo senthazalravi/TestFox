@@ -567,17 +567,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
         vscode.commands.registerCommand('testfox.configureAI', async () => {
             // Show onboarding panel for seamless configuration
-                    const config = vscode.workspace.getConfiguration('testfox');
-            const apiKey = config.get<string>('ai.apiKey');
-            const isGitHubAuthenticated = await GitAuth.isAuthenticated();
-            OnboardingPanel.createOrShow(context.extensionUri, !apiKey, !isGitHubAuthenticated);
+            OnboardingPanel.createOrShow(context.extensionUri);
         }),
 
         vscode.commands.registerCommand('testfox.showOnboarding', async () => {
-                    const config = vscode.workspace.getConfiguration('testfox');
-            const apiKey = config.get<string>('ai.apiKey');
-            const isGitHubAuthenticated = await GitAuth.isAuthenticated();
-            OnboardingPanel.createOrShow(context.extensionUri, !apiKey, !isGitHubAuthenticated);
+            OnboardingPanel.createOrShow(context.extensionUri);
         }),
 
         vscode.commands.registerCommand('testfox.showTestDetails', (testId: string) => {
@@ -870,33 +864,30 @@ function loadAIConfiguration(context: vscode.ExtensionContext): void {
 }
 
 /**
- * Check if onboarding is needed and show onboarding panel
+ * Check if onboarding is needed and show simple onboarding
  */
 async function checkAndShowOnboarding(context: vscode.ExtensionContext): Promise<void> {
     const config = vscode.workspace.getConfiguration('testfox');
     const apiKey = config.get<string>('ai.apiKey');
     const onboardingShown = context.globalState.get<boolean>('testfox.onboardingShown', false);
-    const githubAuthShown = context.globalState.get<boolean>('testfox.githubAuthShown', false);
-    
-    // Check GitHub authentication status
-    const isGitHubAuthenticated = await GitAuth.isAuthenticated();
-    
-    // Show onboarding if:
-    // 1. API key is not configured OR GitHub is not authenticated
-    // 2. Onboarding hasn't been shown yet
-    if ((!apiKey || !isGitHubAuthenticated) && !onboardingShown) {
+
+    // Show onboarding if AI is not configured
+    if (!apiKey && !onboardingShown) {
         // Mark as shown immediately to prevent multiple prompts
         await context.globalState.update('testfox.onboardingShown', true);
-        
-        // Show onboarding panel after a short delay to let extension fully load
-        setTimeout(() => {
-            OnboardingPanel.createOrShow(context.extensionUri, !apiKey, !isGitHubAuthenticated);
-        }, 1500);
-    } else if (!isGitHubAuthenticated && !githubAuthShown) {
-        // Show GitHub auth prompt separately if AI is already configured
-        await context.globalState.update('testfox.githubAuthShown', true);
-        setTimeout(() => {
-            OnboardingPanel.showGitHubAuth(context.extensionUri);
+
+        // Show simple onboarding dialog after extension loads
+        setTimeout(async () => {
+            const result = await vscode.window.showInformationMessage(
+                '🦊 Welcome to TestFox! AI-powered testing is ready.',
+                'Set Up AI',
+                'Skip for Now'
+            );
+
+            if (result === 'Set Up AI') {
+                // Show the onboarding panel for AI setup
+                OnboardingPanel.createOrShow(context.extensionUri);
+            }
         }, 2000);
     }
 }
@@ -1044,38 +1035,50 @@ async function analyzeProject(silent = false): Promise<void> {
 
 async function generateTests(): Promise<void> {
     let analysisResult = testStore.getAnalysisResult();
+
+    // Always ensure we have analysis result
     if (!analysisResult) {
-        vscode.window.showWarningMessage('TestFox: Please analyze the project first');
+        console.log('TestFox: No analysis result found, running analysis...');
+        updateStatus('analyzing', 'Analyzing project...');
+
+        try {
         await analyzeProject();
         analysisResult = testStore.getAnalysisResult();
-        if (!analysisResult) {
+        } catch (error) {
+            console.error('TestFox: Analysis failed:', error);
+            updateStatus('error');
             vscode.window.showErrorMessage('TestFox: Project analysis failed. Please try again.');
             return;
         }
     }
 
-    // Ensure analysis result has all required properties
-    if (!analysisResult.routes || !Array.isArray(analysisResult.routes)) {
-        analysisResult.routes = [];
+    // Double-check we have analysis result after analysis
+    if (!analysisResult) {
+        console.error('TestFox: Still no analysis result after running analysis');
+        updateStatus('error');
+        vscode.window.showErrorMessage('TestFox: Unable to analyze project. Please check your workspace.');
+        return;
     }
-    if (!analysisResult.forms || !Array.isArray(analysisResult.forms)) {
-        analysisResult.forms = [];
-    }
-    if (!analysisResult.endpoints || !Array.isArray(analysisResult.endpoints)) {
-        analysisResult.endpoints = [];
-    }
-    if (!analysisResult.authFlows || !Array.isArray(analysisResult.authFlows)) {
-        analysisResult.authFlows = [];
-    }
-    if (!analysisResult.databaseQueries || !Array.isArray(analysisResult.databaseQueries)) {
-        analysisResult.databaseQueries = [];
-    }
-    if (!analysisResult.externalApis || !Array.isArray(analysisResult.externalApis)) {
-        analysisResult.externalApis = [];
-    }
-    if (!analysisResult.components || !Array.isArray(analysisResult.components)) {
-        analysisResult.components = [];
-    }
+
+    // Ensure analysis result has all required properties with safe defaults
+    if (!analysisResult.routes) analysisResult.routes = [];
+    if (!analysisResult.forms) analysisResult.forms = [];
+    if (!analysisResult.endpoints) analysisResult.endpoints = [];
+    if (!analysisResult.authFlows) analysisResult.authFlows = [];
+    if (!analysisResult.databaseQueries) analysisResult.databaseQueries = [];
+    if (!analysisResult.externalApis) analysisResult.externalApis = [];
+    if (!analysisResult.components) analysisResult.components = [];
+
+    // Ensure all arrays are actually arrays
+    analysisResult.routes = Array.isArray(analysisResult.routes) ? analysisResult.routes : [];
+    analysisResult.forms = Array.isArray(analysisResult.forms) ? analysisResult.forms : [];
+    analysisResult.endpoints = Array.isArray(analysisResult.endpoints) ? analysisResult.endpoints : [];
+    analysisResult.authFlows = Array.isArray(analysisResult.authFlows) ? analysisResult.authFlows : [];
+    analysisResult.databaseQueries = Array.isArray(analysisResult.databaseQueries) ? analysisResult.databaseQueries : [];
+    analysisResult.externalApis = Array.isArray(analysisResult.externalApis) ? analysisResult.externalApis : [];
+    analysisResult.components = Array.isArray(analysisResult.components) ? analysisResult.components : [];
+
+    console.log(`TestFox: Analysis result ready - routes: ${analysisResult.routes.length}, forms: ${analysisResult.forms.length}, endpoints: ${analysisResult.endpoints.length}`);
 
     // Check if application is running before proceeding
     const appUrl = await checkApplicationAvailability();
@@ -1131,7 +1134,7 @@ async function generateTests(): Promise<void> {
                 try {
                     const aiTests = await testGeneratorAI.generateWithAI();
                     
-                    if (aiTests && aiTests.length > 0) {
+                    if (aiTests && Array.isArray(aiTests) && aiTests.length > 0) {
                         vscode.window.showInformationMessage(
                             `TestFox AI: Generated ${aiTests.length} test cases using AI`
                         );
