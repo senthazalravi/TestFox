@@ -698,7 +698,7 @@ export class OnboardingPanel {
         // Get available models
         const freeModels = [
             { value: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash - Google ⭐' },
-            { value: 'deepseek/deepseek-r1:free', label: 'DeepSeek R1 - DeepSeek ⭐' },
+            { value: 'deepseek/deepseek-r1', label: 'DeepSeek R1 - DeepSeek ⭐' },
             { value: 'qwen/qwen3-coder:free', label: 'Qwen3 Coder - Alibaba 💻 ⭐' },
             { value: 'nvidia/nemotron-3-nano-30b-a3b:free', label: 'Nemotron 3 Nano - NVIDIA ⭐' },
             { value: 'mistralai/devstral-2512:free', label: 'Devstral - Mistral AI 💻 ⭐' },
@@ -756,15 +756,15 @@ export class OnboardingPanel {
             </div>
 
                 <div class="form-group">
-                    <label for="apiKey">API Key</label>
+                    <label for="apiKey">OpenRouter API Key</label>
                     <input
                         type="password"
                         id="apiKey"
-                        placeholder="Enter your API key..."
+                        placeholder="sk-or-v1-..."
                         class="input-field"
                         autocomplete="off"
                     />
-                    <small>Your API key is stored securely in VS Code settings</small>
+                    <small>Get your free API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>. All models use the same API key.</small>
                 </div>
 
                 <div class="info-box">
@@ -847,9 +847,38 @@ export class OnboardingPanel {
         const analyzeProjectBtn = document.getElementById('analyzeProject');
         const analyzeStatus = document.getElementById('analyzeStatus');
 
+        // Track connection state
+        let isConnecting = false;
+
+        // Handle model selection changes
+        if (aiModelSelect) {
+            aiModelSelect.addEventListener('change', () => {
+                // Stop any ongoing connection attempts
+                isConnecting = false;
+
+                // Re-enable buttons
+                if (testConnectionBtn) {
+                    testConnectionBtn.disabled = false;
+                    testConnectionBtn.textContent = '🧪 Test Connection';
+                }
+                if (saveAndContinueBtn) {
+                    saveAndContinueBtn.disabled = false;
+                    saveAndContinueBtn.textContent = '💾 Save & Continue';
+                }
+
+                // Clear any status messages
+                if (connectionStatus) {
+                    connectionStatus.className = 'test-result hidden';
+                    connectionStatus.textContent = '';
+                }
+            });
+        }
+
         // Test connection (if elements exist)
         if (testConnectionBtn && apiKeyInput && aiModelSelect) {
             testConnectionBtn.addEventListener('click', () => {
+                if (isConnecting) return; // Prevent multiple simultaneous requests
+
                 const apiKey = apiKeyInput.value.trim();
                 const modelId = aiModelSelect.value;
 
@@ -857,12 +886,13 @@ export class OnboardingPanel {
                     showConnectionStatus(false, 'Please enter an API key');
                     return;
                 }
-                
+
                 if (!modelId) {
                     showConnectionStatus(false, 'Please select an AI model');
                     return;
                 }
 
+                isConnecting = true;
                 testConnectionBtn.disabled = true;
                 testConnectionBtn.textContent = '🧪 Testing...';
 
@@ -877,6 +907,8 @@ export class OnboardingPanel {
         // Save and continue (if elements exist)
         if (saveAndContinueBtn && apiKeyInput && aiModelSelect) {
             saveAndContinueBtn.addEventListener('click', () => {
+                if (isConnecting) return; // Prevent multiple simultaneous requests
+
                 const apiKey = apiKeyInput.value.trim();
                 const modelId = aiModelSelect.value;
 
@@ -890,6 +922,7 @@ export class OnboardingPanel {
                     return;
                 }
 
+                isConnecting = true;
                 saveAndContinueBtn.disabled = true;
                 saveAndContinueBtn.textContent = '💾 Saving...';
 
@@ -1065,6 +1098,7 @@ export class OnboardingPanel {
             const message = event.data;
             switch (message.command) {
                 case 'connectionStatus':
+                    isConnecting = false; // Reset connection state
                     if (testConnectionBtn) {
                         testConnectionBtn.disabled = false;
                         testConnectionBtn.textContent = '🧪 Test Connection';

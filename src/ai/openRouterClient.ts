@@ -388,7 +388,7 @@ export class OpenRouterClient {
         // If a specific model is provided, test only that model
         const testModels = specificModel ? [specificModel] : [
             'google/gemini-2.0-flash-exp:free',
-            'deepseek/deepseek-r1-0528:free',
+            'deepseek/deepseek-r1',
             'meta-llama/llama-3.1-8b-instruct:free'
         ];
 
