@@ -1233,28 +1233,9 @@ async function generateTests(): Promise<void> {
 
             const tests = testStore.getAllTests();
             const testCount = Array.isArray(tests) ? tests.length : 0;
-
-            // Show success message and ask if user wants to run tests
-            const runTests = await vscode.window.showInformationMessage(
-                `🎉 TestFox: Successfully generated ${testCount} test cases across all categories!`,
-                'Run Tests Now',
-                'Run Later'
+            vscode.window.showInformationMessage(
+                `TestFox: Generated ${testCount} test cases across all categories`
             );
-
-            if (runTests === 'Run Tests Now') {
-                // Show info that tests will run in background
-                vscode.window.showInformationMessage(
-                    '🧪 TestFox: Running tests in background. You can continue working - results will be available soon.',
-                    'Open Test Results'
-                ).then(selection => {
-                    if (selection === 'Open Test Results') {
-                        vscode.commands.executeCommand('testfox.openTestResults');
-                    }
-                });
-
-                // Run tests
-                await runAllTests();
-            }
         } catch (error) {
             updateStatus('error');
             vscode.window.showErrorMessage(`TestFox: Test generation failed - ${error}`);
