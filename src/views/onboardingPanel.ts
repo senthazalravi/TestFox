@@ -359,7 +359,7 @@ export class OnboardingPanel {
                     };
                     break;
 
-                case 'byoApi':
+                case 'byo-api':
                     serviceConfig = {
                         provider: AIProvider.BYO_API,
                         apiKey: apiKey,
@@ -560,7 +560,7 @@ export class OnboardingPanel {
 
             // Update OpenRouter client
             const openRouter = getOpenRouterClient();
-            openRouter.loadConfiguration();
+            openRouter.setApiKey(apiKey);
 
             // Test the selected model
             const testResult = await openRouter.testConnection();
@@ -572,13 +572,9 @@ export class OnboardingPanel {
                     message: `Model "${modelId}" selected and verified successfully!`
                 });
 
-                // Mark AI setup as completed
-                this.completedSteps.add(this.steps.findIndex(s => s.id === 'ai-setup'));
-                this.stepData['ai-setup'] = { apiKey, model: modelId };
-
-                // Auto-advance to next step after a delay
+                // Auto-advance to complete setup after a delay
                 setTimeout(() => {
-                    this._handleNextStep({ apiKey, model: modelId });
+                    this._handleCompleteSetup();
                 }, 1500);
             } else {
                 this._panel.webview.postMessage({
@@ -718,13 +714,8 @@ export class OnboardingPanel {
     }
 
     private async _handleSkipGitHub(): Promise<void> {
-        // Mark GitHub auth as completed (skipped)
-        this.completedSteps.add(this.steps.findIndex(s => s.id === 'github-auth'));
-        this.stepData['github-auth'] = { skipped: true };
-
-        // Move to complete step
-        this.currentStep = this.steps.length - 1;
-        this._update();
+        // Just complete setup
+        await this._handleCompleteSetup();
     }
 
     private async _handleCompleteSetup(): Promise<void> {
@@ -914,7 +905,7 @@ export class OnboardingPanel {
                         <option value="deepseek">🧠 DeepSeek (Direct API)</option>
                         <option value="ollama">🐪 Ollama (Local AI)</option>
                         <option value="lmstudio">🎭 LM Studio (Local AI)</option>
-                        <option value="byoApi">🔑 Bring Your Own API</option>
+                        <option value="byo-api">🔑 Bring Your Own API</option>
                     </select>
                     <small>Choose the AI provider that best fits your needs</small>
                 </div>
@@ -1111,7 +1102,7 @@ export class OnboardingPanel {
                 </div>
 
                 <!-- BYO API Configuration -->
-                <div id="byoApiConfig" class="provider-config" style="display: none;">
+                <div id="byo-apiConfig" class="provider-config" style="display: none;">
                     <h3>🔑 Bring Your Own API Configuration</h3>
                     <div class="info-box">
                         <p><strong>💡 Compatible with:</strong></p>
@@ -1184,151 +1175,6 @@ export class OnboardingPanel {
                     <button id="saveAndContinue" class="button primary">💾 Save & Continue</button>
                 </div>
 
-                <script>
-                    document.addEventListener('DOMContentLoaded', function() {
-                        console.log('TestFox: Onboarding panel DOM loaded');
-
-                        function toggleProviderConfig() {
-                            const provider = document.getElementById('aiProvider').value;
-                            console.log('Provider selected:', provider);
-
-                            // Hide all configs
-                            document.getElementById('openrouterConfig').style.display = 'none';
-                            document.getElementById('google-geminiConfig').style.display = 'none';
-                            document.getElementById('deepseekConfig').style.display = 'none';
-                            document.getElementById('ollamaConfig').style.display = 'none';
-                            document.getElementById('lmstudioConfig').style.display = 'none';
-                            document.getElementById('byoApiConfig').style.display = 'none';
-
-                            // Show selected config
-                            if (provider) {
-                                const configEl = document.getElementById(provider + 'Config');
-                                if (configEl) {
-                                    configEl.style.display = 'block';
-                                    console.log('Showing config:', provider + 'Config');
-                                } else {
-                                    console.error('Config not found:', provider + 'Config');
-                                }
-                            }
-                        }
-
-                        // Attach provider select change handler
-                        const providerSelect = document.getElementById('aiProvider');
-                        if (providerSelect) {
-                            providerSelect.addEventListener('change', toggleProviderConfig);
-                            console.log('Provider select handler attached');
-                        }
-
-                        // Button handlers
-                    document.getElementById('testConnection').addEventListener('click', function() {
-                        const provider = document.getElementById('aiProvider').value;
-                        if (!provider) {
-                            showStatus('Please select an AI provider first', false);
-                            return;
-                        }
-
-                        let apiKey = '';
-                        let baseUrl = '';
-                        let modelId = '';
-
-                        switch (provider) {
-                            case 'openrouter':
-                                apiKey = document.getElementById('apiKey').value;
-                                modelId = document.getElementById('aiModel').value;
-                                break;
-                            case 'google-gemini':
-                                apiKey = document.getElementById('googleGeminiApiKey').value;
-                                baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
-                                modelId = document.getElementById('googleGeminiModel').value;
-                                break;
-                            case 'deepseek':
-                                apiKey = document.getElementById('deepseekApiKey').value;
-                                baseUrl = document.getElementById('deepseekBaseUrl').value;
-                                modelId = document.getElementById('deepseekModel').value;
-                                break;
-                            case 'ollama':
-                                baseUrl = document.getElementById('ollamaBaseUrl').value;
-                                modelId = document.getElementById('ollamaModel').value;
-                                break;
-                            case 'lmstudio':
-                                baseUrl = document.getElementById('lmstudioBaseUrl').value;
-                                modelId = document.getElementById('lmstudioModel').value;
-                                break;
-                            case 'byoApi':
-                                apiKey = document.getElementById('byoApiKey').value;
-                                baseUrl = document.getElementById('byoBaseUrl').value;
-                                modelId = document.getElementById('byoModel').value;
-                                break;
-                        }
-
-                        vscode.postMessage({
-                            command: 'testConnection',
-                            provider: provider,
-                            apiKey: apiKey,
-                            baseUrl: baseUrl,
-                            modelId: modelId
-                        });
-                    });
-
-                    document.getElementById('saveAndContinue').addEventListener('click', function() {
-                        const provider = document.getElementById('aiProvider').value;
-                        if (!provider) {
-                            showStatus('Please select an AI provider first', false);
-                            return;
-                        }
-
-                        let apiKey = '';
-                        let baseUrl = '';
-                        let modelId = '';
-
-                        switch (provider) {
-                            case 'openrouter':
-                                apiKey = document.getElementById('apiKey').value;
-                                modelId = document.getElementById('aiModel').value;
-                                break;
-                            case 'google-gemini':
-                                apiKey = document.getElementById('googleGeminiApiKey').value;
-                                baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
-                                modelId = document.getElementById('googleGeminiModel').value;
-                                break;
-                            case 'deepseek':
-                                apiKey = document.getElementById('deepseekApiKey').value;
-                                baseUrl = document.getElementById('deepseekBaseUrl').value;
-                                modelId = document.getElementById('deepseekModel').value;
-                                break;
-                            case 'ollama':
-                                baseUrl = document.getElementById('ollamaBaseUrl').value;
-                                modelId = document.getElementById('ollamaModel').value;
-                                break;
-                            case 'lmstudio':
-                                baseUrl = document.getElementById('lmstudioBaseUrl').value;
-                                modelId = document.getElementById('lmstudioModel').value;
-                                break;
-                            case 'byoApi':
-                                apiKey = document.getElementById('byoApiKey').value;
-                                baseUrl = document.getElementById('byoBaseUrl').value;
-                                modelId = document.getElementById('byoModel').value;
-                                break;
-                        }
-
-                        vscode.postMessage({
-                            command: 'saveAndContinue',
-                            provider: provider,
-                            apiKey: apiKey,
-                            baseUrl: baseUrl,
-                            modelId: modelId
-                        });
-                        function showStatus(message, isSuccess) {
-                            const statusDiv = document.getElementById('connectionStatus');
-                            if (statusDiv) {
-                                statusDiv.textContent = message;
-                                statusDiv.className = 'test-result ' + (isSuccess ? '' : 'error');
-                                statusDiv.style.display = 'block';
-                            }
-                        }
-
-                    }); // End of DOMContentLoaded
-                </script>
                 <div id="connectionStatus" class="test-result hidden"></div>
             </div>
         ` : '';
@@ -1387,60 +1233,118 @@ export class OnboardingPanel {
     <script>
         const vscode = acquireVsCodeApi();
         
-        // Elements (may be null if not needed)
-        const apiKeyInput = document.getElementById('apiKey');
-        const aiModelSelect = document.getElementById('aiModel');
+        // --- Elements ---
+        const aiProviderSelect = document.getElementById('aiProvider');
         const testConnectionBtn = document.getElementById('testConnection');
         const saveAndContinueBtn = document.getElementById('saveAndContinue');
-        const skipBtn = document.getElementById('skip');
         const connectionStatus = document.getElementById('connectionStatus');
+        const skipBtn = document.getElementById('skip');
         const authGitHubBtn = document.getElementById('authGitHub');
         const authStatus = document.getElementById('authStatus');
         const analyzeProjectBtn = document.getElementById('analyzeProject');
         const analyzeStatus = document.getElementById('analyzeStatus');
 
-        // Track connection state
+        // --- State ---
         let isConnecting = false;
 
-        // Handle model selection changes
-        if (aiModelSelect) {
-            aiModelSelect.addEventListener('change', () => {
-                // Stop any ongoing connection attempts
-                isConnecting = false;
+        // --- AI Provider Toggle ---
+        if (aiProviderSelect) {
+            aiProviderSelect.addEventListener('change', () => {
+                const provider = aiProviderSelect.value;
+                console.log('Provider selected:', provider);
+                
+                // Hide all configs
+                const configs = ['openrouter', 'google-gemini', 'deepseek', 'ollama', 'lmstudio', 'byo-api'];
+                configs.forEach(p => {
+                    const el = document.getElementById(p + 'Config');
+                    if (el) el.style.display = 'none';
+                });
 
-                // Re-enable buttons
-                if (testConnectionBtn) {
-                    testConnectionBtn.disabled = false;
-                    testConnectionBtn.textContent = '🧪 Test Connection';
-                }
-                if (saveAndContinueBtn) {
-                    saveAndContinueBtn.disabled = false;
-                    saveAndContinueBtn.textContent = '💾 Save & Continue';
+                // Show selected config
+                if (provider) {
+                    const el = document.getElementById(provider + 'Config');
+                    if (el) {
+                        el.style.display = 'block';
+                        console.log('Showing config:', provider + 'Config');
+                    }
                 }
 
-                // Clear any status messages
+                // Clear status
                 if (connectionStatus) {
                     connectionStatus.className = 'test-result hidden';
                     connectionStatus.textContent = '';
                 }
             });
+
+            // Initial toggle if a provider is already selected
+            if (aiProviderSelect.value) {
+                const event = new Event('change');
+                aiProviderSelect.dispatchEvent(event);
+            }
         }
 
-        // Test connection (if elements exist)
-        if (testConnectionBtn && apiKeyInput && aiModelSelect) {
+        // --- AI Helper Functions ---
+        function getAIConfig() {
+            if (!aiProviderSelect) return null;
+            const provider = aiProviderSelect.value;
+            if (!provider) return null;
+
+            let apiKey = '';
+            let baseUrl = '';
+            let modelId = '';
+
+            switch (provider) {
+                case 'openrouter':
+                    apiKey = document.getElementById('apiKey').value;
+                    modelId = document.getElementById('aiModel').value;
+                    break;
+                case 'google-gemini':
+                    apiKey = document.getElementById('googleGeminiApiKey').value;
+                    baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+                    modelId = document.getElementById('googleGeminiModel').value;
+                    break;
+                case 'deepseek':
+                    apiKey = document.getElementById('deepseekApiKey').value;
+                    baseUrl = document.getElementById('deepseekBaseUrl').value;
+                    modelId = document.getElementById('deepseekModel').value;
+                    break;
+                case 'ollama':
+                    baseUrl = document.getElementById('ollamaBaseUrl').value;
+                    modelId = document.getElementById('ollamaModel').value;
+                    break;
+                case 'lmstudio':
+                    baseUrl = document.getElementById('lmstudioBaseUrl').value;
+                    modelId = document.getElementById('lmstudioModel').value;
+                    break;
+                case 'byo-api':
+                    apiKey = document.getElementById('byoApiKey').value;
+                    baseUrl = document.getElementById('byoBaseUrl').value;
+                    modelId = document.getElementById('byoModel').value;
+                    break;
+            }
+
+            return { provider, apiKey, baseUrl, modelId };
+        }
+
+        function showConnectionStatus(success, message) {
+            if (!connectionStatus) return;
+            connectionStatus.className = 'test-result ' + (success ? 'success' : 'error');
+            connectionStatus.textContent = message;
+            connectionStatus.classList.remove('hidden');
+        }
+
+        // --- AI Event Listeners ---
+        if (testConnectionBtn) {
             testConnectionBtn.addEventListener('click', () => {
-                if (isConnecting) return; // Prevent multiple simultaneous requests
-
-                const apiKey = apiKeyInput.value.trim();
-                const modelId = aiModelSelect.value;
-
-                if (!apiKey) {
-                    showConnectionStatus(false, 'Please enter an API key');
+                if (isConnecting) return;
+                const config = getAIConfig();
+                if (!config) {
+                    showConnectionStatus(false, 'Please select an AI provider');
                     return;
                 }
                 
-                if (!modelId) {
-                    showConnectionStatus(false, 'Please select an AI model');
+                if ((config.provider === 'openrouter' || config.provider === 'google-gemini' || config.provider === 'deepseek' || config.provider === 'byo-api') && !config.apiKey) {
+                    showConnectionStatus(false, 'Please enter an API key');
                     return;
                 }
 
@@ -1450,27 +1354,22 @@ export class OnboardingPanel {
 
                 vscode.postMessage({
                     command: 'testConnection',
-                    apiKey: apiKey,
-                    modelId: modelId
+                    ...config
                 });
             });
         }
 
-        // Save and continue (if elements exist)
-        if (saveAndContinueBtn && apiKeyInput && aiModelSelect) {
+        if (saveAndContinueBtn) {
             saveAndContinueBtn.addEventListener('click', () => {
-                if (isConnecting) return; // Prevent multiple simultaneous requests
-
-                const apiKey = apiKeyInput.value.trim();
-                const modelId = aiModelSelect.value;
-
-                if (!apiKey) {
-                    showConnectionStatus(false, 'Please enter an API key');
+                if (isConnecting) return;
+                const config = getAIConfig();
+                if (!config) {
+                    showConnectionStatus(false, 'Please select an AI provider');
                     return;
                 }
 
-                if (!modelId) {
-                    showConnectionStatus(false, 'Please select an AI model');
+                if ((config.provider === 'openrouter' || config.provider === 'google-gemini' || config.provider === 'deepseek' || config.provider === 'byo-api') && !config.apiKey) {
+                    showConnectionStatus(false, 'Please enter an API key');
                     return;
                 }
 
@@ -1480,29 +1379,12 @@ export class OnboardingPanel {
 
                 vscode.postMessage({
                     command: 'saveAndContinue',
-                    apiKey: apiKey,
-                    modelId: modelId
+                    ...config
                 });
             });
         }
 
-        // GitHub authentication (if element exists)
-        if (authGitHubBtn) {
-            authGitHubBtn.addEventListener('click', () => {
-                authGitHubBtn.disabled = true;
-                authGitHubBtn.textContent = 'Authenticating...';
-                vscode.postMessage({ command: 'authenticateGitHub' });
-            });
-        }
-
-        // Skip
-        if (skipBtn) {
-            skipBtn.addEventListener('click', () => {
-                vscode.postMessage({ command: 'skip' });
-            });
-        }
-
-        // Analyze project handler
+        // --- Other Step Listeners ---
         if (analyzeProjectBtn) {
             analyzeProjectBtn.addEventListener('click', () => {
                 analyzeProjectBtn.disabled = true;
@@ -1516,7 +1398,6 @@ export class OnboardingPanel {
             });
         }
 
-        // GitHub auth handler
         if (authGitHubBtn) {
             authGitHubBtn.addEventListener('click', async () => {
                 authGitHubBtn.disabled = true;
@@ -1526,131 +1407,32 @@ export class OnboardingPanel {
                     authStatus.textContent = 'Connecting to GitHub...';
                     authStatus.classList.remove('hidden');
                 }
-
+                
                 try {
-                    // Try to get GitHub session
-                    const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true });
-
-                    if (session) {
-                        vscode.postMessage({
-                            command: 'authResult',
-                            success: true,
-                            message: 'Successfully authenticated with GitHub!'
-                        });
-                    } else {
-                        throw new Error('GitHub authentication failed');
-                    }
+                    // Initial authentication handled by extension
+                    vscode.postMessage({ command: 'authenticateGitHub' });
                 } catch (error) {
                     vscode.postMessage({
-                        command: 'authResult',
-                        success: false,
-                        message: 'GitHub authentication failed. Please try again.'
+                        command: 'authStatus',
+                        status: 'error',
+                        message: 'Authentication failed: ' + error.message
                     });
                 }
             });
         }
 
-        // Skip setup handler
         if (skipBtn) {
             skipBtn.addEventListener('click', () => {
                 vscode.postMessage({ command: 'skip' });
             });
         }
 
-        // Open settings handler
-        const openSettingsBtn = document.getElementById('openSettings');
-        if (openSettingsBtn) {
-            openSettingsBtn.addEventListener('click', () => {
-                vscode.postMessage({ command: 'openSettings' });
-            });
-        }
-
-        // Discover models handler
-        if (discoverModelsBtn && apiKeyInput) {
-            discoverModelsBtn.addEventListener('click', () => {
-                const apiKey = apiKeyInput.value.trim();
-                if (!apiKey) {
-                    if (discoverStatus) {
-                        discoverStatus.className = 'test-result error';
-                        discoverStatus.textContent = 'Please enter an API key first';
-                        discoverStatus.classList.remove('hidden');
-                    }
-                    return;
-                }
-                
-                discoverModelsBtn.disabled = true;
-                discoverModelsBtn.textContent = 'Discovering...';
-                if (discoverStatus) {
-                    discoverStatus.className = 'test-result info';
-                    discoverStatus.textContent = 'Testing available models... This may take a moment.';
-                    discoverStatus.classList.remove('hidden');
-                }
-                
-                vscode.postMessage({
-                    command: 'discoverModels',
-                    apiKey: apiKey
-                });
-            });
-        }
-
-        // Select model handler
-        if (selectModelBtn) {
-            selectModelBtn.addEventListener('click', () => {
-                if (!selectedModelId || !apiKeyInput) {
-                    if (selectResult) {
-                        selectResult.className = 'test-result error';
-                        selectResult.textContent = 'Please select a model';
-                        selectResult.classList.remove('hidden');
-                    }
-                    return;
-                }
-                
-                selectModelBtn.disabled = true;
-                selectModelBtn.textContent = 'Saving...';
-                
-                vscode.postMessage({
-                    command: 'selectModel',
-                    apiKey: apiKeyInput.value.trim(),
-                    model: selectedModelId
-                });
-            });
-        }
-
-        function saveApiKey() {
-            if (!apiKeyInput || !modelSelect) return;
-            
-            const apiKey = apiKeyInput.value.trim();
-            const model = modelSelect.value;
-            
-            if (!apiKey) {
-                showTestResult(false, 'Please enter an API key');
-                return;
-            }
-
-            if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.textContent = 'Saving...';
-            }
-            vscode.postMessage({
-                command: 'saveApiKey',
-                apiKey: apiKey,
-                model: model
-            });
-        }
-
-        function showConnectionStatus(success, message) {
-            if (!connectionStatus) return;
-            connectionStatus.className = 'test-result ' + (success ? 'success' : 'error');
-            connectionStatus.textContent = message;
-            connectionStatus.classList.remove('hidden');
-        }
-
-        // Handle messages from extension
+        // --- Message Handler ---
         window.addEventListener('message', event => {
             const message = event.data;
             switch (message.command) {
                 case 'connectionStatus':
-                    isConnecting = false; // Reset connection state
+                    isConnecting = false;
                     if (testConnectionBtn) {
                         testConnectionBtn.disabled = false;
                         testConnectionBtn.textContent = '🧪 Test Connection';
@@ -1661,35 +1443,35 @@ export class OnboardingPanel {
                     }
                     showConnectionStatus(message.success, message.message);
                     break;
-                case 'success':
-                    showConnectionStatus(true, message.message);
-                    break;
-                case 'error':
-                    showConnectionStatus(false, message.message);
+                case 'analyzeResult':
+                    if (analyzeProjectBtn) {
+                        analyzeProjectBtn.disabled = false;
+                        analyzeProjectBtn.textContent = '🔍 Analyze Project';
+                    }
+                    if (analyzeStatus) {
+                        analyzeStatus.className = 'test-result ' + (message.success ? 'success' : 'error');
+                        analyzeStatus.textContent = message.message;
+                        analyzeStatus.classList.remove('hidden');
+                    }
                     break;
                 case 'authStatus':
+                    if (authGitHubBtn) {
+                        if (message.status === 'success') {
+                            authGitHubBtn.disabled = true;
+                            authGitHubBtn.textContent = '✓ Authenticated';
+                        } else {
+                            authGitHubBtn.disabled = false;
+                            authGitHubBtn.textContent = '🔐 Authenticate with GitHub';
+                        }
+                    }
                     if (authStatus) {
                         authStatus.className = 'test-result ' + message.status;
                         authStatus.textContent = message.message;
                         authStatus.classList.remove('hidden');
                     }
-                    if (authGitHubBtn) {
-                        if (message.status === 'success') {
-                            authGitHubBtn.disabled = true;
-                            authGitHubBtn.textContent = '✓ Authenticated';
-                        } else if (message.status === 'error') {
-                            authGitHubBtn.disabled = false;
-                            authGitHubBtn.textContent = '🔐 Authenticate with GitHub';
-                        }
-                    }
                     break;
             }
         });
-
-        // Auto-focus API key input if it exists
-        if (apiKeyInput) {
-            apiKeyInput.focus();
-        }
     </script>
 </body>
 </html>`;

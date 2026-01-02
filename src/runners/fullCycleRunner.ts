@@ -31,6 +31,8 @@ export interface FullCycleResult {
     testAccountsDeleted: TestAccount[];
     accountCreationAttempts: number;
     accountDeletionAttempts: number;
+    testAccountsCleaned: TestAccount[];
+    testAccounts: TestAccount[];
 }
 
 /**
@@ -88,7 +90,9 @@ export class FullCycleRunner {
             testAccountsCreated: [],
             testAccountsDeleted: [],
             accountCreationAttempts: 0,
-            accountDeletionAttempts: 0
+            accountDeletionAttempts: 0,
+            testAccountsCleaned: [],
+            testAccounts: []
         };
 
         this.outputChannel.show();
@@ -380,27 +384,21 @@ export class FullCycleRunner {
                 }
             }
 
-            // Step 11: Clean up test accounts
+            // Step 11: Clean up test accounts (Final)
             this.log('');
             this.log('🧹 Step 11: Cleaning up test accounts...');
-            const deletedAccounts = await this.browserRunner.cleanupTestAccounts();
-            result.testAccountsDeleted = deletedAccounts;
+            const cleanedAccounts = await this.browserRunner.cleanupTestAccounts();
+            result.testAccountsCleaned = cleanedAccounts;
+            result.testAccountsDeleted = cleanedAccounts; // Sync with legacy field
+            result.testAccounts = this.browserRunner.getTestAccounts();
             result.accountDeletionAttempts = result.testAccountsCreated.length;
-            this.log(`   ✅ Cleaned up ${deletedAccounts.length}/${result.accountDeletionAttempts} test accounts`);
+            this.log(`   ✅ Cleaned up ${cleanedAccounts.length}/${result.accountDeletionAttempts} test accounts`);
 
             // Take final screenshot
             const finalScreenshot = await this.browserRunner.takeScreenshot('final');
             if (finalScreenshot) result.screenshots.push(finalScreenshot);
 
             result.success = true;
-
-            // Step 11: Clean up test accounts
-            this.log('');
-            this.log('🧹 Step 11: Cleaning up test accounts...');
-            await this.browserRunner.cleanupTestAccounts();
-            const cleanedAccounts = this.browserRunner.getTestAccounts().filter(a => !a.created).length;
-            result.testAccountsCleaned = cleanedAccounts;
-            this.log(`   ✅ Cleaned up ${cleanedAccounts} test accounts`);
 
             this.log('');
             this.log('═══════════════════════════════════════════════════');

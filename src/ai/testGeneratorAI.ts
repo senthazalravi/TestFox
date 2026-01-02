@@ -31,30 +31,12 @@ export class TestGeneratorAI {
             const baseUrl = config.get<string>('ai.baseUrl') || '';
             const model = config.get<string>('ai.model') || '';
 
-            // Create AI service config
-            let serviceConfig: any = { provider };
-
-            switch (provider) {
-                case 'openrouter':
-                    serviceConfig.apiKey = apiKey;
-                    serviceConfig.model = model;
-                    break;
-                case 'ollama':
-                    serviceConfig.baseUrl = baseUrl || 'http://localhost:11434';
-                    serviceConfig.model = model || 'llama2';
-                    break;
-                case 'lmstudio':
-                    serviceConfig.baseUrl = baseUrl || 'http://localhost:1234';
-                    serviceConfig.model = model || 'local-model';
-                    break;
-                case 'byo-api':
-                    serviceConfig.apiKey = apiKey;
-                    serviceConfig.baseUrl = baseUrl || 'https://api.openai.com/v1';
-                    serviceConfig.model = model || 'gpt-3.5-turbo';
-                    break;
-            }
-
-            this.aiService = createAIService(serviceConfig);
+            this.aiService = createAIService({
+                provider: provider as AIProvider,
+                apiKey,
+                baseUrl,
+                model
+            });
             console.log('🤖 TestFox AI: Initialized AI service with provider:', provider);
         } catch (error) {
             console.error('❌ TestFox AI: Failed to initialize AI service:', error);
@@ -473,9 +455,9 @@ export class TestGeneratorAI {
         }
     }
 
-    private parseAIResponse(response: string): TestCase[] {
+    private async parseAIResponse(response: string): Promise<TestCase[]> {
         // Keep the old method for backward compatibility
-        return this.parseAIResponseStreaming(response, { report: () => {} });
+        return await this.parseAIResponseStreaming(response, { report: () => {} });
     }
 
     /**
@@ -579,7 +561,7 @@ export class TestGeneratorAI {
      * Enhance existing tests with AI
      */
     async enhanceTests(tests: TestCase[]): Promise<TestCase[]> {
-        if (!this.openRouter.isEnabled()) {
+        if (!this.aiService) {
             return tests;
         }
 
@@ -587,21 +569,31 @@ export class TestGeneratorAI {
 
         for (const test of tests) {
             try {
-                const enhancement = await this.openRouter.enhanceTestDescription(
-                    test.name,
-                    test.category
-                );
-
-                enhanced.push({
-                    ...test,
-                    description: enhancement.description || test.description,
-                    steps: enhancement.steps.map((step, i) => ({
-                        order: i + 1,
-                        action: step,
-                        expected: ''
-                    })),
-                    expectedResult: enhancement.expectedResult || test.expectedResult
+                const response = await this.aiService.generate({
+                    type: 'test-details',
+                    context: { testName: test.name, category: test.category },
+                    prompt: `Enhance the following test case with more detailed steps and a clearer description.
+                    Test Name: ${test.name}
+                    Category: ${test.category}
+                    
+                    Return a JSON object with "description", "steps" (array of strings), and "expectedResult".`
                 });
+
+                if (response.success && response.data) {
+                    const enhancement = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+                    enhanced.push({
+                        ...test,
+                        description: enhancement.description || test.description,
+                        steps: (enhancement.steps || []).map((step: string, i: number) => ({
+                            order: i + 1,
+                            action: step,
+                            expected: ''
+                        })),
+                        expectedResult: enhancement.expectedResult || test.expectedResult
+                    });
+                } else {
+                    enhanced.push(test);
+                }
             } catch {
                 enhanced.push(test);
             }
@@ -614,7 +606,7 @@ export class TestGeneratorAI {
      * Generate security-specific tests with AI payloads
      */
     async generateSecurityTestsWithAI(analysisResult: AnalysisResult): Promise<TestCase[]> {
-        if (!this.openRouter.isEnabled()) {
+        if (!this.aiService) {
             return [];
         }
 
@@ -624,33 +616,47 @@ export class TestGeneratorAI {
         for (const form of analysisResult.forms) {
             for (const field of form.fields) {
                 try {
-                    const payloads = await this.openRouter.generateSecurityPayloads({
-                        inputType: field.type as any,
-                        fieldName: field.name,
-                        endpoint: form.action
+                    const response = await this.aiService.generate({
+                        type: 'payloads',
+                        context: {
+                            inputType: field.type,
+                            fieldName: field.name,
+                            endpoint: form.action
+                        },
+                        prompt: `Generate 5 specialized security testing payloads for the following input field:
+                        Field Name: ${field.name}
+                        Field Type: ${field.type}
+                        Form Action: ${form.action}
+                        
+                        Return a JSON array of strings.`
                     });
 
-                    tests.push({
-                        id: uuidv4(),
-                        name: `Security: AI-Generated payloads for ${form.name}.${field.name}`,
-                        description: `Test ${field.name} with AI-generated security payloads`,
-                        category: 'security',
-                        subcategory: 'ai_generated',
-                        automationLevel: 'full',
-                        priority: 'high',
-                        tags: ['AI', 'Security', 'OWASP'],
-                        steps: payloads.map((payload, i) => ({
-                            order: i + 1,
-                            action: `Enter payload: ${payload}`,
-                            expected: 'Input sanitized or rejected'
-                        })),
-                        expectedResult: 'All malicious payloads are properly handled',
-                        targetElement: {
-                            type: 'element',
-                            selector: `[name="${field.name}"]`
-                        },
-                        securityType: 'input_validation'
-                    });
+                    if (response.success && response.data) {
+                        const payloads = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+                        if (Array.isArray(payloads)) {
+                            tests.push({
+                                id: uuidv4(),
+                                name: `Security: AI-Generated payloads for ${form.name}.${field.name}`,
+                                description: `Test ${field.name} with AI-generated security payloads`,
+                                category: 'security',
+                                subcategory: 'ai_generated',
+                                automationLevel: 'full',
+                                priority: 'high',
+                                tags: ['AI', 'Security', 'OWASP'],
+                                steps: payloads.map((payload: string, i: number) => ({
+                                    order: i + 1,
+                                    action: `Enter payload: ${payload}`,
+                                    expected: 'Input sanitized or rejected'
+                                })),
+                                expectedResult: 'All malicious payloads are properly handled',
+                                targetElement: {
+                                    type: 'element',
+                                    selector: `[name="${field.name}"]`
+                                },
+                                securityType: 'input_validation'
+                            });
+                        }
+                    }
                 } catch {
                     // Skip if AI fails for this field
                 }

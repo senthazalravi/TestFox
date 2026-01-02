@@ -83,6 +83,7 @@ export class SmartBrowserRunner {
     constructor() {
         this.outputChannel = vscode.window.createOutputChannel('TestFox Browser');
         this.browserMonitor = new BrowserMonitor();
+        this.credentialDiscovery = new CredentialDiscovery(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '');
     }
 
     /**
@@ -688,7 +689,7 @@ export class SmartBrowserRunner {
                 const type = await input.getAttribute('type') || 'text';
                 const name = await input.getAttribute('name') || '';
                 const placeholder = await input.getAttribute('placeholder') || '';
-                const tagName = await input.evaluate((el: HTMLElement) => el.tagName.toLowerCase());
+                const tagName = await input.evaluate((el: any) => el.tagName.toLowerCase());
 
                 try {
                     if (tagName === 'select') {
@@ -1130,7 +1131,7 @@ export class SmartBrowserRunner {
             if (id) return `#${id}`;
 
             const name = await element.getAttribute('name');
-            const tagName = await element.evaluate((el: HTMLElement) => el.tagName.toLowerCase());
+            const tagName = await element.evaluate((el: any) => el.tagName.toLowerCase());
             
             if (name) return `${tagName}[name="${name}"]`;
 
@@ -1453,13 +1454,13 @@ export class SmartBrowserRunner {
     /**
      * Clean up test accounts (delete them if possible)
      */
-    async cleanupTestAccounts(): Promise<void> {
+    async cleanupTestAccounts(): Promise<TestAccount[]> {
         if (!this.page || this.testAccounts.length === 0) {
-            return;
+            return [];
         }
 
         this.log(`Cleaning up ${this.testAccounts.length} test accounts...`);
-        let deletedCount = 0;
+        const deletedAccounts: TestAccount[] = [];
 
         for (const account of this.testAccounts) {
             if (!account.created) continue;
@@ -1474,7 +1475,7 @@ export class SmartBrowserRunner {
                 const deleted = await this.credentialDiscovery.deleteTestAccount(this.page, account);
                 if (deleted) {
                     account.created = false; // Mark as deleted
-                    deletedCount++;
+                    deletedAccounts.push(account);
                     this.log(`✅ Deleted test account: ${account.email}`);
                 } else {
                     this.log(`⚠️ Could not delete test account: ${account.email}`);
@@ -1484,7 +1485,8 @@ export class SmartBrowserRunner {
             }
         }
 
-        this.log(`Cleaned up ${deletedCount}/${this.testAccounts.filter(a => a.created).length} test accounts`);
+        this.log(`Cleaned up ${deletedAccounts.length}/${this.testAccounts.length} test accounts`);
+        return deletedAccounts;
     }
 
     /**

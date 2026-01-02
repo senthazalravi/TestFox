@@ -12,6 +12,7 @@ import { GitAuth } from './core/gitAuth';
 import { IssueCreator } from './core/issueCreator';
 import { TestCoverageTracker } from './core/testCoverageTracker';
 import { OnboardingPanel } from './views/onboardingPanel';
+import * as path from 'path';
 import { DashboardPanel } from './views/dashboard/dashboardPanel';
 import { ReportPanel } from './views/reportPanel';
 import { SettingsPanel } from './views/settingsPanel';
@@ -433,7 +434,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
                             if (repositories.length > 0) {
                                 const repo = repositories[0];
-                                const remote = repo.state.remotes.find(r => r.name === 'origin');
+                                const remote = repo.state.remotes.find((r: any) => r.name === 'origin');
                                 if (remote && remote.fetchUrl) {
                                     const match = remote.fetchUrl.match(/github\.com[/:]([^/]+)\/([^/]+?)(?:\.git)?$/);
                                     if (match) {
@@ -655,7 +656,7 @@ export async function activate(context: vscode.ExtensionContext) {
             const success = await webServer.start();
             if (success) {
                 vscode.window.showInformationMessage(`TestFox Web Server started on http://localhost:${webServer.getPort()}`);
-                updateStatus('server', `Server: ${webServer.getPort()}`);
+                updateStatus('ready', `Server: ${webServer.getPort()}`);
             } else {
                 vscode.window.showErrorMessage('Failed to start TestFox Web Server');
             }
@@ -668,7 +669,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }),
 
         vscode.commands.registerCommand('testfox.openBrowserDashboard', async () => {
-            if (!webServer.isRunning()) {
+            if (!webServer.isServerRunning()) {
                 const startServer = await vscode.window.showInformationMessage(
                     'Web server is not running. Start it?',
                     'Start Server',
@@ -684,7 +685,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 }
             }
 
-            if (webServer.isRunning()) {
+            if (webServer.isServerRunning()) {
                 const url = `http://localhost:${webServer.getPort()}`;
                 await vscode.env.openExternal(vscode.Uri.parse(url));
             } else {
@@ -757,7 +758,8 @@ export async function activate(context: vscode.ExtensionContext) {
                 // Save report to file
                 const workspaceFolders = vscode.workspace.workspaceFolders;
                 if (workspaceFolders && workspaceFolders.length > 0) {
-                    const reportPath = path.join(workspaceFolders[0].uri.fsPath, 'testfox-mcp-report.html');
+                    const reportUri = vscode.Uri.joinPath(workspaceFolders[0].uri, 'testfox-mcp-report.html');
+                    const reportPath = reportUri.fsPath;
                     const fs = require('fs');
                     fs.writeFileSync(reportPath, html);
                     
@@ -1067,7 +1069,7 @@ async function autoInitialize(context: vscode.ExtensionContext): Promise<void> {
     }
 }
 
-async function analyzeProject(silent = false): Promise<void> {
+export async function analyzeProject(silent = false): Promise<void> {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders) {
         vscode.window.showErrorMessage('TestFox: No workspace folder open');
@@ -1136,7 +1138,7 @@ async function analyzeProject(silent = false): Promise<void> {
     });
 }
 
-async function generateTests(): Promise<void> {
+export async function generateTests(): Promise<void> {
     let analysisResult = testStore.getAnalysisResult();
 
     // Always ensure we have analysis result
@@ -1341,7 +1343,7 @@ async function generateTests(): Promise<void> {
     });
 }
 
-async function generateTestCategory(categoryOrItem?: string | { category?: string }): Promise<void> {
+export async function generateTestCategory(categoryOrItem?: string | { category?: string }): Promise<void> {
     // Handle both string category and tree item object
     let category: string | undefined;
 
@@ -1581,7 +1583,7 @@ async function generateTestCategory(categoryOrItem?: string | { category?: strin
     });
 }
 
-async function runAllTests(): Promise<void> {
+export async function runAllTests(): Promise<void> {
     if (!testStore) {
         vscode.window.showErrorMessage('TestFox: Extension not fully initialized. Please try again.');
         return;
@@ -1813,7 +1815,7 @@ async function runFullCycleTests(): Promise<void> {
     await runFullCycleTesting();
 }
 
-async function runTestCategory(categoryOrItem?: string | { category?: string }): Promise<void> {
+export async function runTestCategory(categoryOrItem?: string | { category?: string }): Promise<void> {
     // Handle both string category and tree item object
     let category: string | undefined;
     
@@ -1957,7 +1959,8 @@ async function runFullCycleTesting(): Promise<void> {
         }
 
         // Get the correct application URL for full cycle testing
-        let appUrl = appRunner.getBaseUrl();
+        let appUrlRaw = appRunner.getBaseUrl();
+        let appUrl: string | null = appUrlRaw;
         if (!appUrl) {
             appUrl = await checkApplicationAvailability();
         }
@@ -1977,8 +1980,14 @@ async function runFullCycleTesting(): Promise<void> {
             return;
         }
 
+        if (!appUrl) {
+            vscode.window.showErrorMessage('Failed to start application or detect it running.');
+            updateStatus('error', 'App not found');
+            return;
+        }
+
         vscode.window.showInformationMessage(`TestFox: Running full cycle tests against ${appUrl}`);
-        const result = await fullCycleRunner.run(projectInfo, appUrl);
+        const result = await fullCycleRunner.run(projectInfo);
 
         updateStatus('ready');
 
@@ -1991,7 +2000,8 @@ async function runFullCycleTesting(): Promise<void> {
             `• Forms tested: ${result.formsTestedCount}\n` +
             `• Buttons clicked: ${result.buttonsClickedCount}\n` +
             `• Success rate: ${successPercent}%\n` +
-            `• Login: ${result.loginSuccessful ? '✅' : (result.loginAttempted ? '❌' : 'N/A')}`;
+            `• Login: ${result.loginSuccessful ? '✅' : (result.loginAttempted ? '❌' : 'N/A')}\n` +
+            `• Accounts Cleaned: ${result.testAccountsCleaned?.length || 0} / ${result.testAccounts?.length || 0}`;
 
         const action = await vscode.window.showInformationMessage(
             message,
@@ -2051,7 +2061,7 @@ async function runCrossBrowserTests(context: vscode.ExtensionContext): Promise<v
     try {
         // Check if application is already running first
         const existingAppUrl = await checkApplicationAvailability();
-        let appUrl: string;
+        let appUrl: string | null;
 
         if (existingAppUrl) {
             appUrl = existingAppUrl;
@@ -2390,7 +2400,7 @@ async function generateWebReport(context: vscode.ExtensionContext): Promise<void
         return;
     }
 
-    ReportPanel.createOrShow(context.extensionUri, testStore, manualTestTracker, defectTracker, issueCreator || null);
+    ReportPanel.createOrShow(context.extensionUri, testStore, manualTestTracker, defectTracker, issueCreator || undefined);
 }
 
 /**
@@ -2474,6 +2484,10 @@ async function createIssue(platform: 'github' | 'jira', testId?: string): Promis
                 }));
 
             // Generate issue content
+            if (!issueCreator) {
+                vscode.window.showErrorMessage('TestFox: Issue creator not available.');
+                return;
+            }
             const issueContent = await issueCreator.generateIssueContent({
                 platform,
                 test,
@@ -2481,9 +2495,10 @@ async function createIssue(platform: 'github' | 'jira', testId?: string): Promis
                 runId,
                 logs: Array.isArray(result.logs) ? result.logs.join('\n') : undefined,
                 stackTrace: result.error,
-                commit: gitIntegration ? {
-                    hash: await gitIntegration.getCurrentCommit() || undefined
-                } : undefined,
+                commit: gitIntegration ? await (async () => {
+                    const h = await gitIntegration!.getCurrentCommit();
+                    return h ? { hash: h } : undefined;
+                })() : undefined,
                 historicalFailures: historicalFailures.length > 0 ? historicalFailures : undefined
             });
 

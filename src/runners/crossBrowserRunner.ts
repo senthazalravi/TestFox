@@ -28,6 +28,7 @@ export interface CompatibilityMatrix {
     manualCount: number;
     passedCount: number;
     failedCount: number;
+    totalCount: number;
     timestamp: Date;
 }
 
@@ -82,6 +83,7 @@ export class CrossBrowserRunner {
             manualCount: 0,
             passedCount: 0,
             failedCount: 0,
+            totalCount: tests.length * (installedBrowsers.length + automatableDevices.length),
             timestamp: new Date()
         };
 
@@ -252,15 +254,15 @@ export class CrossBrowserRunner {
             let passed = true;
             
             switch (test.category) {
-                case 'ui_e2e':
+                case 'ui':
                     // Check page renders
-                    passed = await page.evaluate(() => document.body !== null);
+                    passed = await page.evaluate(() => (globalThis as any).document.body !== null);
                     break;
                 case 'accessibility':
                     // Check basic a11y
                     passed = await page.evaluate(() => {
-                        const images = document.querySelectorAll('img');
-                        return Array.from(images).every(img => img.alt !== undefined);
+                        const images = (globalThis as any).document.querySelectorAll('img');
+                        return Array.from(images).every((img: any) => img.alt !== undefined);
                     });
                     break;
                 default:

@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import { createAIService, AIProvider } from '../ai/aiService';
+
 
 /**
  * Settings Panel for TestFox configuration
@@ -56,7 +58,7 @@ export class SettingsPanel {
                         await this._sendCurrentSettings();
                         break;
                     case 'testConnection':
-                        await this._testAIConnection(message.apiKey, message.model);
+                        await this._testAIConnection(message.apiKey, message.model, message.provider, message.baseUrl);
                         break;
                 }
             },
@@ -78,6 +80,9 @@ export class SettingsPanel {
             }
             if (settings.aiApiKey) {
                 await config.update('ai.apiKey', settings.aiApiKey, vscode.ConfigurationTarget.Global);
+            }
+            if (settings.aiBaseUrl) {
+                await config.update('ai.baseUrl', settings.aiBaseUrl, vscode.ConfigurationTarget.Global);
             }
             if (settings.aiModel) {
                 await config.update('ai.model', settings.aiModel, vscode.ConfigurationTarget.Global);
@@ -119,7 +124,8 @@ export class SettingsPanel {
             aiEnabled: config.get('ai.enabled', true),
             aiProvider: config.get('ai.provider', 'openrouter'),
             aiApiKey: config.get('ai.apiKey', ''),
-            aiModel: config.get('ai.model', 'x-ai/grok-beta'),
+            aiBaseUrl: config.get('ai.baseUrl', ''),
+            aiModel: config.get('ai.model', 'google/gemini-2.0-flash-exp:free'),
             fallbackModel: config.get('ai.fallbackModel', 'meta-llama/llama-3.1-8b-instruct:free'),
             
             // Testing Settings
@@ -135,46 +141,35 @@ export class SettingsPanel {
         this._panel.webview.postMessage({ command: 'currentSettings', settings });
     }
 
-    private async _testAIConnection(apiKey: string, model: string) {
+    private async _testAIConnection(apiKey: string, model: string, provider: string, baseUrl: string) {
         try {
-            const axios = require('axios');
-            
-            const response = await axios.post(
-                'https://openrouter.ai/api/v1/chat/completions',
-                {
-                    model: model,
-                    messages: [{ role: 'user', content: 'Say "TestFox connected!" in 3 words or less.' }],
-                    max_tokens: 20
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${apiKey}`,
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': 'https://testfox.dev',
-                        'X-Title': 'TestFox'
-                    },
-                    timeout: 10000
-                }
-            );
+            const aiService = createAIService({
+                provider: provider as AIProvider,
+                apiKey: apiKey,
+                baseUrl: baseUrl,
+                model: model
+            });
 
-            if (response.data?.choices?.[0]?.message?.content) {
+            const isAvailable = await aiService.isAvailable();
+
+            if (isAvailable) {
                 this._panel.webview.postMessage({ 
                     command: 'connectionTest', 
                     success: true, 
-                    message: response.data.choices[0].message.content 
+                    message: `Successfully connected to ${provider}` 
                 });
             } else {
                 this._panel.webview.postMessage({ 
                     command: 'connectionTest', 
                     success: false, 
-                    message: 'No response from AI' 
+                    message: `Failed to connect to ${provider}. Please check your credentials and network.` 
                 });
             }
         } catch (error: any) {
             this._panel.webview.postMessage({ 
                 command: 'connectionTest', 
                 success: false, 
-                message: error.response?.data?.error?.message || error.message 
+                message: error.message 
             });
         }
     }
@@ -529,24 +524,34 @@ export class SettingsPanel {
 
             <div class="form-group">
                 <label for="aiProvider">AI Provider</label>
-                <select id="aiProvider">
-                    <option value="openrouter">OpenRouter (Recommended)</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="anthropic">Anthropic</option>
+                <select id="aiProvider" onchange="toggleProviderFields()">
+                    <option value="openrouter">🔗 OpenRouter (Recommended)</option>
+                    <option value="google-gemini">🤖 Google Gemini</option>
+                    <option value="deepseek">🧠 DeepSeek</option>
+                    <option value="ollama">🐪 Ollama (Local)</option>
+                    <option value="lmstudio">🎭 LM Studio (Local)</option>
+                    <option value="byoApi">🔑 Bring Your Own API</option>
                 </select>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="apiKeyGroup">
                 <label for="aiApiKey">API Key</label>
                 <p class="description">Your API key is stored locally and never shared</p>
                 <div class="api-key-group">
-                    <input type="password" id="aiApiKey" placeholder="sk-or-v1-...">
+                    <input type="password" id="aiApiKey" placeholder="sk-...">
                     <button class="btn btn-secondary" onclick="testConnection()">
                         <span id="testBtnText">Test</span>
                     </button>
                 </div>
-                <div id="connectionStatus" style="margin-top: 10px;"></div>
             </div>
+
+            <div class="form-group" id="baseUrlGroup" style="display: none;">
+                <label for="aiBaseUrl">Base URL</label>
+                <p class="description">The API endpoint for your provider</p>
+                <input type="text" id="aiBaseUrl" placeholder="https://api.example.com/v1">
+            </div>
+
+            <div id="connectionStatus" style="margin-top: 10px; margin-bottom: 20px;"></div>
 
             <div class="form-group">
                 <label>AI Model</label>
@@ -710,7 +715,10 @@ export class SettingsPanel {
             document.getElementById('aiEnabled').checked = settings.aiEnabled;
             document.getElementById('aiProvider').value = settings.aiProvider;
             document.getElementById('aiApiKey').value = settings.aiApiKey || '';
+            document.getElementById('aiBaseUrl').value = settings.aiBaseUrl || '';
             document.getElementById('aiModel').value = settings.aiModel;
+
+            toggleProviderFields();
             document.getElementById('autoDetectProject').checked = settings.autoDetectProject;
             document.getElementById('autoAnalyze').checked = settings.autoAnalyze;
             document.getElementById('browserHeadless').checked = settings.browserHeadless;
@@ -746,6 +754,7 @@ export class SettingsPanel {
                 aiEnabled: document.getElementById('aiEnabled').checked,
                 aiProvider: document.getElementById('aiProvider').value,
                 aiApiKey: document.getElementById('aiApiKey').value,
+                aiBaseUrl: document.getElementById('aiBaseUrl').value,
                 aiModel: document.getElementById('aiModel').value,
                 autoDetectProject: document.getElementById('autoDetectProject').checked,
                 autoAnalyze: document.getElementById('autoAnalyze').checked,
@@ -757,19 +766,45 @@ export class SettingsPanel {
             vscode.postMessage({ command: 'saveSettings', settings });
         }
 
+        function toggleProviderFields() {
+            const provider = document.getElementById('aiProvider').value;
+            const apiKeyGroup = document.getElementById('apiKeyGroup');
+            const baseUrlGroup = document.getElementById('baseUrlGroup');
+
+            // API key is needed for OpenRouter, Gemini, DeepSeek, and BYO API
+            const needsApiKey = ['openrouter', 'google-gemini', 'deepseek', 'byoApi'].includes(provider);
+            apiKeyGroup.style.display = needsApiKey ? 'block' : 'none';
+
+            // Base URL is needed for DeepSeek, Ollama, LM Studio, and BYO API
+            const needsBaseUrl = ['deepseek', 'ollama', 'lmstudio', 'byoApi'].includes(provider);
+            baseUrlGroup.style.display = needsBaseUrl ? 'block' : 'none';
+            
+            // Set defaults if empty
+            const baseUrlInput = document.getElementById('aiBaseUrl');
+            if (!baseUrlInput.value) {
+                if (provider === 'google-gemini') baseUrlInput.value = 'https://generativelanguage.googleapis.com/v1beta';
+                if (provider === 'deepseek') baseUrlInput.value = 'https://api.deepseek.com/v1';
+                if (provider === 'ollama') baseUrlInput.value = 'http://localhost:11434';
+                if (provider === 'lmstudio') baseUrlInput.value = 'http://localhost:1234';
+            }
+        }
+
         function testConnection() {
             const apiKey = document.getElementById('aiApiKey').value;
             const model = document.getElementById('aiModel').value;
+            const provider = document.getElementById('aiProvider').value;
+            const baseUrl = document.getElementById('aiBaseUrl').value;
             
-            if (!apiKey) {
+            const needsApiKey = ['openrouter', 'google-gemini', 'deepseek', 'byoApi'].includes(provider);
+            if (needsApiKey && !apiKey) {
                 showToast('Please enter an API key first', 'error');
                 return;
             }
             
             document.getElementById('testBtnText').innerHTML = '<span class="loading"></span>';
-            document.getElementById('connectionStatus').innerHTML = '';
+            document.getElementById('connectionStatus').textContent = 'Testing...';
             
-            vscode.postMessage({ command: 'testConnection', apiKey, model });
+            vscode.postMessage({ command: 'testConnection', apiKey, model, provider, baseUrl });
         }
 
         function showConnectionResult(result) {

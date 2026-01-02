@@ -103,7 +103,7 @@ export class AppRunner {
             });
             console.log(`AppRunner: HTTP response from ${url}: ${response.status}`);
             return response.status < 500; // Consider it running if not server error
-        } catch (error) {
+        } catch (error: any) {
             console.log(`AppRunner: HTTP request to ${url} failed:`, error.message);
             return false;
         }
@@ -392,31 +392,33 @@ export class AppRunner {
         this.outputChannel.show();
     }
 
-    async waitForReady(timeout = 30000): Promise<boolean> {
+    async waitForReady(timeout = 30000): Promise<string | null> {
         if (!this.baseUrl) {
-            return false;
+            return null;
         }
 
-        const axios = await import('axios');
+        const axios = require('axios').default;
         const startTime = Date.now();
 
         while (Date.now() - startTime < timeout) {
             try {
-                await axios.default.get(this.baseUrl, { timeout: 2000 });
+                await axios.get(this.baseUrl, { 
+                    timeout: 2000,
+                    validateStatus: () => true
+                });
                 this.outputChannel.appendLine(`✓ Application at ${this.baseUrl} is ready.`);
-                return true;
+                return this.baseUrl;
             } catch (error: any) {
                 // Handle aborted requests gracefully
                 if (error.code === 'ECONNABORTED' || error.message?.includes('aborted') || error.message?.includes('cancelled')) {
                     this.outputChannel.appendLine(`⚠️ Health check request was cancelled, but app may still be starting...`);
-                    // Don't return false immediately, give it more time
                 }
                 // Wait and retry
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
         }
 
-        return false;
+        return null;
     }
 
     dispose(): void {

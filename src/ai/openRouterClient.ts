@@ -115,7 +115,7 @@ export class OpenRouterClient {
 
     async loadApiKey(context: vscode.ExtensionContext) {
         this.output.appendLine('TestFox AI: Loading API key from secrets...');
-        this.apiKey = await context.secrets.get('testfox.openrouter.apiKey');
+        this.apiKey = (await context.secrets.get('testfox.openrouter.apiKey')) || null;
 
         if (!this.apiKey) {
             this.state = 'unconfigured';
@@ -278,6 +278,35 @@ export class OpenRouterClient {
     setModel(model: string): void {
         this.model = model;
         this.output.appendLine(`TestFox AI: Model set to ${model}`);
+    }
+
+    /**
+     * Load configuration from VS Code settings
+     */
+    loadConfiguration(): void {
+        const config = vscode.workspace.getConfiguration('testfox');
+        const apiKey = config.get<string>('ai.apiKey');
+        const model = config.get<string>('ai.model');
+        
+        if (apiKey) {
+            this.apiKey = apiKey;
+            this.state = 'ready'; // Assume ready if key provided, validateKey should be called for real check
+        } else {
+            this.state = 'unconfigured';
+        }
+        
+        if (model) {
+            this.model = model;
+        }
+    }
+
+    /**
+     * Update status bar (alias for initStatusBar)
+     */
+    updateStatusBar(): void {
+        // Since we don't store the statusBarItem here, we can't do much
+        // but we can at least log
+        this.output.appendLine(`TestFox AI: Status bar update requested (State: ${this.state})`);
     }
 
     /**
@@ -462,27 +491,10 @@ export class OpenRouterClient {
     /**
      * Generate test cases using AI (legacy compatibility)
      */
-    async generateTestCases(context: any): Promise<string> {
-        // Convert context to prompt
-        const prompt = `Generate comprehensive test cases for this project:
-
-Project: ${context.projectType || 'Unknown'} using ${context.framework || 'Unknown'}
-Routes: ${context.routes?.join(', ') || 'None'}
-Forms: ${context.forms?.join(', ') || 'None'}
-Endpoints: ${context.endpoints?.join(', ') || 'None'}
-
-Return JSON with test cases.`;
-
-        return this.generate(prompt);
-    }
-
-    /**
-     * Generate security test payloads (legacy compatibility)
-     */
     async generateSecurityPayloads(context: any): Promise<string[]> {
         const prompt = `Generate 10 security test payloads for a ${context.inputType || 'text'} input field.
-
-Return as JSON array.`;
+        
+        Return as JSON array.`;
 
         try {
             const response = await this.generate(prompt);
@@ -496,6 +508,28 @@ Return as JSON array.`;
                 "../../../etc/passwd",
                 "${7*7}"
             ];
+        }
+    }
+
+    /**
+     * Generate report summary using AI
+     */
+    async generateReportSummary(reportData: any): Promise<string> {
+        if (!this.isEnabled()) {
+            return 'AI Report Summary is not available as AI is not configured.';
+        }
+
+        const prompt = `Summarize these test results for a developer report:
+        Passed: ${reportData.passed}
+        Failed: ${reportData.failed}
+        Success Rate: ${reportData.passRate}%
+        
+        Provide a concise 2-3 sentence overview of the project's health.`;
+
+        try {
+            return await this.generate(prompt);
+        } catch (error: any) {
+            return `Failed to generate AI summary: ${error.message}`;
         }
     }
 }

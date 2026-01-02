@@ -131,6 +131,13 @@ export class WebServer {
     }
 
     /**
+     * Get actual port
+     */
+    getPort(): number {
+        return this.port;
+    }
+
+    /**
      * Get server URL
      */
     getServerUrl(): string | null {
