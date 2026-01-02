@@ -1,6 +1,6 @@
 // TestFox Type Definitions
 
-export type ProjectType = 'nodejs' | 'python' | 'java' | 'go' | 'dotnet' | 'php' | 'ruby' | 'unknown';
+export type ProjectType = 'nodejs' | 'python' | 'java' | 'go' | 'dotnet' | 'php' | 'ruby' | 'rust' | 'c' | 'cpp' | 'unknown';
 
 export type Framework = 
     | 'react' | 'vue' | 'angular' | 'svelte' | 'nextjs' | 'nuxt' | 'gatsby'
@@ -18,7 +18,7 @@ export interface ProjectInfo {
     framework?: Framework;
     language: string;
     rootPath: string;
-    packageManager?: 'npm' | 'yarn' | 'pnpm' | 'pip' | 'maven' | 'gradle' | 'go' | 'composer';
+    packageManager?: 'npm' | 'yarn' | 'pnpm' | 'pip' | 'maven' | 'gradle' | 'go' | 'composer' | 'cargo' | 'cmake' | 'make' | 'meson';
     runCommand?: string;
     devCommand?: string;
     buildCommand?: string;
@@ -195,7 +195,7 @@ export const TEST_CATEGORIES: TestCategoryInfo[] = [
     { id: 'performance', name: 'Performance Tests', description: 'Response times', group: 'non_functional', icon: 'dashboard', automationDefault: 'full' },
     { id: 'load', name: 'Load Tests', description: 'Concurrent users', group: 'non_functional', icon: 'graph', automationDefault: 'full' },
     { id: 'stress', name: 'Stress Tests', description: 'Beyond capacity', group: 'non_functional', icon: 'warning', automationDefault: 'full' },
-    { id: 'accessibility', name: 'Accessibility Tests', description: 'WCAG compliance', group: 'non_functional', icon: 'accessibility', automationDefault: 'partial' },
+    { id: 'accessibility', name: 'Accessibility Tests', description: 'WCAG compliance', group: 'non_functional', icon: 'eye', automationDefault: 'partial' },
     
     // Edge Cases
     { id: 'negative', name: 'Negative Tests', description: 'Invalid inputs', group: 'edge_cases', icon: 'error', automationDefault: 'full' },

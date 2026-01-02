@@ -1,8 +1,8 @@
 {
   "name": "testfox",
   "displayName": "TestFox",
-  "description": "AI-powered comprehensive testing extension - the final quality gate in your SDLC. Automated functional, security, performance, and API testing with ISTQB standards. Uses Grok/XAI via OpenRouter.",
-  "version": "0.6.15",
+  "description": "AI-powered comprehensive testing for JavaScript, Python, Java, C, C++, Rust, Go & more. 18+ test categories including security (OWASP), performance, accessibility. FREE AI models available via OpenRouter.",
+  "version": "0.6.39",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -30,13 +30,19 @@
     "API testing",
     "performance testing",
     "OWASP",
-    "smoke testing",
-    "load testing",
-    "regression testing",
     "AI",
-    "Grok",
     "OpenRouter",
-    "test generation"
+    "DeepSeek",
+    "Gemini",
+    "test generation",
+    "accessibility",
+    "WCAG",
+    "Python",
+    "Java",
+    "Rust",
+    "Go",
+    "C++",
+    "multi-language"
   ],
   "icon": "media/testfox-icon.png",
   "galleryBanner": {
@@ -52,6 +58,7 @@
   ],
   "activationEvents": [
     "onStartupFinished",
+    "onView:testfox-control-center",
     "onCommand:testfox.analyze",
     "onCommand:testfox.generateTests",
     "onCommand:testfox.runAll",
@@ -81,13 +88,6 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "chatParticipants": [
-      {
-        "id": "testfox",
-        "name": "TestFox AI",
-        "description": "AI-powered testing assistant using OpenRouter"
-      }
-    ],
     "walkthroughs": [
       {
         "id": "testfoxWelcome",
@@ -333,11 +333,6 @@
         },
         {
           "command": "testfox.runFullCycle",
-          "when": "view == testfox-explorer",
-          "group": "navigation"
-        },
-        {
-          "command": "testfox.openSettings",
           "when": "view == testfox-explorer",
           "group": "navigation"
         },

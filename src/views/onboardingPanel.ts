@@ -47,15 +47,19 @@ export class OnboardingPanel {
         // Handle messages from the webview
         this._panel.webview.onDidReceiveMessage(
             async (message) => {
+                console.log('📨 Onboarding Panel: Received message from webview');
+                console.log('📨 Onboarding Panel: Message command:', message.command);
+                console.log('📨 Onboarding Panel: Message data keys:', Object.keys(message).filter(k => k !== 'command'));
+
                 switch (message.command) {
                     case 'saveApiKey':
                         await this._handleSaveApiKey(message.apiKey);
                         return;
                     case 'testConnection':
-                        await this._handleTestConnection(message.apiKey, message.modelId);
+                        await this._handleTestConnection(message.provider, message.apiKey, message.baseUrl, message.modelId);
                         return;
                     case 'saveAndContinue':
-                        await this._handleSaveAndContinue(message.apiKey, message.modelId);
+                        await this._handleSaveAndContinue(message.provider, message.apiKey, message.baseUrl, message.modelId);
                         return;
                     case 'authenticateGitHub':
                         await this._handleGitHubAuth();
@@ -68,7 +72,7 @@ export class OnboardingPanel {
                         return;
                 case 'skip':
                     await this._handleSkip();
-                    return;
+                        return;
                     case 'openSettings':
                         await vscode.commands.executeCommand('workbench.action.openSettings', 'testfox');
                         return;
@@ -99,23 +103,36 @@ export class OnboardingPanel {
     }
 
     public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext): void {
+        console.log('🎯 Onboarding Panel: createOrShow called');
+        console.log('🎯 Onboarding Panel: Extension URI:', extensionUri.toString());
+        console.log('🎯 Onboarding Panel: Context globalState keys:', Array.from(context.globalState.keys()));
+
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
 
+        console.log('🎯 Onboarding Panel: Active text editor column:', column);
+
         // Check if setup is already completed
+        console.log('🎯 Onboarding Panel: Checking setup completion status...');
         const setupCompleted = context.globalState.get<boolean>('testfox.setupCompleted', false);
         const config = vscode.workspace.getConfiguration('testfox');
         const apiKey = config.get<string>('ai.apiKey');
 
+        console.log('🎯 Onboarding Panel: Setup completion check:', {
+            setupCompleted: setupCompleted,
+            apiKeyConfigured: !!apiKey,
+            apiKeyLength: apiKey?.length || 0
+        });
+
         if (setupCompleted && apiKey) {
-            // Setup is complete, show management panel instead
+            // Setup is complete, direct users back to Test Control Center
             vscode.window.showInformationMessage(
-                'TestFox: AI is already configured. Use "TestFox: Open Settings" to modify configuration.',
-                'Open Settings'
+                'TestFox: AI is already configured. Use the AI Config button in Test Control Center to modify settings.',
+                'Open Test Control Center'
             ).then(selection => {
-                if (selection === 'Open Settings') {
-                    vscode.commands.executeCommand('workbench.action.openSettings', 'testfox');
+                if (selection === 'Open Test Control Center') {
+                    vscode.commands.executeCommand('testfox.openTestControlCenter');
                 }
             });
             return;
@@ -216,8 +233,15 @@ export class OnboardingPanel {
         }
     }
 
-    private async _handleTestConnection(apiKey: string, modelId: string): Promise<void> {
+    private async _handleTestConnection(provider: string, apiKey: string, baseUrl: string, modelId: string): Promise<void> {
+        console.log('🎯 Onboarding Panel: Test connection initiated');
+        console.log('🎯 Onboarding Panel: API key provided:', !!apiKey);
+        console.log('🎯 Onboarding Panel: API key length:', apiKey?.length || 0);
+        console.log('🎯 Onboarding Panel: API key prefix:', apiKey ? apiKey.substring(0, 12) + '...' : 'None');
+        console.log('🎯 Onboarding Panel: Model selected:', modelId);
+
         if (!apiKey || !apiKey.trim()) {
+            console.log('❌ Onboarding Panel: No API key provided');
             this._panel.webview.postMessage({
                 command: 'connectionStatus',
                 success: false,
@@ -227,6 +251,7 @@ export class OnboardingPanel {
         }
 
         if (!modelId) {
+            console.log('❌ Onboarding Panel: No model selected');
             this._panel.webview.postMessage({
                 command: 'connectionStatus',
                 success: false,
@@ -235,27 +260,35 @@ export class OnboardingPanel {
             return;
         }
 
+        console.log(`🎯 Onboarding Panel: Testing ${provider} connection`);
         try {
-            const openRouter = getOpenRouterClient();
-            openRouter.setApiKey(apiKey);
-            openRouter.setModel(modelId);
-
+            console.log('🎯 Onboarding Panel: Updating UI to show testing status');
             this._panel.webview.postMessage({
                 command: 'connectionStatus',
                 success: true,
-                message: '🧪 Testing connection...'
+                message: `🧪 Testing ${provider.toUpperCase()} connection...`
             });
 
-            const testResult = await openRouter.testConnection(modelId);
-
+            console.log(`🎯 Onboarding Panel: Calling testAIService with provider: ${provider}, model: ${modelId}`);
+            const testResult = await this.testAIService(provider, apiKey, baseUrl, modelId);
+            console.log('🎯 Onboarding Panel: Test connection completed');
+            console.log('🎯 Onboarding Panel: Test result:', testResult);
+            
             this._panel.webview.postMessage({
                 command: 'connectionStatus',
                 success: testResult.success,
-                message: testResult.success
+                message: testResult.success 
                     ? `✅ Connection successful! ${modelId.split('/').pop()} is ready to use.`
                     : `❌ Connection failed: ${testResult.error || 'Please check your API key and try again.'}`
             });
         } catch (error) {
+            console.log('❌ Onboarding Panel: Test connection failed with exception');
+            console.log('❌ Onboarding Panel: Error details:', {
+                message: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : 'No stack',
+                type: error.constructor.name
+            });
+
             this._panel.webview.postMessage({
                 command: 'connectionStatus',
                 success: false,
@@ -264,14 +297,141 @@ export class OnboardingPanel {
         }
     }
 
-    private async _handleSaveAndContinue(apiKey: string, modelId: string): Promise<void> {
-        if (!apiKey || !apiKey.trim()) {
+    private async testAIService(provider: string, apiKey: string, baseUrl: string, modelId: string): Promise<{ success: boolean; error?: string }> {
+        try {
+            console.log(`🎯 Onboarding Panel: Testing ${provider} service`);
+
+            if (provider === 'openrouter') {
+                // Use the new OpenRouter client directly for proper validation
+                const { getOpenRouterClient } = await import('../ai/openRouterClient');
+                const client = getOpenRouterClient();
+
+                // Temporarily save and validate the key
+                const tempContext = { secrets: { store: async () => {}, get: () => null } } as any;
+                await client.saveApiKey(tempContext, apiKey);
+
+                if (client.isReady()) {
+                    console.log('✅ Onboarding Panel: OpenRouter validation successful');
+                    return { success: true };
+                } else {
+                    const state = client.getState();
+                    console.log(`❌ Onboarding Panel: OpenRouter validation failed, state: ${state}`);
+                    return { success: false, error: `AI validation failed: ${state}` };
+                }
+            }
+
+            // For other providers, use the existing AI service for now
+            const { createAIService, getDefaultAIConfig, AIProvider } = await import('../ai/aiService');
+
+            let serviceConfig: any;
+            switch (provider) {
+                case 'google-gemini':
+                    serviceConfig = {
+                        provider: AIProvider.GOOGLE_GEMINI,
+                        apiKey: apiKey,
+                        baseUrl: baseUrl,
+                        model: modelId
+                    };
+                    break;
+
+                case 'deepseek':
+                    serviceConfig = {
+                        provider: AIProvider.DEEPSEEK,
+                        apiKey: apiKey,
+                        baseUrl: baseUrl,
+                        model: modelId
+                    };
+                    break;
+
+                case 'ollama':
+                    serviceConfig = {
+                        provider: AIProvider.OLLAMA,
+                        baseUrl: baseUrl,
+                        model: modelId
+                    };
+                    break;
+
+                case 'lmstudio':
+                    serviceConfig = {
+                        provider: AIProvider.LMSTUDIO,
+                        baseUrl: baseUrl,
+                        model: modelId
+                    };
+                    break;
+
+                case 'byoApi':
+                    serviceConfig = {
+                        provider: AIProvider.BYO_API,
+                        apiKey: apiKey,
+                        baseUrl: baseUrl,
+                        model: modelId
+                    };
+                    break;
+
+                default:
+                    return { success: false, error: `Unsupported provider: ${provider}` };
+            }
+
+            const aiService = createAIService(serviceConfig);
+            const isAvailable = await aiService.isAvailable();
+
+            if (!isAvailable) {
+                return { success: false, error: `${provider.toUpperCase()} service is not available. Please check your configuration.` };
+            }
+
+            // Test with a simple prompt
+            const testResult = await aiService.generate({
+                type: 'analysis',
+                context: {},
+                prompt: 'Say "OK" if you can read this test message.'
+            });
+
+            if (testResult.success) {
+                return { success: true };
+            } else {
+                return { success: false, error: testResult.error || 'AI service test failed' };
+            }
+
+        } catch (error) {
+            console.error('❌ Onboarding Panel: AI service test failed:', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'AI service test failed'
+            };
+        }
+    }
+
+    private async _handleSaveAndContinue(provider: string, apiKey: string, baseUrl: string, modelId: string): Promise<void> {
+        if (!provider) {
             this._panel.webview.postMessage({
                 command: 'connectionStatus',
                 success: false,
-                message: 'Please enter an API key'
+                message: 'Please select an AI provider'
             });
             return;
+        }
+
+        // Validate provider-specific requirements
+        if (provider === 'openrouter' || provider === 'byo-api') {
+            if (!apiKey || !apiKey.trim()) {
+                this._panel.webview.postMessage({
+                    command: 'connectionStatus',
+                    success: false,
+                    message: 'Please enter an API key'
+                });
+                return;
+            }
+        }
+
+        if (provider === 'ollama' || provider === 'lmstudio' || provider === 'byo-api') {
+            if (!baseUrl || !baseUrl.trim()) {
+                this._panel.webview.postMessage({
+                    command: 'connectionStatus',
+                    success: false,
+                    message: 'Please enter a base URL'
+                });
+                return;
+            }
         }
 
         if (!modelId) {
@@ -284,24 +444,30 @@ export class OnboardingPanel {
         }
 
         try {
-            // Save settings
+            // Save AI configuration securely
             const config = vscode.workspace.getConfiguration('testfox');
-            await config.update('ai.apiKey', apiKey, vscode.ConfigurationTarget.Global);
+            await config.update('ai.provider', provider, vscode.ConfigurationTarget.Global);
+            await config.update('ai.baseUrl', baseUrl || '', vscode.ConfigurationTarget.Global);
             await config.update('ai.model', modelId, vscode.ConfigurationTarget.Global);
 
-            // Update OpenRouter client
-            const openRouter = getOpenRouterClient();
-            openRouter.setApiKey(apiKey);
-            openRouter.loadConfiguration();
+            // For OpenRouter, save API key securely in secrets
+            if (provider === 'openrouter' && apiKey) {
+                const { getOpenRouterClient } = await import('../ai/openRouterClient');
+                const client = getOpenRouterClient();
+                await client.saveApiKey(this._context, apiKey);
+            } else {
+                // For other providers, still save in config for now
+                await config.update('ai.apiKey', apiKey || '', vscode.ConfigurationTarget.Global);
+            }
 
-            // Quick test to ensure it works
-            const testResult = await openRouter.testConnection(modelId);
+            // Test the AI service
+            const testResult = await this.testAIService(provider, apiKey, baseUrl, modelId);
 
             if (testResult.success) {
                 this._panel.webview.postMessage({
                     command: 'connectionStatus',
                     success: true,
-                    message: `✅ AI configured successfully! Using ${modelId.split('/').pop()}`
+                    message: `✅ AI configured successfully! Using ${provider.toUpperCase()} with ${modelId.split('/').pop()}`
                 });
 
                 // Mark setup as completed
@@ -695,24 +861,21 @@ export class OnboardingPanel {
             vscode.Uri.joinPath(this._extensionUri, 'media', 'onboarding.css')
         );
 
-        // Get available models
-        const freeModels = [
-            { value: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash - Google ⭐' },
-            { value: 'deepseek/deepseek-r1', label: 'DeepSeek R1 - DeepSeek ⭐' },
-            { value: 'qwen/qwen3-coder:free', label: 'Qwen3 Coder - Alibaba 💻 ⭐' },
-            { value: 'nvidia/nemotron-3-nano-30b-a3b:free', label: 'Nemotron 3 Nano - NVIDIA ⭐' },
-            { value: 'mistralai/devstral-2512:free', label: 'Devstral - Mistral AI 💻 ⭐' },
-            { value: 'z-ai/glm-4.5-air:free', label: 'GLM 4.5 Air - Zhipu AI ⭐' },
-            { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B - Meta ⭐' },
-            { value: 'google/gemma-2-9b-it:free', label: 'Gemma 2 9B - Google ⭐' },
-            { value: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B - Mistral AI ⭐' }
-        ];
-
-        const premiumModels = [
-            { value: 'x-ai/grok-beta', label: 'Grok Beta - xAI 💰' },
-            { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet - Anthropic 💰' },
-            { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini - OpenAI 💰' },
-            { value: 'openai/gpt-4o', label: 'GPT-4o - OpenAI 💰' }
+        // Get available models by provider
+        const openRouterModels = [
+            { value: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash ⭐' },
+            { value: 'deepseek/deepseek-r1', label: 'DeepSeek R1 ⭐' },
+            { value: 'qwen/qwen3-coder:free', label: 'Qwen3 Coder 💻 ⭐' },
+            { value: 'nvidia/nemotron-3-nano-30b-a3b:free', label: 'Nemotron 3 Nano ⭐' },
+            { value: 'mistralai/devstral-2512:free', label: 'Devstral 💻 ⭐' },
+            { value: 'z-ai/glm-4.5-air:free', label: 'GLM 4.5 Air ⭐' },
+            { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B ⭐' },
+            { value: 'google/gemma-2-9b-it:free', label: 'Gemma 2 9B ⭐' },
+            { value: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B ⭐' },
+            { value: 'x-ai/grok-beta', label: 'Grok Beta 💰' },
+            { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet 💰' },
+            { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini 💰' },
+            { value: 'openai/gpt-4o', label: 'GPT-4o 💰' }
         ];
 
         let stepNumber = 0;
@@ -739,20 +902,49 @@ export class OnboardingPanel {
 
         const aiSetupHtml = this.needsAISetup ? `
             <div class="step">
-                <h2>${this.needsProjectAnalysis ? ++stepNumber : ++stepNumber}: Choose Your AI Model</h2>
-                <p>TestFox uses OpenRouter to access multiple AI models. Select your preferred model and enter its API key:</p>
+                <h2>${this.needsProjectAnalysis ? ++stepNumber : ++stepNumber}: Configure AI Provider</h2>
+                <p>TestFox supports multiple AI providers for intelligent test generation. Choose your preferred option:</p>
 
                 <div class="form-group">
-                    <label for="aiModel">AI Model</label>
-                    <select id="aiModel" class="input-field">
-                        <optgroup label="⭐ FREE Models">
-                            ${freeModels.map(model => `<option value="${model.value}">${model.label}</option>`).join('')}
-                        </optgroup>
-                        <optgroup label="💰 Premium Models">
-                            ${premiumModels.map(model => `<option value="${model.value}">${model.label}</option>`).join('')}
-                        </optgroup>
+                    <label for="aiProvider">AI Provider</label>
+                    <select id="aiProvider" class="input-field">
+                        <option value="">Select Provider...</option>
+                        <option value="openrouter">🔗 OpenRouter (Multiple AI Providers)</option>
+                        <option value="google-gemini">🤖 Google Gemini (AI Studio)</option>
+                        <option value="deepseek">🧠 DeepSeek (Direct API)</option>
+                        <option value="ollama">🐪 Ollama (Local AI)</option>
+                        <option value="lmstudio">🎭 LM Studio (Local AI)</option>
+                        <option value="byoApi">🔑 Bring Your Own API</option>
                     </select>
-                    <small>Choose from our curated selection of the best AI models for testing</small>
+                    <small>Choose the AI provider that best fits your needs</small>
+                </div>
+
+                <!-- OpenRouter Configuration -->
+                <div id="openrouterConfig" class="provider-config" style="display: none;">
+                    <h3>🔗 OpenRouter Configuration</h3>
+                    <div class="form-group">
+                        <label for="aiModel">AI Model</label>
+                        <select id="aiModel" class="input-field">
+                            <optgroup label="🆓 Free Models">
+                                <option value="google/gemini-2.0-flash-exp:free">Google Gemini 2.0 Flash (Free) ⭐</option>
+                                <option value="qwen/qwen3-coder:free">Qwen 3 Coder (Free) 🔥</option>
+                                <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1 (Free)</option>
+                                <option value="meta-llama/llama-3.1-8b-instruct:free">Meta Llama 3.1 8B (Free)</option>
+                                <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (Free)</option>
+                                <option value="google/gemma-2-9b-it:free">Google Gemma 2 9B (Free)</option>
+                                <option value="mistralai/mistral-7b-instruct:free">Mistral 7B (Free)</option>
+                            </optgroup>
+                            <optgroup label="💎 Premium Models">
+                                <option value="anthropic/claude-sonnet-4">Claude Sonnet 4 (Anthropic) 🧠</option>
+                                <option value="anthropic/claude-opus-4">Claude Opus 4.5 (Anthropic) 👑</option>
+                                <option value="openai/gpt-4o">OpenAI GPT-4o</option>
+                                <option value="openai/gpt-4.1">OpenAI GPT-4.1</option>
+                                <option value="x-ai/grok-3">xAI Grok 3</option>
+                                <option value="google/gemini-2.5-pro">Google Gemini 2.5 Pro</option>
+                                <option value="qwen/qwen3-235b">Qwen 3 235B</option>
+                            </optgroup>
+                        </select>
+                        <small>OpenRouter provides access to multiple AI providers through a single API</small>
             </div>
 
                 <div class="form-group">
@@ -764,19 +956,379 @@ export class OnboardingPanel {
                         class="input-field"
                         autocomplete="off"
                     />
-                    <small>Get your free API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>. All models use the same API key.</small>
+                        <small>Get your free API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a></small>
+                </div>
                 </div>
 
-                <div class="info-box">
-                    <p><strong>🔑 Need an API Key?</strong></p>
-                    <p>Get free credits for testing from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a></p>
-                    <p>For premium models, get keys from the respective providers</p>
+                <!-- Google Gemini Configuration -->
+                <div id="google-geminiConfig" class="provider-config" style="display: none;">
+                    <h3>🤖 Google Gemini Configuration</h3>
+                    <div class="info-box">
+                        <p><strong>🎯 Google's Latest AI Models:</strong></p>
+                        <ul>
+                            <li>Gemini 1.5 Flash - Fast and efficient</li>
+                            <li>Gemini 1.5 Pro - Advanced reasoning</li>
+                            <li>Get your API key from Google AI Studio</li>
+                        </ul>
             </div>
+
+                    <div class="form-group">
+                        <label for="googleGeminiApiKey">API Key</label>
+                        <input
+                            type="password"
+                            id="googleGeminiApiKey"
+                            placeholder="AIza..."
+                            class="input-field"
+                            autocomplete="off"
+                        />
+                        <small>Get your free API key from <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a></small>
+                </div>
+
+                    <div class="form-group">
+                        <label for="googleGeminiModel">Model</label>
+                        <select id="googleGeminiModel" class="input-field">
+                            <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast)</option>
+                            <option value="gemini-1.5-pro">Gemini 1.5 Pro (Advanced)</option>
+                            <option value="gemini-1.0-pro">Gemini 1.0 Pro</option>
+                        </select>
+                        <small>Select the Gemini model to use</small>
+                    </div>
+                    </div>
+
+                <!-- DeepSeek Configuration -->
+                <div id="deepseekConfig" class="provider-config" style="display: none;">
+                    <h3>🧠 DeepSeek Configuration</h3>
+                    <div class="info-box">
+                        <p><strong>💡 DeepSeek AI:</strong></p>
+                        <ul>
+                            <li>Direct API access to DeepSeek models</li>
+                            <li>High-quality reasoning and code generation</li>
+                            <li>Cost-effective alternative to other providers</li>
+                        </ul>
+                </div>
+
+                    <div class="form-group">
+                        <label for="deepseekBaseUrl">API Base URL</label>
+                        <input
+                            type="text"
+                            id="deepseekBaseUrl"
+                            value="https://api.deepseek.com/v1"
+                            class="input-field"
+                        />
+                        <small>DeepSeek API endpoint</small>
+                </div>
+
+                    <div class="form-group">
+                        <label for="deepseekApiKey">API Key</label>
+                        <input
+                            type="password"
+                            id="deepseekApiKey"
+                            placeholder="sk-f4333d90ea9d47c9b5dbde24c3925cf8"
+                            class="input-field"
+                            autocomplete="off"
+                        />
+                        <small>Your DeepSeek API key</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="deepseekModel">Model</label>
+                        <select id="deepseekModel" class="input-field">
+                            <option value="deepseek-chat">DeepSeek Chat</option>
+                            <option value="deepseek-coder">DeepSeek Coder</option>
+                        </select>
+                        <small>Select the DeepSeek model to use</small>
+                    </div>
+                </div>
+
+                <!-- Ollama Configuration -->
+                <div id="ollamaConfig" class="provider-config" style="display: none;">
+                    <h3>🐪 Ollama Configuration</h3>
+                    <div class="info-box">
+                        <p><strong>📋 Prerequisites:</strong></p>
+                        <ul>
+                            <li>Install <a href="https://ollama.ai" target="_blank">Ollama</a></li>
+                            <li>Run: <code>ollama serve</code></li>
+                            <li>Pull a model: <code>ollama pull llama2</code></li>
+                        </ul>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ollamaBaseUrl">Base URL</label>
+                        <input
+                            type="text"
+                            id="ollamaBaseUrl"
+                            value="http://localhost:11434"
+                            class="input-field"
+                        />
+                        <small>Default Ollama server URL</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ollamaModel">Model</label>
+                        <select id="ollamaModel" class="input-field">
+                            <option value="llama2">Llama 2</option>
+                            <option value="codellama">Code Llama</option>
+                            <option value="mistral">Mistral</option>
+                            <option value="vicuna">Vicuna</option>
+                        </select>
+                        <small>Select from your installed Ollama models</small>
+                    </div>
+                </div>
+
+                <!-- LM Studio Configuration -->
+                <div id="lmstudioConfig" class="provider-config" style="display: none;">
+                    <h3>🎭 LM Studio Configuration</h3>
+                    <div class="info-box">
+                        <p><strong>📋 Prerequisites:</strong></p>
+                        <ul>
+                            <li>Install <a href="https://lmstudio.ai" target="_blank">LM Studio</a></li>
+                            <li>Start the local server</li>
+                            <li>Load a model</li>
+                        </ul>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lmstudioBaseUrl">Base URL</label>
+                        <input
+                            type="text"
+                            id="lmstudioBaseUrl"
+                            value="http://localhost:1234"
+                            class="input-field"
+                        />
+                        <small>Default LM Studio server URL</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lmstudioModel">Model</label>
+                        <input
+                            type="text"
+                            id="lmstudioModel"
+                            value="local-model"
+                            class="input-field"
+                        />
+                        <small>The model name configured in LM Studio</small>
+                    </div>
+                </div>
+
+                <!-- BYO API Configuration -->
+                <div id="byoApiConfig" class="provider-config" style="display: none;">
+                    <h3>🔑 Bring Your Own API Configuration</h3>
+                    <div class="info-box">
+                        <p><strong>💡 Compatible with:</strong></p>
+                        <ul>
+                            <li>OpenAI API compatible services</li>
+                            <li>Anthropic API</li>
+                            <li>Any OpenAI-compatible endpoint</li>
+                        </ul>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="byoBaseUrl">API Base URL</label>
+                        <input
+                            type="text"
+                            id="byoBaseUrl"
+                            placeholder="https://api.openai.com/v1"
+                            class="input-field"
+                        />
+                        <small>The base URL for your API provider</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="byoApiKey">API Key</label>
+                        <input
+                            type="password"
+                            id="byoApiKey"
+                            placeholder="sk-..."
+                            class="input-field"
+                            autocomplete="off"
+                        />
+                        <small>Your API key for the service</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="byoModel">Model</label>
+                        <input
+                            type="text"
+                            id="byoModel"
+                            placeholder="gpt-3.5-turbo"
+                            class="input-field"
+                        />
+                        <small>The model name to use</small>
+                    </div>
+                </div>
+
+                    <div class="info-box">
+                        <p><strong>🔑 Need API Keys?</strong></p>
+                        <p><strong>OpenRouter:</strong> <a href="https://openrouter.ai/keys" target="_blank">Get free credits</a></p>
+                        <p><strong>Ollama:</strong> <a href="https://ollama.ai" target="_blank">Install locally</a></p>
+                        <p><strong>LM Studio:</strong> <a href="https://lmstudio.ai" target="_blank">Download</a></p>
+                        <p><strong>BYO API:</strong> Use any OpenAI-compatible service</p>
+                    </div>
+
+                    <div class="info-box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-top: 20px;">
+                        <h3 style="margin: 0 0 10px 0; color: white;">🚀 Upgrade to TestFox Pro</h3>
+                        <p style="margin: 5px 0;"><strong>✨ Unlimited AI Generation</strong></p>
+                        <p style="margin: 5px 0;"><strong>📊 Advanced Analytics</strong></p>
+                        <p style="margin: 5px 0;"><strong>🎯 Custom Test Templates</strong></p>
+                        <p style="margin: 5px 0;"><strong>💰 5,000 AI requests/month</strong></p>
+                        <p style="margin: 5px 0;"><strong>🔒 Priority Support</strong></p>
+                        <p style="margin: 10px 0 0 0;">
+                            <a href="https://testfox.ai/pricing" target="_blank" style="color: #ffd700; text-decoration: none; font-weight: bold;">
+                                View Pricing →
+                            </a>
+                        </p>
+                    </div>
 
                 <div class="button-group">
                     <button id="testConnection" class="button secondary">🧪 Test Connection</button>
                     <button id="saveAndContinue" class="button primary">💾 Save & Continue</button>
                 </div>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        console.log('TestFox: Onboarding panel DOM loaded');
+
+                        function toggleProviderConfig() {
+                            const provider = document.getElementById('aiProvider').value;
+                            console.log('Provider selected:', provider);
+
+                            // Hide all configs
+                            document.getElementById('openrouterConfig').style.display = 'none';
+                            document.getElementById('google-geminiConfig').style.display = 'none';
+                            document.getElementById('deepseekConfig').style.display = 'none';
+                            document.getElementById('ollamaConfig').style.display = 'none';
+                            document.getElementById('lmstudioConfig').style.display = 'none';
+                            document.getElementById('byoApiConfig').style.display = 'none';
+
+                            // Show selected config
+                            if (provider) {
+                                const configEl = document.getElementById(provider + 'Config');
+                                if (configEl) {
+                                    configEl.style.display = 'block';
+                                    console.log('Showing config:', provider + 'Config');
+                                } else {
+                                    console.error('Config not found:', provider + 'Config');
+                                }
+                            }
+                        }
+
+                        // Attach provider select change handler
+                        const providerSelect = document.getElementById('aiProvider');
+                        if (providerSelect) {
+                            providerSelect.addEventListener('change', toggleProviderConfig);
+                            console.log('Provider select handler attached');
+                        }
+
+                        // Button handlers
+                    document.getElementById('testConnection').addEventListener('click', function() {
+                        const provider = document.getElementById('aiProvider').value;
+                        if (!provider) {
+                            showStatus('Please select an AI provider first', false);
+                            return;
+                        }
+
+                        let apiKey = '';
+                        let baseUrl = '';
+                        let modelId = '';
+
+                        switch (provider) {
+                            case 'openrouter':
+                                apiKey = document.getElementById('apiKey').value;
+                                modelId = document.getElementById('aiModel').value;
+                                break;
+                            case 'google-gemini':
+                                apiKey = document.getElementById('googleGeminiApiKey').value;
+                                baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+                                modelId = document.getElementById('googleGeminiModel').value;
+                                break;
+                            case 'deepseek':
+                                apiKey = document.getElementById('deepseekApiKey').value;
+                                baseUrl = document.getElementById('deepseekBaseUrl').value;
+                                modelId = document.getElementById('deepseekModel').value;
+                                break;
+                            case 'ollama':
+                                baseUrl = document.getElementById('ollamaBaseUrl').value;
+                                modelId = document.getElementById('ollamaModel').value;
+                                break;
+                            case 'lmstudio':
+                                baseUrl = document.getElementById('lmstudioBaseUrl').value;
+                                modelId = document.getElementById('lmstudioModel').value;
+                                break;
+                            case 'byoApi':
+                                apiKey = document.getElementById('byoApiKey').value;
+                                baseUrl = document.getElementById('byoBaseUrl').value;
+                                modelId = document.getElementById('byoModel').value;
+                                break;
+                        }
+
+                        vscode.postMessage({
+                            command: 'testConnection',
+                            provider: provider,
+                            apiKey: apiKey,
+                            baseUrl: baseUrl,
+                            modelId: modelId
+                        });
+                    });
+
+                    document.getElementById('saveAndContinue').addEventListener('click', function() {
+                        const provider = document.getElementById('aiProvider').value;
+                        if (!provider) {
+                            showStatus('Please select an AI provider first', false);
+                            return;
+                        }
+
+                        let apiKey = '';
+                        let baseUrl = '';
+                        let modelId = '';
+
+                        switch (provider) {
+                            case 'openrouter':
+                                apiKey = document.getElementById('apiKey').value;
+                                modelId = document.getElementById('aiModel').value;
+                                break;
+                            case 'google-gemini':
+                                apiKey = document.getElementById('googleGeminiApiKey').value;
+                                baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+                                modelId = document.getElementById('googleGeminiModel').value;
+                                break;
+                            case 'deepseek':
+                                apiKey = document.getElementById('deepseekApiKey').value;
+                                baseUrl = document.getElementById('deepseekBaseUrl').value;
+                                modelId = document.getElementById('deepseekModel').value;
+                                break;
+                            case 'ollama':
+                                baseUrl = document.getElementById('ollamaBaseUrl').value;
+                                modelId = document.getElementById('ollamaModel').value;
+                                break;
+                            case 'lmstudio':
+                                baseUrl = document.getElementById('lmstudioBaseUrl').value;
+                                modelId = document.getElementById('lmstudioModel').value;
+                                break;
+                            case 'byoApi':
+                                apiKey = document.getElementById('byoApiKey').value;
+                                baseUrl = document.getElementById('byoBaseUrl').value;
+                                modelId = document.getElementById('byoModel').value;
+                                break;
+                        }
+
+                        vscode.postMessage({
+                            command: 'saveAndContinue',
+                            provider: provider,
+                            apiKey: apiKey,
+                            baseUrl: baseUrl,
+                            modelId: modelId
+                        });
+                        function showStatus(message, isSuccess) {
+                            const statusDiv = document.getElementById('connectionStatus');
+                            if (statusDiv) {
+                                statusDiv.textContent = message;
+                                statusDiv.className = 'test-result ' + (isSuccess ? '' : 'error');
+                                statusDiv.style.display = 'block';
+                            }
+                        }
+
+                    }); // End of DOMContentLoaded
+                </script>
                 <div id="connectionStatus" class="test-result hidden"></div>
             </div>
         ` : '';
@@ -886,7 +1438,7 @@ export class OnboardingPanel {
                     showConnectionStatus(false, 'Please enter an API key');
                     return;
                 }
-
+                
                 if (!modelId) {
                     showConnectionStatus(false, 'Please select an AI model');
                     return;

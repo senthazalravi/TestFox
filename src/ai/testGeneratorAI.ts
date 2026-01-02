@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { v4 as uuidv4 } from 'uuid';
-import { getOpenRouterClient } from './openRouterClient';
+import { createAIService, AIProvider } from './aiService';
 import { TestStore } from '../store/testStore';
 import {
     TestCase,
@@ -15,10 +15,56 @@ import { ContextAnalyzer, PageContext } from '../core/contextAnalyzer';
  * AI-enhanced test generator using OpenRouter
  */
 export class TestGeneratorAI {
-    private openRouter = getOpenRouterClient();
+    private aiService: any;
     private contextAnalyzer = new ContextAnalyzer();
 
-    constructor(private testStore: TestStore) {}
+    constructor(private testStore: TestStore) {
+        this.initializeAIService();
+    }
+
+    private initializeAIService(): void {
+        try {
+            // Read AI configuration from VS Code settings
+            const config = vscode.workspace.getConfiguration('testfox');
+            const provider = config.get<string>('ai.provider') || 'openrouter';
+            const apiKey = config.get<string>('ai.apiKey') || '';
+            const baseUrl = config.get<string>('ai.baseUrl') || '';
+            const model = config.get<string>('ai.model') || '';
+
+            // Create AI service config
+            let serviceConfig: any = { provider };
+
+            switch (provider) {
+                case 'openrouter':
+                    serviceConfig.apiKey = apiKey;
+                    serviceConfig.model = model;
+                    break;
+                case 'ollama':
+                    serviceConfig.baseUrl = baseUrl || 'http://localhost:11434';
+                    serviceConfig.model = model || 'llama2';
+                    break;
+                case 'lmstudio':
+                    serviceConfig.baseUrl = baseUrl || 'http://localhost:1234';
+                    serviceConfig.model = model || 'local-model';
+                    break;
+                case 'byo-api':
+                    serviceConfig.apiKey = apiKey;
+                    serviceConfig.baseUrl = baseUrl || 'https://api.openai.com/v1';
+                    serviceConfig.model = model || 'gpt-3.5-turbo';
+                    break;
+            }
+
+            this.aiService = createAIService(serviceConfig);
+            console.log('🤖 TestFox AI: Initialized AI service with provider:', provider);
+        } catch (error) {
+            console.error('❌ TestFox AI: Failed to initialize AI service:', error);
+            // Fallback to basic OpenRouter setup
+            this.aiService = createAIService({
+                provider: AIProvider.OPENROUTER,
+                model: 'google/gemini-2.0-flash-exp:free'
+            });
+        }
+    }
 
     private ensureValidAnalysisResult(analysisResult: AnalysisResult): void {
         if (!analysisResult.routes || !Array.isArray(analysisResult.routes)) {
@@ -48,10 +94,17 @@ export class TestGeneratorAI {
      * Generate tests using AI
      */
     async generateWithAI(): Promise<TestCase[]> {
+        console.log('🤖 AI Test Generator: Starting AI-powered test generation');
+        console.log('🤖 AI Test Generator: Timestamp:', new Date().toISOString());
+
         const projectInfo = this.testStore.getProjectInfo();
         const analysisResult = this.testStore.getAnalysisResult();
 
+        console.log('🤖 AI Test Generator: Retrieved project info:', !!projectInfo);
+        console.log('🤖 AI Test Generator: Retrieved analysis result:', !!analysisResult);
+
         if (!projectInfo) {
+            console.error('❌ AI Test Generator: Project not analyzed - throwing error');
             throw new Error('Project not analyzed. Run analysis first.');
         }
 
@@ -62,13 +115,15 @@ export class TestGeneratorAI {
         // Ensure analysis result has valid structure
         this.ensureValidAnalysisResult(analysisResult);
 
-        if (!this.openRouter.isEnabled()) {
+        // Check if AI service is available
+        const isAvailable = await this.aiService?.isAvailable();
+        if (!isAvailable) {
             vscode.window.showWarningMessage(
-                'AI is not configured. Using rule-based test generation.',
+                'AI service is not available. Please check your configuration and ensure the AI provider is running.',
                 'Configure AI'
             ).then(selection => {
                 if (selection === 'Configure AI') {
-                    vscode.commands.executeCommand('workbench.action.openSettings', 'testfox.ai');
+                    vscode.commands.executeCommand('testfox.openOnboarding');
                 }
             });
             return [];
@@ -99,6 +154,12 @@ export class TestGeneratorAI {
                     // Continue without page contexts
                 }
 
+                console.log('🔍 AI Test Generator: Building comprehensive context for AI analysis...');
+
+                // Try to read application documentation and core logic files
+                const documentationContext = await this.gatherApplicationDocumentation(projectInfo);
+                const applicationLogicContext = await this.gatherApplicationLogic(projectInfo);
+
                 const context = {
                     projectType: projectInfo.type,
                     framework: projectInfo.framework || 'unknown',
@@ -114,29 +175,60 @@ export class TestGeneratorAI {
                         hasSignup: pc.hasSignup,
                         hasSearch: pc.hasSearch,
                         hasForms: pc.hasForms,
-                        mainContent: pc.mainContent,
+                        mainContent: pc.mainContent?.substring(0, 500) || '', // Limit content length
                         suggestedTests: pc.suggestedTests
-                    }))
+                    })),
+                    documentation: documentationContext,
+                    applicationLogic: applicationLogicContext,
+                    analysisSummary: {
+                        totalRoutes: routes.length,
+                        totalForms: forms.length,
+                        totalEndpoints: endpoints.length,
+                        analyzedPages: pageContexts.length,
+                        hasDocumentation: !!documentationContext.readme || !!documentationContext.apiDocs,
+                        hasCoreLogic: applicationLogicContext.length > 0
+                    }
                 };
 
-                progress.report({ message: 'Calling AI model...' });
+                console.log('✅ AI Test Generator: Context built successfully');
+                console.log('✅ AI Test Generator: Analysis summary:', context.analysisSummary);
 
-                console.log('TestFox AI: Calling OpenRouter to generate test cases...');
-                console.log('TestFox AI: Context:', {
+                progress.report({ message: '🚀 Sending context to AI model...' });
+
+                console.log('🤖 TestFox AI: Calling OpenRouter to generate test cases...');
+                console.log('🤖 TestFox AI: Context summary:', {
                     projectType: context.projectType,
                     framework: context.framework,
                     routesCount: context.routes.length,
                     formsCount: context.forms.length,
                     endpointsCount: context.endpoints.length,
-                    pageContextsCount: context.pageContexts.length
+                    pageContextsCount: context.pageContexts.length,
+                    hasDocumentation: !!context.documentation?.readme,
+                    hasApplicationLogic: context.applicationLogic?.length || 0
                 });
 
-                const response = await this.openRouter.generateTestCases(context);
-                console.log('TestFox AI: Received response from OpenRouter, length:', response?.length || 0);
+                // Show detailed progress to user
+                vscode.window.showInformationMessage('🤖 TestFox AI: Analyzing your application context and generating intelligent test cases...');
 
-                progress.report({ message: 'Processing AI response...' });
+                // Generate test cases using AI service
+                const aiResponse = await this.aiService.generate({
+                    type: 'test-cases',
+                    context: context,
+                    prompt: `Generate comprehensive test cases for this project based on the analysis above. Focus on functional testing, API testing, security testing (OWASP Top 10), and edge cases. Only generate tests for features that actually exist based on the page analysis.`
+                });
 
-                const tests = this.parseAIResponse(response);
+                if (!aiResponse.success) {
+                    console.error('❌ TestFox AI: AI generation failed:', aiResponse.error);
+                    throw new Error(aiResponse.error || 'AI generation failed');
+                }
+
+                const response = aiResponse.data;
+                console.log('✅ TestFox AI: Received response from AI service, type:', typeof response);
+
+                progress.report({ message: '🔄 Processing AI-generated tests...' });
+
+                // Process tests progressively for streaming effect
+                const tests = await this.parseAIResponseStreaming(typeof response === 'string' ? response : JSON.stringify(response), progress);
 
                 // Ensure tests is an array
                 if (!tests || !Array.isArray(tests)) {
@@ -198,51 +290,81 @@ export class TestGeneratorAI {
      */
     private async analyzePageContexts(projectInfo: any): Promise<PageContext[]> {
         const contexts: PageContext[] = [];
-        
-        try {
-            // Check if application is running
-            const axios = require('axios').default;
-            const portsToCheck = [3000, 8080, 4200, 5000, 8000, 4000, 5173];
-            let appUrl: string | null = null;
 
-            for (const port of portsToCheck) {
+        console.log('🔍 AI Test Generator: Starting comprehensive application context analysis');
+        console.log('🔍 AI Test Generator: Project type:', projectInfo.type);
+        console.log('🔍 AI Test Generator: Framework:', projectInfo.framework);
+
+        try {
+            const axios = require('axios').default;
+            const AppRunner = require('../core/appRunner').AppRunner;
+            const appRunner = new AppRunner();
+
+            // Check if application is running, if not try to start it
+            console.log('🔍 AI Test Generator: Checking if application is running...');
+            let appUrl = await appRunner.detectRunningApplication(projectInfo);
+
+            if (!appUrl) {
+                console.log('🔍 AI Test Generator: Application not detected, attempting to start it...');
+
+                // Try to start the application
                 try {
-                    const url = `http://localhost:${port}`;
-                    const response = await axios.get(url, {
-                        timeout: 2000,
-                        validateStatus: () => true
-                    });
-                    if (response.status < 500) {
-                        appUrl = url;
-                        break;
+                    const startResult = await appRunner.start(projectInfo);
+                    if (startResult) {
+                        console.log('✅ AI Test Generator: Application started successfully');
+                        console.log('✅ AI Test Generator: Waiting for application to be ready...');
+
+                        // Wait a bit for the app to start up
+                        await new Promise(resolve => setTimeout(resolve, 5000));
+
+                        // Check again if it's now running
+                        appUrl = await appRunner.detectRunningApplication(projectInfo);
+                        if (appUrl) {
+                            console.log('✅ AI Test Generator: Application is now running at:', appUrl);
+                        } else {
+                            console.log('⚠️ AI Test Generator: Application started but URL not detected');
+                        }
+                    } else {
+                        console.log('❌ AI Test Generator: Failed to start application automatically');
                     }
-                } catch {
-                    continue;
+                } catch (error) {
+                    console.log('❌ AI Test Generator: Error starting application:', error);
                 }
+            } else {
+                console.log('✅ AI Test Generator: Application is already running at:', appUrl);
             }
 
             if (!appUrl) {
-                console.log('TestFox AI: Application not running, skipping page context analysis');
+                console.log('⚠️ AI Test Generator: Cannot analyze page contexts - application not accessible');
                 return contexts;
             }
 
+            console.log('🔍 AI Test Generator: Analyzing main application page...');
             // Analyze main page
             try {
                 const response = await axios.get(appUrl, {
-                    timeout: 5000,
+                    timeout: 10000, // Increased timeout for comprehensive analysis
                     headers: {
-                        'User-Agent': 'TestFox/1.0'
+                        'User-Agent': 'TestFox-AI-Analyzer/1.0',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.5',
+                        'Accept-Encoding': 'gzip, deflate',
+                        'Connection': 'keep-alive',
+                        'Upgrade-Insecure-Requests': '1'
                     }
                 });
-                
+
                 if (response.data && typeof response.data === 'string') {
+                    console.log('✅ AI Test Generator: Main page loaded successfully, analyzing content...');
                     const pageContext = await this.contextAnalyzer.analyzePageContent(response.data, appUrl);
                     contexts.push(pageContext);
+                    console.log('✅ AI Test Generator: Main page analysis complete');
                 }
             } catch (error) {
-                console.error('TestFox AI: Failed to analyze main page:', error);
+                console.error('❌ AI Test Generator: Failed to analyze main page:', error);
             }
 
+            console.log('🔍 AI Test Generator: Analyzing additional routes and pages...');
             // Analyze additional routes if available
             const analysisResult = this.testStore.getAnalysisResult();
             if (analysisResult && analysisResult.routes && analysisResult.routes.length > 0) {
@@ -279,32 +401,81 @@ export class TestGeneratorAI {
     /**
      * Parse AI response into TestCase objects
      */
-    private parseAIResponse(response: string): TestCase[] {
+    private async parseAIResponseStreaming(response: string, progress: any): Promise<TestCase[]> {
         try {
             // Try to extract JSON from response
             let jsonStr = response;
-            
+
             // Handle markdown code blocks
             const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
             if (jsonMatch) {
                 jsonStr = jsonMatch[1];
             }
 
-            // Parse the JSON
-            const parsed = JSON.parse(jsonStr.trim());
-            const testsArray = parsed.tests || parsed;
+            // Parse the JSON with error handling
+            let parsed;
+            try {
+                parsed = JSON.parse(jsonStr.trim());
+            } catch (parseError) {
+                console.error('❌ AI Test Generator: Failed to parse JSON response:', parseError);
+                console.error('❌ AI Test Generator: Raw response:', jsonStr.substring(0, 500));
+                throw new Error(`AI returned invalid JSON: ${parseError instanceof Error ? parseError.message : 'Unknown parsing error'}`);
+            }
+
+            const testsArray = parsed?.tests || parsed;
 
             if (!Array.isArray(testsArray)) {
-                console.error('AI response is not an array:', parsed);
+                console.error('❌ AI Test Generator: AI response is not an array:', parsed);
+                console.error('❌ AI Test Generator: Expected array, got:', typeof testsArray);
                 return [];
             }
 
-            return testsArray.map((test: any) => this.convertToTestCase(test));
+            console.log(`🎯 TestFox AI: AI generated ${testsArray.length} test cases, processing progressively...`);
+
+            const processedTests: TestCase[] = [];
+            const batchSize = 5; // Process tests in batches for streaming effect
+
+            for (let i = 0; i < testsArray.length; i += batchSize) {
+                const batch = testsArray.slice(i, i + batchSize);
+                const batchTests = batch.map((test: any) => this.convertToTestCase(test));
+
+                // Add batch to results
+                processedTests.push(...batchTests);
+
+                // Update progress
+                const progressPercent = Math.round(((i + batch.length) / testsArray.length) * 100);
+                progress.report({
+                    message: `🔄 Processing AI tests... ${i + batch.length}/${testsArray.length} (${progressPercent}%)`
+                });
+
+                // Small delay for visual streaming effect
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Show progress notification
+                if (i + batch.length < testsArray.length) {
+                    vscode.window.showInformationMessage(
+                        `🔄 TestFox AI: Processed ${i + batch.length} of ${testsArray.length} AI-generated test cases...`
+                    );
+                }
+            }
+
+            console.log(`✅ TestFox AI: Successfully processed ${processedTests.length} AI-generated test cases`);
+            vscode.window.showInformationMessage(
+                `🎉 TestFox AI: Successfully processed ${processedTests.length} intelligent test cases!`
+            );
+
+            return processedTests;
         } catch (error) {
             console.error('Failed to parse AI response:', error);
             console.error('Response was:', response);
+            vscode.window.showWarningMessage('⚠️ TestFox AI: Could not parse AI response, falling back to rule-based generation');
             return [];
         }
+    }
+
+    private parseAIResponse(response: string): TestCase[] {
+        // Keep the old method for backward compatibility
+        return this.parseAIResponseStreaming(response, { report: () => {} });
     }
 
     /**
@@ -487,6 +658,159 @@ export class TestGeneratorAI {
         }
 
         return tests;
+    }
+
+    /**
+     * Gather application documentation for better AI context
+     */
+    private async gatherApplicationDocumentation(projectInfo: any): Promise<{
+        readme: string | null;
+        apiDocs: string | null;
+        packageJson: any | null;
+    }> {
+        console.log('📚 AI Test Generator: Gathering application documentation...');
+
+        const fs = require('fs').promises;
+        const path = require('path');
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+        if (!workspaceFolder) {
+            console.log('⚠️ AI Test Generator: No workspace folder available');
+            return { readme: null, apiDocs: null, packageJson: null };
+        }
+
+        const docs = {
+            readme: null as string | null,
+            apiDocs: null as string | null,
+            packageJson: null as any | null
+        };
+
+        try {
+            // Read README files
+            const readmeFiles = ['README.md', 'readme.md', 'README.txt', 'readme.txt'];
+            for (const readmeFile of readmeFiles) {
+                try {
+                    const readmePath = path.join(workspaceFolder, readmeFile);
+                    const content = await fs.readFile(readmePath, 'utf8');
+                    docs.readme = content.substring(0, 2000); // Limit size
+                    console.log('✅ AI Test Generator: README found and loaded');
+                    break;
+                } catch {
+                    continue;
+                }
+            }
+
+            // Read package.json
+            try {
+                const packagePath = path.join(workspaceFolder, 'package.json');
+                const content = await fs.readFile(packagePath, 'utf8');
+                docs.packageJson = JSON.parse(content);
+                console.log('✅ AI Test Generator: package.json found and loaded');
+            } catch (error) {
+                console.log('⚠️ AI Test Generator: Could not read package.json:', error);
+            }
+
+            // Look for API documentation
+            const apiDocFiles = ['API.md', 'api.md', 'docs/API.md', 'docs/api.md', 'swagger.json', 'openapi.json'];
+            for (const apiFile of apiDocFiles) {
+                try {
+                    const apiPath = path.join(workspaceFolder, apiFile);
+                    const content = await fs.readFile(apiPath, 'utf8');
+                    docs.apiDocs = content.substring(0, 1500); // Limit size
+                    console.log('✅ AI Test Generator: API documentation found and loaded');
+                    break;
+                } catch {
+                    continue;
+                }
+            }
+
+        } catch (error) {
+            console.log('⚠️ AI Test Generator: Error gathering documentation:', error);
+        }
+
+        return docs;
+    }
+
+    /**
+     * Gather core application logic files for better AI understanding
+     */
+    private async gatherApplicationLogic(projectInfo: any): Promise<string[]> {
+        console.log('🧠 AI Test Generator: Gathering core application logic...');
+
+        const fs = require('fs').promises;
+        const path = require('path');
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+        if (!workspaceFolder) {
+            console.log('⚠️ AI Test Generator: No workspace folder available');
+            return [];
+        }
+
+        const logicFiles: string[] = [];
+        const maxFiles = 5; // Limit number of files to avoid overwhelming the AI
+        const maxFileSize = 1000; // Limit file size in characters
+
+        try {
+            // Define patterns for core logic files based on framework
+            const patterns: Record<string, string[]> = {
+                'react': ['src/App.js', 'src/App.tsx', 'src/index.js', 'src/index.tsx', 'src/main.js', 'src/main.tsx'],
+                'vue': ['src/App.vue', 'src/main.js', 'src/main.ts'],
+                'angular': ['src/app/app.component.ts', 'src/app/app.module.ts', 'src/main.ts'],
+                'nextjs': ['pages/_app.js', 'pages/_app.tsx', 'src/app/layout.tsx', 'src/app/page.tsx'],
+                'nuxt': ['pages/index.vue', 'nuxt.config.js'],
+                'svelte': ['src/App.svelte', 'src/main.js'],
+                'express': ['server.js', 'app.js', 'index.js', 'src/server.js', 'src/app.js'],
+                'flask': ['app.py', 'application.py', 'server.py'],
+                'django': ['manage.py', 'settings.py', 'urls.py'],
+                'spring': ['src/main/java/**/*.java'],
+                'dotnet': ['Program.cs', 'Startup.cs', 'Controllers/**/*.cs']
+            };
+
+            const framework = projectInfo.framework?.toLowerCase() || 'unknown';
+            const filePatterns = patterns[framework] || ['index.js', 'main.js', 'app.js', 'server.js'];
+
+            for (const pattern of filePatterns) {
+                if (logicFiles.length >= maxFiles) break;
+
+                try {
+                    const filePath = path.join(workspaceFolder, pattern);
+                    const stats = await fs.stat(filePath);
+
+                    if (stats.isFile()) {
+                        const content = await fs.readFile(filePath, 'utf8');
+                        const truncatedContent = content.substring(0, maxFileSize);
+                        logicFiles.push(`${pattern}:\n${truncatedContent}`);
+                        console.log('✅ AI Test Generator: Core logic file loaded:', pattern);
+                    }
+                } catch {
+                    continue;
+                }
+            }
+
+            // If no framework-specific files found, try to find main entry points
+            if (logicFiles.length === 0) {
+                const commonFiles = ['index.js', 'main.js', 'app.js', 'server.js', 'main.py', 'app.py'];
+                for (const file of commonFiles) {
+                    if (logicFiles.length >= maxFiles) break;
+
+                    try {
+                        const filePath = path.join(workspaceFolder, file);
+                        const content = await fs.readFile(filePath, 'utf8');
+                        const truncatedContent = content.substring(0, maxFileSize);
+                        logicFiles.push(`${file}:\n${truncatedContent}`);
+                        console.log('✅ AI Test Generator: Common logic file loaded:', file);
+                    } catch {
+                        continue;
+                    }
+                }
+            }
+
+        } catch (error) {
+            console.log('⚠️ AI Test Generator: Error gathering application logic:', error);
+        }
+
+        console.log('✅ AI Test Generator: Gathered', logicFiles.length, 'logic files');
+        return logicFiles;
     }
 }
 

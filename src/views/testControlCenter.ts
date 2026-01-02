@@ -4,7 +4,7 @@ import { TestCase, TestResult } from '../types';
 
 /**
  * Test Control Center - Real-time test execution monitoring and control
- * This is the "single source of truth" for what is happening right now
+ * Clean, working implementation with proper VS Code theming
  */
 export class TestControlCenterProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'testfox-control-center';
@@ -24,6 +24,7 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
         private readonly _extensionUri: vscode.Uri,
         private readonly _testStore: TestStore
     ) {
+        console.log('TestFox: TestControlCenterProvider constructor called');
         // Start elapsed time counter when running
         this._eventEmitter.event((state) => {
             if (state.status === 'running' && !this._intervalId) {
@@ -40,6 +41,8 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
         context: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken
     ) {
+        console.log('TestFox: resolveWebviewView called for Test Control Center');
+        
         this._view = webviewView;
 
         webviewView.webview.options = {
@@ -47,11 +50,33 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             localResourceRoots: [this._extensionUri]
         };
 
+        // Set the HTML content
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        console.log('TestFox: Test Control Center HTML set successfully');
 
         // Handle messages from webview
         webviewView.webview.onDidReceiveMessage(async (message) => {
+            console.log('TestFox: Received message from webview:', message.command);
+            
             switch (message.command) {
+                case 'runTests':
+                    await vscode.commands.executeCommand('testfox.runAll');
+                    break;
+                case 'generateTests':
+                    await vscode.commands.executeCommand('testfox.generateTests');
+                    break;
+                case 'analyzeProject':
+                    await vscode.commands.executeCommand('testfox.analyze');
+                    break;
+                case 'configureAI':
+                    await vscode.commands.executeCommand('testfox.configureAI');
+                    break;
+                case 'openReport':
+                    await vscode.commands.executeCommand('testfox.generateWebReport');
+                    break;
+                case 'openSettings':
+                    await vscode.commands.executeCommand('testfox.openSettings');
+                    break;
                 case 'pause':
                     await vscode.commands.executeCommand('testfox.pauseTests');
                     break;
@@ -61,62 +86,28 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
                 case 'stop':
                     await vscode.commands.executeCommand('testfox.stopTests');
                     break;
-                case 'rerun':
-                    await vscode.commands.executeCommand('testfox.runAll');
+                case 'ready':
+                    console.log('TestFox: Webview signaled ready');
+                    this._updateWebview(this._currentState);
                     break;
-                case 'run':
-                    await vscode.commands.executeCommand('testfox.runAll');
+                // MCP Server commands
+                case 'mcpPlaywright':
+                    await vscode.commands.executeCommand('testfox.mcpRunServer', 'playwright-mcp');
                     break;
-                case 'generateReport':
-                    await vscode.commands.executeCommand('testfox.generateWebReport');
+                case 'mcpPuppeteer':
+                    await vscode.commands.executeCommand('testfox.mcpRunServer', 'puppeteer-mcp');
                     break;
-                case 'openDefects':
-                    await vscode.commands.executeCommand('testfox.openDefectDashboard');
+                case 'mcpFetch':
+                    await vscode.commands.executeCommand('testfox.mcpRunServer', 'fetch-mcp');
                     break;
-                case 'configureAI':
-                    await vscode.commands.executeCommand('testfox.configureAI');
+                case 'mcpDatabase':
+                    await vscode.commands.executeCommand('testfox.mcpRunServer', 'postgres-mcp');
                     break;
-                case 'openSettings':
-                    await vscode.commands.executeCommand('testfox.openSettings');
+                case 'mcpRunAll':
+                    await vscode.commands.executeCommand('testfox.mcpRunAll');
                     break;
-                case 'testAIConnection':
-                    await this._handleTestAIConnection(webviewView.webview);
-                    break;
-                case 'generateTestsFromControlCenter':
-                    await this._handleGenerateTestsFromControlCenter(webviewView.webview);
-                    break;
-                case 'authenticateGitHub':
-                    try {
-                        const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true });
-                        if (session) {
-                            webviewView.webview.postMessage({
-                                command: 'gitAuthenticated',
-                                profile: { authenticated: true, username: 'Loading...' }
-                            });
-                            // Refresh will get the actual profile
-                            setTimeout(() => this._refreshGitProfile(webviewView.webview), 1000);
-                        }
-                    } catch (error) {
-                        vscode.window.showErrorMessage('GitHub authentication failed');
-                    }
-                    break;
-                case 'logoutGitHub':
-                    try {
-                        await vscode.commands.executeCommand('testfox.logoutGitHub');
-                        webviewView.webview.postMessage({ command: 'gitLoggedOut' });
-                    } catch (error) {
-                        vscode.window.showErrorMessage('GitHub logout failed');
-                    }
-                    break;
-                case 'getGitProfile':
-                    await this._sendGitProfile(webviewView.webview);
-                    break;
-                case 'getTestHistory':
-                    await this._sendTestHistory(webviewView.webview);
-                    break;
-                case 'viewRunDetails':
-                    // Could implement detailed run view
-                    vscode.window.showInformationMessage('Run details view coming soon!');
+                case 'mcpReport':
+                    await vscode.commands.executeCommand('testfox.mcpGenerateReport');
                     break;
             }
         });
@@ -126,205 +117,12 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             this._updateWebview(state);
         });
 
-        // Initial update
-        this._updateWebview(this._currentState);
-
-        // Load initial data
+        // Initial update after a short delay to ensure webview is ready
         setTimeout(() => {
-            this._sendGitProfile(webviewView.webview);
-            this._sendTestHistory(webviewView.webview);
-        }, 500);
-    }
-
-    /**
-     * Send Git profile information to webview
-     */
-    private async _sendGitProfile(webview: vscode.Webview): Promise<void> {
-        try {
-            const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: false });
-            const username = await this._getGitUsername();
-
-            let repoInfo = null;
-            try {
-                const gitExtension = vscode.extensions.getExtension('vscode.git');
-                if (gitExtension && gitExtension.isActive) {
-                    const git = gitExtension.exports.getAPI(1);
-                    const repositories = git.repositories;
-
-                    if (repositories.length > 0) {
-                        const repo = repositories[0];
-                        const remote = repo.state.remotes.find(r => r.name === 'origin');
-                        if (remote && remote.fetchUrl) {
-                            const match = remote.fetchUrl.match(/github\.com[/:]([^/]+)\/([^/]+?)(?:\.git)?$/);
-                            if (match) {
-                                repoInfo = `${match[1]}/${match[2]}`;
-                            }
-                        }
-                    }
-                }
-            } catch (error) {
-                console.log('Could not get repo info');
-            }
-
-            webview.postMessage({
-                command: 'gitProfile',
-                profile: {
-                    authenticated: !!session,
-                    username: username,
-                    repo: repoInfo
-                }
-            });
-        } catch (error) {
-            webview.postMessage({
-                command: 'gitProfile',
-                profile: { authenticated: false }
-            });
-        }
-    }
-
-    /**
-     * Send test history to webview
-     */
-    private async _sendTestHistory(webview: vscode.Webview): Promise<void> {
-        // This would typically come from defectTracker, but for now we'll simulate
-        // In a real implementation, you'd get this from the defect tracker
-        webview.postMessage({
-            command: 'testHistory',
-            history: [] // Will be populated when defect tracker is integrated
-        });
-    }
-
-    /**
-     * Refresh Git profile after authentication
-     */
-    private async _refreshGitProfile(webview: vscode.Webview): Promise<void> {
-        await this._sendGitProfile(webview);
-    }
-
-    /**
-     * Handle AI connection test
-     */
-    private async _handleTestAIConnection(webview: vscode.Webview): Promise<void> {
-        try {
-            const config = vscode.workspace.getConfiguration('testfox');
-            const apiKey = config.get<string>('ai.apiKey');
-
-            if (!apiKey) {
-                webview.postMessage({
-                    command: 'aiTestResult',
-                    success: false,
-                    message: 'No API key configured. Please configure AI first.'
-                });
-                return;
-            }
-
-            // Import the OpenRouter client
-            const { getOpenRouterClient } = await import('../ai/openRouterClient');
-            const openRouter = getOpenRouterClient();
-
-            webview.postMessage({
-                command: 'aiTestStatus',
-                status: 'testing',
-                message: 'Testing AI connection...'
-            });
-
-            const testResult = await openRouter.testConnection();
-
-            webview.postMessage({
-                command: 'aiTestResult',
-                success: testResult.success,
-                message: testResult.success
-                    ? `✅ AI connection successful! Using ${openRouter.getCurrentModel()}`
-                    : `❌ AI connection failed: ${testResult.error || 'Unknown error'}`
-            });
-        } catch (error) {
-            webview.postMessage({
-                command: 'aiTestResult',
-                success: false,
-                message: `❌ Connection test failed: ${error instanceof Error ? error.message : String(error)}`
-            });
-        }
-    }
-
-    /**
-     * Handle test generation from control center
-     */
-    private async _handleGenerateTestsFromControlCenter(webview: vscode.Webview): Promise<void> {
-        try {
-            const config = vscode.workspace.getConfiguration('testfox');
-            const apiKey = config.get<string>('ai.apiKey');
-
-            if (!apiKey) {
-                vscode.window.showErrorMessage('TestFox: No API key configured. Please configure AI first.');
-                webview.postMessage({
-                    command: 'generateTestResult',
-                    success: false,
-                    message: 'No API key configured'
-                });
-                return;
-            }
-
-            // Check if project is analyzed
-            const projectInfo = this._testStore.getProjectInfo();
-            if (!projectInfo) {
-                vscode.window.showWarningMessage('TestFox: Project not analyzed. Analyzing now...');
-                webview.postMessage({
-                    command: 'generateTestStatus',
-                    status: 'analyzing',
-                    message: 'Analyzing project...'
-                });
-
-                // Import and run analysis
-                const { analyzeProject } = await import('../core/codeAnalyzer');
-                await analyzeProject();
-
-                // Wait a moment for analysis to complete
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            webview.postMessage({
-                command: 'generateTestStatus',
-                status: 'generating',
-                message: 'Generating AI-powered tests...'
-            });
-
-            // Generate tests
-            await vscode.commands.executeCommand('testfox.generateTests');
-
-            webview.postMessage({
-                command: 'generateTestResult',
-                success: true,
-                message: '✅ Tests generated successfully!'
-            });
-        } catch (error) {
-            webview.postMessage({
-                command: 'generateTestResult',
-                success: false,
-                message: `❌ Test generation failed: ${error instanceof Error ? error.message : String(error)}`
-            });
-        }
-    }
-
-    /**
-     * Get Git username
-     */
-    private async _getGitUsername(): Promise<string | null> {
-        try {
-            const response = await fetch('https://api.github.com/user', {
-                headers: {
-                    'Authorization': `token ${(await vscode.authentication.getSession('github', ['repo'], { createIfNone: false }))?.accessToken}`,
-                    'User-Agent': 'TestFox-VSCode'
-                }
-            });
-
-            if (response.ok) {
-                const user = await response.json();
-                return user.login || null;
-            }
-        } catch (error) {
-            console.log('Failed to get Git username:', error);
-        }
-        return null;
+        this._updateWebview(this._currentState);
+        }, 100);
+        
+        console.log('TestFox: Test Control Center fully initialized');
     }
 
     /**
@@ -340,7 +138,6 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
      */
     public addLog(entry: LogEntry): void {
         this._currentState.logs.push(entry);
-        // Keep only last 100 logs
         if (this._currentState.logs.length > 100) {
             this._currentState.logs.shift();
         }
@@ -386,696 +183,482 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
-        const scriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'media', 'testControlCenter.js')
-        );
-        const styleUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'media', 'testControlCenter.css')
-        );
-
+        // No CSP for now to ensure it loads
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="${styleUri}" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <title>TestFox Control Center</title>
     <style>
-        :root {
-            --bg-primary: #0f0f23;
-            --bg-secondary: #1a1a2e;
-            --bg-tertiary: #16213e;
-            --bg-card: #0f3460;
-            --text-primary: #e94560;
-            --text-secondary: #a8a8a8;
-            --text-muted: #666;
-            --accent: #e94560;
-            --accent-hover: #ff6b6b;
-            --success: #4ecdc4;
-            --warning: #ffd93d;
-            --error: #ff6b6b;
-            --info: #4ea8ff;
-            --border: #2a2a4e;
-            --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            --animation-speed: 0.3s;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-secondary);
-            overflow-x: hidden;
+            font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+            font-size: var(--vscode-font-size, 13px);
+            color: var(--vscode-foreground, #cccccc);
+            background-color: var(--vscode-sideBar-background, #252526);
+            padding: 12px;
+            line-height: 1.5;
         }
-
-        .container { padding: 16px; max-width: 400px; }
-
-        /* Header Section */
-        .header-section {
+        
+        .header {
+            text-align: center;
+            padding: 16px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header-section::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="20" cy="80" r="1" fill="rgba(255,255,255,0.05)"/><circle cx="80" cy="20" r="1.5" fill="rgba(255,255,255,0.08)"/></svg>');
-            opacity: 0.3;
-        }
-
-        .logo { font-size: 2rem; margin-bottom: 8px; }
-        .title { font-size: 1.2rem; font-weight: 700; color: white; margin-bottom: 4px; }
-        .subtitle { font-size: 0.9rem; opacity: 0.9; color: white; }
-
-        /* Status Section */
-        .status-section {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
+            border-radius: 8px;
             margin-bottom: 16px;
         }
 
-        .status-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+        .header-logo {
+            font-size: 32px;
+            margin-bottom: 4px;
+        }
+        
+        .header-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .header-subtitle {
+            font-size: 11px;
+            color: rgba(255,255,255,0.8);
+            margin-top: 4px;
+        }
+        
+        .section {
+            background: var(--vscode-editor-background, #1e1e1e);
+            border: 1px solid var(--vscode-panel-border, #3c3c3c);
+            border-radius: 6px;
+            padding: 12px;
             margin-bottom: 12px;
-        }
-
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: var(--text-muted);
-        }
-
-        .status-indicator.running { background: var(--warning); animation: pulse 2s infinite; }
-        .status-indicator.success { background: var(--success); }
-        .status-indicator.error { background: var(--error); }
-        .status-indicator.idle { background: var(--text-muted); }
-
-        .status-text { font-weight: 600; color: var(--text-primary); }
-        .elapsed-time { font-family: monospace; font-size: 0.9rem; color: var(--text-secondary); }
-
-        /* Quick Actions Grid */
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        .action-btn {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-            cursor: pointer;
-            transition: all var(--animation-speed) ease;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .action-btn:hover {
-            transform: translateY(-2px);
-            border-color: var(--accent);
-            box-shadow: var(--shadow);
-        }
-
-        .action-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(233, 69, 96, 0.1), transparent);
-            transition: left 0.5s ease;
-        }
-
-        .action-btn:hover::before { left: 100%; }
-
-        .action-icon {
-            font-size: 1.5rem;
-            margin-bottom: 8px;
-            display: block;
-            color: var(--accent);
-        }
-
-        .action-label {
-            font-size: 0.85rem;
-            font-weight: 500;
-            color: var(--text-secondary);
-        }
-
-        /* Progress Section */
-        .progress-section {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-        }
-
-        .progress-bar-container {
-            height: 8px;
-            background: var(--bg-tertiary);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: 8px;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, var(--success), var(--accent));
-            width: 0%;
-            transition: width 0.3s ease;
-            border-radius: 4px;
-        }
-
-        .progress-text {
-            text-align: center;
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: var(--text-secondary);
-        }
-
-        /* Current Test */
-        .current-test-section {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
         }
 
         .section-title {
-            font-size: 0.9rem;
+            font-size: 11px;
             font-weight: 600;
-            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--vscode-descriptionForeground, #858585);
             margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
-
-        .current-test {
-            font-family: monospace;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            padding: 8px;
-            background: var(--bg-tertiary);
-            border-radius: 6px;
-            word-break: break-word;
-        }
-
-        /* Test Summary */
-        .summary-section {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-        }
-
-        .summary-grid {
+        
+        .button-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            gap: 8px;
         }
-
-        .summary-item {
-            text-align: center;
-            padding: 12px;
-            border-radius: 8px;
-            background: var(--bg-tertiary);
+        
+        .btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 8px;
+            background: var(--vscode-button-secondaryBackground, #3a3d41);
+            color: var(--vscode-button-secondaryForeground, #cccccc);
+            border: 1px solid var(--vscode-panel-border, #3c3c3c);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
         }
-
-        .summary-label {
-            display: block;
-            font-size: 0.8rem;
-            color: var(--text-muted);
+        
+        .btn:hover {
+            background: var(--vscode-button-secondaryHoverBackground, #45494e);
+            border-color: var(--vscode-focusBorder, #007fd4);
+        }
+        
+        .btn-icon {
+            font-size: 18px;
             margin-bottom: 4px;
         }
-
-        .summary-value {
-            display: block;
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text-secondary);
+        
+        .btn-primary {
+            background: var(--vscode-button-background, #0e639c);
+            color: var(--vscode-button-foreground, white);
+            grid-column: span 2;
         }
-
-        .summary-item.passed .summary-value { color: var(--success); }
-        .summary-item.failed .summary-value { color: var(--error); }
-        .summary-item.skipped .summary-value { color: var(--warning); }
-
-        /* Control Buttons */
-        .controls-section {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            margin-bottom: 16px;
+        
+        .btn-primary:hover {
+            background: var(--vscode-button-hoverBackground, #1177bb);
         }
-
-        .control-btn {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all var(--animation-speed) ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            font-weight: 500;
-        }
-
-        .control-btn:hover {
-            background: var(--bg-hover);
-            border-color: var(--accent);
-        }
-
-        .control-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .control-btn.primary {
-            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-            color: white;
-            border-color: var(--accent);
-        }
-
-        /* Logs Section */
-        .logs-section {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-            max-height: 200px;
-            overflow: hidden;
-        }
-
-        .logs-container {
-            max-height: 160px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 0.8rem;
-        }
-
-        .log-entry {
-            padding: 4px 0;
-            border-bottom: 1px solid var(--border);
-            color: var(--text-secondary);
-        }
-
-        .log-entry:last-child { border-bottom: none; }
-        .log-entry.success { color: var(--success); }
-        .log-entry.error { color: var(--error); }
-        .log-entry.warning { color: var(--warning); }
-
-        /* Git Profile Section */
-        .git-profile-section {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-        }
-
-        .git-profile-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-        }
-
-        .git-profile-info {
+        
+        .status-row {
             display: flex;
             align-items: center;
             gap: 8px;
+            margin-bottom: 8px;
         }
-
-        .git-avatar {
-            width: 32px;
-            height: 32px;
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            background: var(--accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
+            background: #666;
         }
-
-        .git-details {
-            flex: 1;
-        }
-
-        .git-username {
-            font-weight: 600;
-            color: var(--text-primary);
-            font-size: 0.9rem;
-        }
-
-        .git-repo {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-        }
-
-        .git-logout-btn {
-            background: var(--error);
-            border: none;
-            border-radius: 6px;
-            padding: 6px 12px;
-            color: white;
-            font-size: 0.8rem;
-            cursor: pointer;
-            transition: all var(--animation-speed) ease;
-        }
-
-        .git-logout-btn:hover {
-            background: var(--error);
-            opacity: 0.8;
-        }
-
-        .git-login-prompt {
-            text-align: center;
-            color: var(--text-secondary);
-        }
-
-        .git-login-btn {
-            background: linear-gradient(135deg, #333, #666);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px;
-            width: 100%;
-            cursor: pointer;
-            margin-top: 8px;
-            transition: all var(--animation-speed) ease;
-        }
-
-        .git-login-btn:hover {
-            background: linear-gradient(135deg, #444, #777);
-        }
-
-        /* Test History Section */
-        .history-section {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-        }
-
-        .history-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-        }
-
-        .history-list {
-            max-height: 120px;
-            overflow-y: auto;
-        }
-
-        .history-item {
-            padding: 8px;
-            border-radius: 6px;
-            margin-bottom: 6px;
-            background: var(--bg-tertiary);
-            cursor: pointer;
-            transition: all var(--animation-speed) ease;
-        }
-
-        .history-item:hover {
-            background: var(--bg-hover);
-        }
-
-        .history-run {
-            font-weight: 600;
-            color: var(--text-primary);
-            font-size: 0.85rem;
-        }
-
-        .history-stats {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            margin-top: 2px;
-        }
-
-        .history-time {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            margin-top: 2px;
-        }
-
+        
+        .status-indicator.idle { background: #666; }
+        .status-indicator.running { background: #4ec9b0; animation: pulse 2s infinite; }
+        .status-indicator.completed { background: #89d185; }
+        .status-indicator.failed { background: #f48771; }
+        
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        
+        .status-text {
+            flex: 1;
+            font-weight: 500;
         }
-
-        .fade-in { animation: fadeIn 0.3s ease-out; }
+        
+        .elapsed-time {
+            font-family: monospace;
+            color: var(--vscode-descriptionForeground, #858585);
+        }
+        
+        .progress-bar {
+            height: 6px;
+            background: var(--vscode-progressBar-background, #3c3c3c);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--vscode-progressBar-foreground, #0e70c0);
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+        
+        .progress-text {
+            text-align: center;
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground, #858585);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 8px 4px;
+            background: var(--vscode-input-background, #3c3c3c);
+            border-radius: 4px;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .stat-value.passed { color: #89d185; }
+        .stat-value.failed { color: #f48771; }
+        .stat-value.skipped { color: #dcdcaa; }
+        
+        .stat-label {
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground, #858585);
+            text-transform: uppercase;
+        }
+        
+        .current-test {
+            font-family: monospace;
+            font-size: 11px;
+            padding: 8px;
+            background: var(--vscode-input-background, #3c3c3c);
+            border-radius: 4px;
+            word-break: break-all;
+            min-height: 32px;
+        }
+        
+        .logs-container {
+            max-height: 120px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 11px;
+        }
+        
+        .log-entry {
+            padding: 2px 0;
+            border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c);
+        }
+        
+        .log-entry.success { color: #89d185; }
+        .log-entry.error { color: #f48771; }
+        .log-entry.warning { color: #dcdcaa; }
+        .log-entry.info { color: var(--vscode-descriptionForeground, #858585); }
+        
+        .control-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+        
+        .control-btn {
+            padding: 8px;
+            font-size: 11px;
+            background: var(--vscode-button-secondaryBackground, #3a3d41);
+            color: var(--vscode-button-secondaryForeground, #cccccc);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .control-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .control-btn:hover:not(:disabled) {
+            background: var(--vscode-button-secondaryHoverBackground, #45494e);
+        }
+        
+        .version-info {
+            text-align: center;
+            font-size: 10px;
+            color: var(--vscode-descriptionForeground, #666);
+            margin-top: 12px;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header-section">
-            <div class="logo">🦊</div>
-            <div class="title">TestFox Control Center</div>
-            <div class="subtitle">Test Execution & Management</div>
+    <div class="header">
+        <div class="header-logo">🦊</div>
+        <div class="header-title">TestFox</div>
+        <div class="header-subtitle">AI-Powered Testing</div>
         </div>
 
-        <!-- Git Profile Section -->
-        <div class="git-profile-section" id="gitProfileSection">
-            <div class="git-profile-header">
-                <div class="section-title">
-                    <i class="fab fa-github"></i>
-                    Git Profile
-                </div>
-            </div>
-            <div id="gitProfileContent">
-                <div class="git-login-prompt">
-                    <p>Connect GitHub for issue creation and commit tracking</p>
-                    <button class="git-login-btn" onclick="authenticateGitHub()">
-                        <i class="fab fa-github"></i> Connect GitHub
+    <div class="section">
+        <div class="section-title">Quick Actions</div>
+        <div class="button-grid">
+            <button class="btn" onclick="sendCommand('analyzeProject')">
+                <span class="btn-icon">🔍</span>
+                <span>Analyze</span>
                     </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Quick Actions Grid -->
-        <div class="quick-actions">
-            <button class="action-btn" onclick="runAllTests()">
-                <i class="fas fa-play action-icon"></i>
-                <div class="action-label">Run Tests</div>
+            <button class="btn" onclick="sendCommand('generateTests')">
+                <span class="btn-icon">✨</span>
+                <span>Generate</span>
             </button>
-
-            <button class="action-btn" onclick="generateReport()">
-                <i class="fas fa-chart-bar action-icon"></i>
-                <div class="action-label">View Report</div>
+            <button class="btn" onclick="sendCommand('configureAI')">
+                <span class="btn-icon">🤖</span>
+                <span>AI Config</span>
             </button>
-
-            <button class="action-btn" onclick="openDefects()">
-                <i class="fas fa-bug action-icon"></i>
-                <div class="action-label">Defects</div>
+            <button class="btn" onclick="sendCommand('openReport')">
+                <span class="btn-icon">📊</span>
+                <span>Report</span>
             </button>
-
-            <button class="action-btn" onclick="showHistory()">
-                <i class="fas fa-history action-icon"></i>
-                <div class="action-label">History</div>
-            </button>
-
-            <button class="action-btn" onclick="configureAI()">
-                <i class="fas fa-robot action-icon"></i>
-                <div class="action-label">AI Config</div>
-            </button>
-
-            <button class="action-btn" onclick="testAIConnection()">
-                <i class="fas fa-plug action-icon"></i>
-                <div class="action-label">Test AI</div>
-            </button>
-
-            <button class="action-btn" onclick="generateTestsFromControlCenter()">
-                <i class="fas fa-magic action-icon"></i>
-                <div class="action-label">Generate Tests</div>
-            </button>
-
-            <button class="action-btn" onclick="openSettings()">
-                <i class="fas fa-cog action-icon"></i>
-                <div class="action-label">Settings</div>
+            <button class="btn btn-primary" onclick="sendCommand('runTests')">
+                <span>▶️ Run All Tests</span>
             </button>
         </div>
+        </div>
 
-        <!-- Status Section -->
-        <div class="status-section">
-            <div class="status-header">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="status-indicator" id="statusIndicator"></span>
+    <div class="section">
+        <div class="section-title">Status</div>
+        <div class="status-row">
+            <div class="status-indicator" id="statusIndicator"></div>
                     <span class="status-text" id="statusText">Ready</span>
-                </div>
                 <span class="elapsed-time" id="elapsedTime">00:00</span>
             </div>
-        </div>
-
-        <!-- Progress Section -->
-        <div class="progress-section">
-            <div class="progress-bar-container">
-                <div class="progress-bar" id="progressBar"></div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
             </div>
             <div class="progress-text" id="progressText">0%</div>
         </div>
 
-        <!-- Current Test -->
-        <div class="current-test-section">
-            <div class="section-title">
-                <i class="fas fa-running"></i>
-                Current Test
+    <div class="section">
+        <div class="section-title">Results</div>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value" id="totalCount">0</div>
+                <div class="stat-label">Total</div>
             </div>
-            <div class="current-test" id="currentTest">No test running</div>
+            <div class="stat-item">
+                <div class="stat-value passed" id="passedCount">0</div>
+                <div class="stat-label">Passed</div>
         </div>
-
-        <!-- Test Summary -->
-        <div class="summary-section">
-            <div class="section-title">
-                <i class="fas fa-chart-pie"></i>
-                Test Results
+            <div class="stat-item">
+                <div class="stat-value failed" id="failedCount">0</div>
+                <div class="stat-label">Failed</div>
             </div>
-            <div class="summary-grid">
-                <div class="summary-item">
-                    <span class="summary-label">Total</span>
-                    <span class="summary-value" id="totalTests">0</span>
-                </div>
-                <div class="summary-item passed">
-                    <span class="summary-label">Passed</span>
-                    <span class="summary-value" id="passedTests">0</span>
-                </div>
-                <div class="summary-item failed">
-                    <span class="summary-label">Failed</span>
-                    <span class="summary-value" id="failedTests">0</span>
-                </div>
-                <div class="summary-item skipped">
-                    <span class="summary-label">Skipped</span>
-                    <span class="summary-value" id="skippedTests">0</span>
+            <div class="stat-item">
+                <div class="stat-value skipped" id="skippedCount">0</div>
+                <div class="stat-label">Skip</div>
                 </div>
             </div>
         </div>
 
-        <!-- Test History -->
-        <div class="history-section" id="historySection" style="display: none;">
-            <div class="history-header">
-                <div class="section-title">
-                    <i class="fas fa-history"></i>
-                    Recent Runs
-                </div>
-                <button class="control-btn" onclick="hideHistory()" style="padding: 6px 12px; font-size: 0.8rem;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="history-list" id="historyList">
-                <div style="text-align: center; color: var(--text-muted); padding: 20px;">
-                    <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 8px;"></i>
-                    <div>No test runs yet</div>
-                </div>
-            </div>
+    <div class="section" id="currentTestSection" style="display: none;">
+        <div class="section-title">Current Test</div>
+        <div class="current-test" id="currentTest">-</div>
         </div>
 
-        <!-- Control Buttons -->
-        <div class="controls-section">
-            <button class="control-btn" id="pauseBtn" disabled>
-                <i class="fas fa-pause"></i> Pause
+    <div class="section">
+        <div class="section-title">Controls</div>
+        <div class="control-buttons">
+            <button class="control-btn" id="pauseBtn" onclick="sendCommand('pause')" disabled>⏸ Pause</button>
+            <button class="control-btn" id="resumeBtn" onclick="sendCommand('resume')" disabled>▶ Resume</button>
+            <button class="control-btn" id="stopBtn" onclick="sendCommand('stop')" disabled>⏹ Stop</button>
+        </div>
+        </div>
+
+    <div class="section">
+        <div class="section-title">Activity Log</div>
+        <div class="logs-container" id="logsContainer">
+            <div class="log-entry info">Ready to run tests...</div>
+        </div>
+        </div>
+
+    <div class="section" style="background: linear-gradient(135deg, rgba(147,51,234,0.1) 0%, rgba(79,70,229,0.1) 100%); border: 1px solid rgba(147,51,234,0.3);">
+        <div class="section-title" style="color: #a78bfa;">🔌 QA MCP Servers</div>
+        <p style="font-size: 11px; color: var(--vscode-descriptionForeground); margin-bottom: 10px;">
+            AI-powered testing with Model Context Protocol servers
+        </p>
+        <div class="button-grid">
+            <button class="btn" onclick="sendCommand('mcpPlaywright')" style="border-color: rgba(147,51,234,0.5);">
+                <span class="btn-icon">🎭</span>
+                <span>Playwright</span>
             </button>
-            <button class="control-btn" id="resumeBtn" disabled>
-                <i class="fas fa-play"></i> Resume
+            <button class="btn" onclick="sendCommand('mcpPuppeteer')" style="border-color: rgba(147,51,234,0.5);">
+                <span class="btn-icon">🤖</span>
+                <span>Puppeteer</span>
             </button>
-            <button class="control-btn" id="stopBtn" disabled>
-                <i class="fas fa-stop"></i> Stop
+            <button class="btn" onclick="sendCommand('mcpFetch')" style="border-color: rgba(147,51,234,0.5);">
+                <span class="btn-icon">🌐</span>
+                <span>API Tests</span>
             </button>
-            <button class="control-btn primary" id="rerunBtn">
-                <i class="fas fa-redo"></i> Rerun
+            <button class="btn" onclick="sendCommand('mcpDatabase')" style="border-color: rgba(147,51,234,0.5);">
+                <span class="btn-icon">🗄️</span>
+                <span>Database</span>
+            </button>
+            <button class="btn btn-primary" onclick="sendCommand('mcpRunAll')" style="background: linear-gradient(135deg, #9333ea 0%, #4f46e5 100%);">
+                <span>🚀 Run All MCP Tests</span>
+            </button>
+            <button class="btn" onclick="sendCommand('mcpReport')" style="border-color: rgba(147,51,234,0.5);">
+                <span class="btn-icon">📋</span>
+                <span>MCP Report</span>
             </button>
         </div>
-
-        <!-- Logs Section -->
-        <div class="logs-section">
-            <div class="section-title">
-                <i class="fas fa-terminal"></i>
-                Activity Logs
-            </div>
-            <div class="logs-container" id="logsContainer"></div>
-        </div>
-
-        <div class="current-test-section" id="currentTestSection">
-            <div class="section-title">Currently Running:</div>
-            <div class="current-test" id="currentTest">No test running</div>
-        </div>
-
-        <div class="controls-section">
-            <button class="control-btn" id="pauseBtn" disabled>⏸ Pause</button>
-            <button class="control-btn" id="resumeBtn" disabled>▶ Resume</button>
-            <button class="control-btn" id="stopBtn" disabled>⏹ Stop</button>
-            <button class="control-btn" id="rerunBtn">🔁 Rerun</button>
-        </div>
-
-        <div class="summary-section">
-            <div class="summary-grid">
-                <div class="summary-item">
-                    <span class="summary-label">Total</span>
-                    <span class="summary-value" id="totalTests">0</span>
-                </div>
-                <div class="summary-item passed">
-                    <span class="summary-label">Passed</span>
-                    <span class="summary-value" id="passedTests">0</span>
-                </div>
-                <div class="summary-item failed">
-                    <span class="summary-label">Failed</span>
-                    <span class="summary-value" id="failedTests">0</span>
-                </div>
-                <div class="summary-item skipped">
-                    <span class="summary-label">Skipped</span>
-                    <span class="summary-value" id="skippedTests">0</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="logs-section">
-            <div class="section-title">Logs</div>
-            <div class="logs-container" id="logsContainer"></div>
+        <div id="mcpStatus" style="margin-top: 10px; font-size: 11px; color: #a78bfa;">
+            6 MCP Servers Available
         </div>
     </div>
 
-    <script src="${scriptUri}"></script>
+    <div class="version-info">TestFox v0.6.39</div>
+
+    <script>
+        const vscode = acquireVsCodeApi();
+        
+        function sendCommand(cmd) {
+            console.log('TestFox UI: Sending command:', cmd);
+            vscode.postMessage({ command: cmd });
+        }
+        
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+        }
+        
+        function updateUI(state) {
+            console.log('TestFox UI: Updating state:', state.status);
+
+            // Status indicator
+            const indicator = document.getElementById('statusIndicator');
+            indicator.className = 'status-indicator ' + state.status;
+            
+            // Status text
+            const statusMap = {
+                'idle': 'Ready',
+                'running': 'Running...',
+                'paused': 'Paused',
+                'stopped': 'Stopped',
+                'completed': 'Completed'
+            };
+            document.getElementById('statusText').textContent = statusMap[state.status] || 'Ready';
+
+            // Elapsed time
+            document.getElementById('elapsedTime').textContent = formatTime(state.elapsed || 0);
+            
+            // Progress
+            const progress = state.progress || 0;
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('progressText').textContent = progress + '%';
+            
+            // Stats
+            document.getElementById('totalCount').textContent = state.summary?.total || 0;
+            document.getElementById('passedCount').textContent = state.summary?.passed || 0;
+            document.getElementById('failedCount').textContent = state.summary?.failed || 0;
+            document.getElementById('skippedCount').textContent = state.summary?.skipped || 0;
+
+            // Current test
+            const currentTestSection = document.getElementById('currentTestSection');
+            const currentTest = document.getElementById('currentTest');
+            if (state.currentTest) {
+                currentTestSection.style.display = 'block';
+                currentTest.textContent = state.currentTest;
+            } else {
+                currentTestSection.style.display = 'none';
+            }
+
+            // Control buttons
+            document.getElementById('pauseBtn').disabled = state.status !== 'running';
+            document.getElementById('resumeBtn').disabled = state.status !== 'paused';
+            document.getElementById('stopBtn').disabled = state.status !== 'running' && state.status !== 'paused';
+
+            // Logs
+            if (state.logs && state.logs.length > 0) {
+            const logsContainer = document.getElementById('logsContainer');
+                logsContainer.innerHTML = state.logs.slice(-10).map(function(log) {
+                    return '<div class="log-entry ' + log.type + '">' + log.message + '</div>';
+            }).join('');
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+            }
+        }
+        
+        // Listen for messages from extension
+        window.addEventListener('message', function(event) {
+            const message = event.data;
+            console.log('TestFox UI: Received message:', message.command);
+
+            if (message.command === 'updateState') {
+                    updateUI(message.state);
+            }
+        });
+        
+        // Signal that webview is ready
+        console.log('TestFox UI: Webview initialized, signaling ready');
+        vscode.postMessage({ command: 'ready' });
+    </script>
 </body>
 </html>`;
     }
 }
 
+function getNonce() {
+    let text = '';
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for (let i = 0; i < 32; i++) {
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
+}
+
 export interface TestRunState {
     status: 'idle' | 'running' | 'paused' | 'stopped' | 'completed';
-    elapsed: number; // seconds
-    progress: number; // 0-100
+    elapsed: number;
+    progress: number;
     currentTest: string | null;
     logs: LogEntry[];
     summary: {
@@ -1084,7 +667,7 @@ export interface TestRunState {
         failed: number;
         skipped: number;
     };
-    trigger?: string; // commit hash, 'manual', 'scheduled', etc.
+    trigger?: string;
 }
 
 export interface LogEntry {
@@ -1092,4 +675,3 @@ export interface LogEntry {
     message: string;
     timestamp: Date;
 }
-

@@ -77,10 +77,14 @@ function configureAI() {
         }
 
         function testAIConnection() {
+            console.log('🧪 Test Control Center: testAIConnection called');
+            console.log('🧪 Test Control Center: Sending testAIConnection command to extension');
             vscode.postMessage({ command: 'testAIConnection' });
         }
 
         function generateTestsFromControlCenter() {
+            console.log('🚀 Test Control Center: generateTestsFromControlCenter called');
+            console.log('🚀 Test Control Center: Sending generateTestsFromControlCenter command to extension');
             vscode.postMessage({ command: 'generateTestsFromControlCenter' });
         }
 
@@ -222,6 +226,10 @@ function updateUI(state) {
 // Enhanced message handling
 window.addEventListener('message', event => {
     const message = event.data;
+
+    console.log('📨 Test Control Center: Received message from extension');
+    console.log('📨 Test Control Center: Message command:', message.command);
+    console.log('📨 Test Control Center: Message data keys:', Object.keys(message).filter(k => k !== 'command'));
 
     switch (message.command) {
         case 'updateState':

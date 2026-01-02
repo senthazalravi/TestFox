@@ -47,6 +47,20 @@ body {
     color: var(--vscode-foreground);
 }
 
+.provider-config {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: var(--vscode-textBlockQuote-background);
+    border: 1px solid var(--vscode-textBlockQuote-border);
+    border-radius: 4px;
+}
+
+.provider-config h3 {
+    font-size: 16px;
+    margin: 0 0 15px 0;
+    color: var(--vscode-foreground);
+}
+
 .step p {
     margin: 0 0 15px 0;
     line-height: 1.5;

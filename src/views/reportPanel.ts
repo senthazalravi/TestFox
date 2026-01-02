@@ -473,10 +473,10 @@ ${issueContent.labels.map(l => `- ${l}`).join('\n') || 'None'}
         };
 
         // Test status pie chart
-        const totalTests = categoryStats.reduce((sum, c) => sum + c.total, 0);
-        const totalPassed = categoryStats.reduce((sum, c) => sum + c.passed, 0);
-        const totalFailed = categoryStats.reduce((sum, c) => sum + c.failed, 0);
-        const totalPending = categoryStats.reduce((sum, c) => sum + c.pending, 0);
+        const totalTests = categoryStats?.reduce((sum, c) => sum + (c?.total || 0), 0) || 0;
+        const totalPassed = categoryStats?.reduce((sum, c) => sum + (c?.passed || 0), 0) || 0;
+        const totalFailed = categoryStats?.reduce((sum, c) => sum + (c?.failed || 0), 0) || 0;
+        const totalPending = categoryStats?.reduce((sum, c) => sum + (c?.pending || 0), 0) || 0;
 
         const statusChartData = {
             labels: ['Passed', 'Failed', 'Pending'],

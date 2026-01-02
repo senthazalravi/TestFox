@@ -291,7 +291,11 @@ export class TestGeneratorManager {
                 console.log(`TestGenerator: Skipped ${result.skipped} duplicate tests, added ${result.added} new tests`);
             }
         } else {
-            this.addTestsWithCoverage(tests);
+            // No coverage tracker, add tests directly
+            const result = this.testStore.addTests(tests);
+            if (result.skipped > 0) {
+                console.log(`TestGenerator: Skipped ${result.skipped} duplicate tests, added ${result.added} new tests`);
+            }
         }
     }
 

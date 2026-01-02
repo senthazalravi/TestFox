@@ -31,52 +31,85 @@ export class ProjectDetector {
     }
 
     private async detectFromConfigFiles(workspacePath: string, info: ProjectInfo): Promise<void> {
+        // Priority-based detection: Higher priority (lower number) wins
+        // Config files with priority - first match with lowest priority number wins
         const configChecks: Array<{
             file: string;
             type: ProjectType;
             language: string;
             packageManager?: ProjectInfo['packageManager'];
+            priority: number;  // Lower = higher priority
         }> = [
-            { file: 'package.json', type: 'nodejs', language: 'javascript', packageManager: 'npm' },
-            { file: 'yarn.lock', type: 'nodejs', language: 'javascript', packageManager: 'yarn' },
-            { file: 'pnpm-lock.yaml', type: 'nodejs', language: 'javascript', packageManager: 'pnpm' },
-            { file: 'requirements.txt', type: 'python', language: 'python', packageManager: 'pip' },
-            { file: 'pyproject.toml', type: 'python', language: 'python', packageManager: 'pip' },
-            { file: 'setup.py', type: 'python', language: 'python', packageManager: 'pip' },
-            { file: 'pom.xml', type: 'java', language: 'java', packageManager: 'maven' },
-            { file: 'build.gradle', type: 'java', language: 'java', packageManager: 'gradle' },
-            { file: 'build.gradle.kts', type: 'java', language: 'kotlin', packageManager: 'gradle' },
-            { file: 'go.mod', type: 'go', language: 'go', packageManager: 'go' },
-            { file: 'composer.json', type: 'php', language: 'php', packageManager: 'composer' },
-            { file: 'Gemfile', type: 'ruby', language: 'ruby' },
-            { file: '*.csproj', type: 'dotnet', language: 'csharp' },
-            { file: '*.sln', type: 'dotnet', language: 'csharp' }
+            // HIGH PRIORITY: Primary project config files
+            { file: 'package.json', type: 'nodejs', language: 'javascript', packageManager: 'npm', priority: 1 },
+            { file: 'yarn.lock', type: 'nodejs', language: 'javascript', packageManager: 'yarn', priority: 1 },
+            { file: 'pnpm-lock.yaml', type: 'nodejs', language: 'javascript', packageManager: 'pnpm', priority: 1 },
+            { file: 'pyproject.toml', type: 'python', language: 'python', packageManager: 'pip', priority: 1 },
+            { file: 'requirements.txt', type: 'python', language: 'python', packageManager: 'pip', priority: 2 },
+            { file: 'setup.py', type: 'python', language: 'python', packageManager: 'pip', priority: 2 },
+            { file: 'pom.xml', type: 'java', language: 'java', packageManager: 'maven', priority: 1 },
+            { file: 'build.gradle', type: 'java', language: 'java', packageManager: 'gradle', priority: 1 },
+            { file: 'build.gradle.kts', type: 'java', language: 'kotlin', packageManager: 'gradle', priority: 1 },
+            { file: 'go.mod', type: 'go', language: 'go', packageManager: 'go', priority: 1 },
+            { file: 'composer.json', type: 'php', language: 'php', packageManager: 'composer', priority: 1 },
+            { file: 'Gemfile', type: 'ruby', language: 'ruby', priority: 1 },
+            { file: 'Cargo.toml', type: 'rust', language: 'rust', packageManager: 'cargo' as any, priority: 1 },
+            
+            // MEDIUM PRIORITY: Build system files  
+            { file: 'CMakeLists.txt', type: 'cpp', language: 'cpp', packageManager: 'cmake' as any, priority: 3 },
+            { file: 'meson.build', type: 'cpp', language: 'cpp', packageManager: 'meson' as any, priority: 3 },
+            
+            // LOW PRIORITY: Makefile (common in many projects, not always C)
+            { file: 'Makefile', type: 'c', language: 'c', packageManager: 'make' as any, priority: 5 },
+            
+            // LOWEST PRIORITY: File extension matching (fallback only)
+            { file: '*.csproj', type: 'dotnet', language: 'csharp', priority: 4 },
+            { file: '*.sln', type: 'dotnet', language: 'csharp', priority: 4 },
+            { file: '*.c', type: 'c', language: 'c', priority: 10 },
+            { file: '*.cpp', type: 'cpp', language: 'cpp', priority: 10 },
+            { file: '*.rs', type: 'rust', language: 'rust', priority: 10 }
         ];
+
+        let bestMatch: { type: ProjectType; language: string; packageManager?: any; priority: number } | null = null;
 
         for (const check of configChecks) {
             const filePath = path.join(workspacePath, check.file);
+            let found = false;
+            
             if (check.file.includes('*')) {
-                // Handle glob patterns
-                const files = await this.findFiles(workspacePath, check.file);
+                // Handle glob patterns - only in root directory, not subdirs
+                const files = await this.findFiles(workspacePath, check.file, false);
                 if (files.length > 0) {
-                    info.type = check.type;
-                    info.language = check.language;
-                    if (check.packageManager) {
-                        info.packageManager = check.packageManager;
-                    }
+                    found = true;
                     info.configFiles.push(...files);
                 }
             } else if (fs.existsSync(filePath)) {
-                info.type = check.type;
-                info.language = check.language;
-                if (check.packageManager) {
-                    info.packageManager = check.packageManager;
-                }
+                found = true;
                 info.configFiles.push(filePath);
+            }
+            
+            // Update best match if this has higher priority (lower number)
+            if (found && (!bestMatch || check.priority < bestMatch.priority)) {
+                bestMatch = {
+                    type: check.type,
+                    language: check.language,
+                    packageManager: check.packageManager,
+                    priority: check.priority
+                };
             }
         }
 
-        // Check for TypeScript
+        // Apply best match
+        if (bestMatch) {
+            info.type = bestMatch.type;
+            info.language = bestMatch.language;
+            if (bestMatch.packageManager) {
+                info.packageManager = bestMatch.packageManager;
+            }
+            console.log(`ProjectDetector: Detected ${info.type} project (priority: ${bestMatch.priority})`);
+        }
+
+        // Check for TypeScript (upgrades language, not type)
         const tsconfigPath = path.join(workspacePath, 'tsconfig.json');
         if (fs.existsSync(tsconfigPath)) {
             info.language = 'typescript';
@@ -270,6 +303,21 @@ export class ProjectDetector {
         } else if (info.type === 'dotnet') {
             info.devCommand = 'dotnet run';
             info.buildCommand = 'dotnet build';
+            info.testCommand = 'dotnet test';
+        } else if (info.type === 'rust') {
+            info.devCommand = 'cargo run';
+            info.buildCommand = 'cargo build';
+            info.testCommand = 'cargo test';
+        } else if (info.type === 'c' || info.type === 'cpp') {
+            // Check for CMake
+            const cmakePath = path.join(workspacePath, 'CMakeLists.txt');
+            if (fs.existsSync(cmakePath)) {
+                info.buildCommand = 'cmake --build build';
+                info.testCommand = 'ctest --test-dir build';
+            } else {
+                info.buildCommand = 'make';
+                info.testCommand = 'make test';
+            }
         }
     }
 
@@ -335,7 +383,7 @@ export class ProjectDetector {
         }
     }
 
-    private async findFiles(dir: string, pattern: string): Promise<string[]> {
+    private async findFiles(dir: string, pattern: string, _recursive: boolean = false): Promise<string[]> {
         const files: string[] = [];
         const regex = new RegExp(pattern.replace('*', '.*'));
         

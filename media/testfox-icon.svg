@@ -1,26 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <!-- White fox silhouette - no background, transparent -->
-  <g transform="translate(64, 64)">
-    <!-- Fox body/head - simple clean silhouette -->
-    <path d="M-20,-10 C-26,-6 -28,8 -24,18 C-18,26 -12,28 0,28 C12,28 18,26 24,18 C28,8 26,-6 20,-10 C18,-14 14,-16 0,-16 C-14,-16 -18,-14 -20,-10 Z"
-          fill="#ffffff"/>
-
-    <!-- Fox face details - simplified -->
-    <ellipse cx="0" cy="6" rx="14" ry="9" fill="#ffffff"/>
-
-    <!-- Fox ears - simple triangles -->
-    <polygon points="-16,-12 -10,-4 -12,-16" fill="#ffffff"/>
-    <polygon points="16,-12 10,-4 12,-16" fill="#ffffff"/>
-
-    <!-- Fox eyes - simple dots -->
-    <circle cx="-6" cy="0" r="2" fill="#ffffff"/>
-    <circle cx="6" cy="0" r="2" fill="#ffffff"/>
-
-    <!-- Fox nose - simple triangle -->
-    <polygon points="-2,9 2,9 0,12" fill="#ffffff"/>
-
-    <!-- Mouth - simple curve -->
-    <path d="M-4,10 Q0,13 4,10" fill="none" stroke="#ffffff" stroke-width="1" stroke-linecap="round"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <!-- TestFox - Clean Fox Head Icon for Activity Bar -->
+  
+  <!-- Left ear - pointed and alert -->
+  <polygon points="3,2 7,10 2,7"/>
+  
+  <!-- Right ear - pointed and alert -->
+  <polygon points="21,2 22,7 17,10"/>
+  
+  <!-- Fox face - smooth rounded shape -->
+  <path d="M6 9 Q4 13 5 16 Q7 20 12 21 Q17 20 19 16 Q20 13 18 9 L17 10 Q18 13 17 15 Q15 19 12 19 Q9 19 7 15 Q6 13 7 10 Z"/>
+  
+  <!-- Left eye -->
+  <circle cx="9" cy="13" r="2"/>
+  
+  <!-- Right eye -->
+  <circle cx="15" cy="13" r="2"/>
+  
+  <!-- Nose -->
+  <path d="M10 17 L12 19 L14 17 L12 16 Z"/>
 </svg>
-

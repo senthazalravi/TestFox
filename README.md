@@ -1,276 +1,305 @@
 # TestFox 🦊
 
-**The Final Quality Gate in Your SDLC**
+<div align="center">
 
-TestFox is a comprehensive VS Code extension that serves as the end-of-lifecycle testing solution for your applications. It automatically detects your project type, generates tests across multiple categories following ISTQB standards, and produces detailed interactive test reports with AI-powered insights.
+**AI-Powered Comprehensive Testing for Every Programming Language**
 
-## Features
+[![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue?logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=TestFox.testfox)
+[![OpenVSX](https://img.shields.io/badge/OpenVSX-Registry-green)](https://open-vsx.org/extension/TestFox/testfox)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-### 🔍 Automatic Project Detection
-- Detects project type (Node.js, Python, Java, Go, .NET, PHP, Ruby)
-- Identifies frameworks (React, Vue, Angular, Express, Django, Spring, etc.)
-- Reads `package.json`, `requirements.txt`, `pom.xml`, and other config files
-- Auto-configures run commands
+*The Final Quality Gate in Your Software Development Lifecycle*
 
-### 🧪 Comprehensive Test Categories (18 Types)
+</div>
 
-TestFox covers the complete testing spectrum aligned with industry standards:
+---
 
-#### Quick Validation
-| Category | Description | Automation |
-|----------|-------------|------------|
-| **Smoke Tests** | Critical path verification - build acceptance | Fully Automated |
-| **Sanity Tests** | Quick focused checks after changes | Fully Automated |
-| **Regression Tests** | Verify existing features still work | Fully Automated |
+## 🌟 What is TestFox?
 
-#### Functional Testing
-| Category | Description | Automation |
-|----------|-------------|------------|
-| **Functional Tests** | Feature behavior per requirements | Automated + Manual |
-| **API Tests** | REST/GraphQL endpoint validation | Fully Automated |
-| **UI/E2E Tests** | User interface and end-to-end journeys | Fully Automated |
-| **Integration Tests** | Component/service interaction testing | Fully Automated |
-| **Database Tests** | Data integrity and CRUD operations | Fully Automated |
+TestFox is a **comprehensive VS Code extension** that automatically generates and executes tests across **18+ test categories** for applications written in **any programming language**. It combines rule-based test generation with **AI-powered intelligence** to ensure your code is production-ready.
 
-#### Non-Functional Testing
-| Category | Description | Automation |
-|----------|-------------|------------|
-| **Security Tests** | OWASP Top 10, SQL Injection, XSS, CSRF | Fully Automated |
-| **Performance Tests** | Response times, Core Web Vitals | Fully Automated |
-| **Load Tests** | Concurrent users, throughput testing | Fully Automated |
-| **Stress Tests** | Beyond normal capacity limits | Fully Automated |
-| **Accessibility Tests** | WCAG 2.1, keyboard nav, screen readers | Automated + Manual |
+### ✨ Key Highlights
 
-#### Edge Cases & Special Testing
-| Category | Description | Automation |
-|----------|-------------|------------|
-| **Negative Tests** | Invalid inputs, error paths, failures | Fully Automated |
-| **Boundary Tests** | BVA - min/max values, edge conditions | Fully Automated |
-| **Monkey Tests** | Random chaotic input testing | Fully Automated |
+- 🌍 **Multi-Language Support**: JavaScript, TypeScript, Python, Java, C, C++, Rust, Go, .NET, PHP, Ruby
+- 🤖 **AI-Powered**: Use **FREE or PAID** AI models from 15+ providers
+- 🧪 **18+ Test Categories**: Smoke, Functional, Security, Performance, Accessibility, and more
+- 📊 **Interactive Reports**: Beautiful web-based dashboard with real-time results
+- 🔒 **Security Testing**: OWASP Top 10 vulnerability detection
+- ♿ **Accessibility**: WCAG 2.1 compliance checking
 
-#### Manual & Exploratory Testing
-| Category | Description | Automation |
-|----------|-------------|------------|
-| **Exploratory Tests** | Unscripted creative testing sessions | Manual |
-| **Usability Tests** | UX evaluation, user satisfaction | Manual |
-| **Acceptance Tests** | User acceptance testing (UAT) | Manual |
-| **Compatibility Tests** | Cross-browser, device, OS testing | Partial |
+---
 
-#### Account Management Testing
-| Category | Description | Automation |
-|----------|-------------|------------|
-| **Account Creation** | User registration, validation, duplicate prevention | Fully Automated |
-| **Account Deletion** | Self/admin deletion, confirmation requirements | Fully Automated |
-| **Account Updates** | Profile changes, password updates | Fully Automated |
-| **Account Security** | Session management, inactive handling | Fully Automated |
+## 🚀 Supported Languages & Frameworks
 
-### 🛡️ Security Testing (OWASP/WASP)
-- SQL Injection detection
-- Cross-Site Scripting (XSS) testing
-- CSRF protection verification
-- Authentication bypass attempts
-- Security headers validation
-- Sensitive data exposure checks
-- Session management testing
-- Broken access control testing
+TestFox automatically detects your project type and generates appropriate tests:
 
-### 📊 ISTQB-Aligned Testing Techniques
-- Boundary Value Analysis (BVA)
-- Equivalence Partitioning
-- Decision Table Testing
-- State Transition Testing
-- Use Case Testing
-- Error Guessing
-- Exploratory Testing
+| Language | Frameworks | Build Tools |
+|----------|------------|-------------|
+| **JavaScript/TypeScript** | React, Vue, Angular, Next.js, Express, NestJS, Fastify, Svelte | npm, yarn, pnpm |
+| **Python** | Django, Flask, FastAPI | pip, poetry |
+| **Java** | Spring, Spring Boot | Maven, Gradle |
+| **C** | Any | Make, CMake |
+| **C++** | Any | Make, CMake, Meson |
+| **Rust** | Actix, Rocket, Axum | Cargo |
+| **Go** | Gin, Echo, Fiber | go mod |
+| **.NET** | ASP.NET Core, Blazor | dotnet |
+| **PHP** | Laravel, Symfony | Composer |
+| **Ruby** | Rails, Sinatra | Bundler |
+| **Kotlin** | Spring, Ktor | Gradle |
 
-### 🤖 Smart Application Testing
-- **Automatic Application Startup**: Launches your app using detected run commands
-- **Intelligent Browser Automation**: Simulates real user interactions
-- **Test Account Creation**: Automatically creates test accounts on-the-fly for comprehensive testing
-- **Account Lifecycle Management**: Creates → Uses → Tests → Cleans up test accounts automatically
-- **Credential Discovery**: Finds and uses existing test credentials
-- **Page Exploration**: Automatically discovers and tests all application pages
-- **Form Testing**: Validates all forms and user inputs
-- **API Integration Testing**: Tests frontend-backend communication
-- **Account Security Testing**: Session management, password policies, access controls
+---
 
-### 🤖 AI-Powered Features
-- **Smart Test Generation**: AI suggests comprehensive test cases
-- **Report Summaries**: Executive summaries with AI insights
-- **Risk Assessment**: Automatic release readiness evaluation
-- **Recommendations**: Prioritized action items from AI analysis
-- **Multiple AI Providers**: OpenRouter (Grok, Claude, GPT, Llama), OpenAI, Anthropic
+## 🤖 AI Models - FREE & Paid Options
 
-### 📝 Manual Test Support
-- Track tests that cannot be automated
-- Save and load manual test results
-- Mark tests as Pass/Fail/Skip with notes
-- Evidence attachment support
+TestFox integrates with **OpenRouter**, giving you access to **239+ AI models** from major providers. You can choose **FREE models** or paid options based on your needs.
 
-### 📈 Interactive Web Reports
-- Beautiful dark-themed dashboard
-- Real-time test execution progress
-- Category-wise breakdown with charts
-- Security findings with severity levels
-- Performance metrics visualization
-- AI-generated recommendations
-- Export to HTML for sharing
-- Print-friendly view
+### 🆓 Free AI Models (No Credit Card Required!)
 
-## SDLC Integration
+| Model | Provider | Best For |
+|-------|----------|----------|
+| **Gemini 2.0 Flash** | Google | 🌟 Recommended - Fast & powerful |
+| **DeepSeek R1** | DeepSeek | Advanced reasoning |
+| **Llama 3.3 70B** | Meta | Large context, open source |
+| **Qwen 2.5 72B** | Alibaba | Excellent for code |
+| **Gemma 2 9B** | Google | Lightweight & efficient |
+| **Mistral 7B** | Mistral AI | Fast responses |
+| **Phi-3 Mini** | Microsoft | Compact but capable |
 
-TestFox is designed to be the **final quality gate** before release:
+### 💳 Premium AI Models
+
+| Model | Provider | Best For |
+|-------|----------|----------|
+| **GPT-4o** | OpenAI | Best overall quality |
+| **Claude 3.5 Sonnet** | Anthropic | Complex analysis |
+| **Grok Beta** | xAI | Fast & versatile |
+| **Gemini Pro** | Google | Production workloads |
+| **Command R+** | Cohere | Enterprise features |
+
+### 🔑 Getting Started with AI
+
+1. **Get a FREE API Key**: Visit [OpenRouter.ai/keys](https://openrouter.ai/keys)
+2. **No credit card needed** for free models!
+3. **Configure in TestFox**: Click "AI Config" in the Test Control Center
+4. **Select a free model** and start generating AI-powered tests!
+
+---
+
+## 🧪 Test Categories (18 Types)
+
+TestFox covers the **complete testing spectrum** aligned with **ISTQB standards**:
+
+### 🚦 Quick Validation
+| Category | Description | Status |
+|----------|-------------|--------|
+| **Smoke Tests** | Critical path verification | ✅ Automated |
+| **Sanity Tests** | Quick focused checks | ✅ Automated |
+| **Regression Tests** | Existing features still work | ✅ Automated |
+
+### ⚙️ Functional Testing
+| Category | Description | Status |
+|----------|-------------|--------|
+| **Functional Tests** | Feature behavior validation | ✅ Automated |
+| **API Tests** | REST/GraphQL endpoints | ✅ Automated |
+| **UI/E2E Tests** | User interface journeys | ✅ Automated |
+| **Integration Tests** | Component interactions | ✅ Automated |
+| **Database Tests** | Data integrity & CRUD | ✅ Automated |
+
+### 🛡️ Non-Functional Testing
+| Category | Description | Status |
+|----------|-------------|--------|
+| **Security Tests** | OWASP Top 10, XSS, SQLi | ✅ Automated |
+| **Performance Tests** | Response times, metrics | ✅ Automated |
+| **Load Tests** | Concurrent users | ✅ Automated |
+| **Accessibility Tests** | WCAG 2.1 compliance | ✅ Automated |
+
+### 🎯 Edge Cases & Boundaries
+| Category | Description | Status |
+|----------|-------------|--------|
+| **Negative Tests** | Invalid inputs, errors | ✅ Automated |
+| **Boundary Tests** | Min/max values | ✅ Automated |
+| **Edge Case Tests** | Unusual scenarios | ✅ Automated |
+
+### 👤 User Account Testing
+| Category | Description | Status |
+|----------|-------------|--------|
+| **Account Creation** | Registration flows | ✅ Automated |
+| **Account Security** | Session management | ✅ Automated |
+| **Account Lifecycle** | Full CRUD operations | ✅ Automated |
+
+---
+
+## 🛡️ Security Testing (OWASP Top 10)
+
+TestFox performs comprehensive security analysis:
+
+- ✅ **SQL Injection** - Detects database vulnerabilities
+- ✅ **Cross-Site Scripting (XSS)** - Input/output sanitization
+- ✅ **CSRF Protection** - Token verification
+- ✅ **Authentication Bypass** - Login security
+- ✅ **Security Headers** - CSP, HSTS, X-Frame-Options
+- ✅ **Sensitive Data Exposure** - API key leaks, passwords
+- ✅ **Session Management** - Cookie security
+- ✅ **Broken Access Control** - Authorization checks
+
+---
+
+## 📊 Interactive Reports Dashboard
+
+Generate beautiful, interactive web reports with:
+
+- 📈 **Real-time Progress** - Live test execution updates
+- 📊 **Category Breakdown** - Pie charts and statistics
+- 🔴 **Security Findings** - Severity levels and recommendations
+- ⚡ **Performance Metrics** - Response times visualization
+- 🤖 **AI Insights** - Intelligent recommendations
+- 📄 **Export Options** - HTML, PDF-ready printing
+
+---
+
+## 🔧 Quick Start
+
+### Installation
+
+1. **Open VS Code**
+2. **Go to Extensions** (Ctrl+Shift+X)
+3. **Search for "TestFox"**
+4. **Click Install**
+
+### First Run
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        Software Development Lifecycle                   │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│   📋 Requirements    Development    Unit Tests    Code Review           │
-│        │                │              │              │                 │
-│        ▼                ▼              ▼              ▼                 │
-│   ┌─────────────────────────────────────────────────────────────────┐   │
-│   │                                                                 │   │
-│   │                    🦊 TestFox Quality Gate                      │   │
-│   │                                                                 │   │
-│   │   ┌─────────────────────────────────────────────────────────┐   │   │
-│   │   │  Smoke → Functional → Security → Performance → UAT     │   │   │
-│   │   └─────────────────────────────────────────────────────────┘   │   │
-│   │                                                                 │   │
-│   │   ✓ Automated Testing    ✓ Manual Testing    ✓ AI Analysis    │   │
-│   │   ✓ Security Scanning    ✓ Performance Check ✓ Accessibility  │   │
-│   │                                                                 │   │
-│   └─────────────────────────────────────────────────────────────────┘   │
-│                                │                                        │
-│                                ▼                                        │
-│                          🚀 Release                                     │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
+1. Click the 🦊 TestFox icon in the Activity Bar
+2. Click "AI Config" to set up your API key (optional)
+3. Click "Analyze Project" to detect your project
+4. Click "Generate Tests" to create test cases
+5. Click "Run Tests" to execute
+6. Click "View Report" for results
 ```
 
-### Where TestFox Fits
+---
 
-| Stage | Tool/Process | Focus |
-|-------|--------------|-------|
-| Development | IDE, Linters | Code quality |
-| Unit Testing | Jest, PyTest, JUnit | Function-level testing |
-| Code Review | GitHub, GitLab | Human review |
-| **TestFox** | **This Extension** | **System-level QA, Security, Performance** |
-| Release | CI/CD Pipeline | Deployment |
-
-TestFox is **not** a unit testing framework - it's the comprehensive system testing phase that validates your entire application before release.
-
-## Installation
-
-### From VS Code Marketplace
-1. Open VS Code
-2. Go to Extensions (Ctrl+Shift+X)
-3. Search for "TestFox"
-4. Click Install
-5. **Welcome Screen**: TestFox will show an interactive welcome guide to help you get started
-
-### Dependencies
-Playwright browsers are automatically installed on first use. If needed, you can install manually:
-```bash
-npx playwright install chromium
-```
-
-## Quick Start
-
-1. **Open your project** in VS Code
-2. **Click the TestFox icon** (🦊) in the Activity Bar
-3. **Analyze Project**: Detects your project type automatically
-4. **Generate Tests**: Creates comprehensive test cases
-5. **Run Tests**: Executes automated tests
-6. **View Report**: Interactive web report with AI insights
-
-## Commands
+## 💻 Commands
 
 | Command | Description |
 |---------|-------------|
-| `TestFox: Analyze Project` | Scan and detect project type |
-| `TestFox: Generate Tests` | Generate tests for all categories |
-| `TestFox: Run All Tests` | Execute all automated tests |
-| `TestFox: Run Test Category` | Run tests for a specific category |
-| `TestFox: Generate Web Report` | Open interactive report viewer |
-| `TestFox: Configure AI Settings` | Set up AI provider and API key |
-| `TestFox: Export Report` | Export report to HTML file |
-| `TestFox: Mark Manual Test Result` | Record manual test result |
+| `TestFox: Analyze Project` | Detect project type and structure |
+| `TestFox: Generate Tests` | AI-powered test generation |
+| `TestFox: Run All Tests` | Execute all test categories |
+| `TestFox: Run Test Category` | Run specific category |
+| `TestFox: Generate Web Report` | Open interactive dashboard |
+| `TestFox: Configure AI` | Set up AI provider and model |
+| `TestFox: Install Browsers` | Install Playwright browsers |
 
-## Configuration
+---
 
-Configure TestFox in VS Code settings:
+## ⚙️ Configuration
+
+Configure TestFox in VS Code settings (`Ctrl+,`):
 
 ```json
 {
-  "testfox.autoDetectProject": true,
-  "testfox.autoAnalyze": true,
-  "testfox.defaultTimeout": 30000,
-  "testfox.browserHeadless": true,
-  "testfox.reportFormat": "html",
-  "testfox.securityTestLevel": "standard",
-  "testfox.performanceThreshold": 3000,
-  "testfox.loadTestConcurrency": 10,
   "testfox.ai.enabled": true,
   "testfox.ai.provider": "openrouter",
-  "testfox.ai.model": "x-ai/grok-beta"
+  "testfox.ai.model": "google/gemini-2.0-flash-exp:free",
+  "testfox.browserHeadless": true,
+  "testfox.defaultTimeout": 30000,
+  "testfox.securityTestLevel": "standard",
+  "testfox.performanceThreshold": 3000
 }
 ```
 
-### AI Configuration
+---
 
-1. **Get an API Key**: Visit [OpenRouter](https://openrouter.ai/keys) (free tier available)
-2. **Configure in TestFox**: 
-   - Run command: `TestFox: Configure AI Settings`
-   - Or set `testfox.ai.apiKey` in settings
+## 📚 ISTQB-Aligned Testing Techniques
 
-Available models include:
-- **Grok Beta** (x-ai/grok-beta) - Fast, capable model Enjoy as long as Mr Musk gives it for free.
-- **Claude 3.5 Sonnet** - Best for complex analysis
-- **GPT-4o Mini** - Fast and affordable
-- **Llama 3.1 8B** (FREE) - Open source option
-- **Gemma 2 9B** (FREE) - Google's efficient model
-- **Amazon / Qwen / Deepseek / GLP** (FREE) - I will plan this soon
+TestFox implements industry-standard testing methodologies:
 
-## Supported Project Types
+- ✅ **Boundary Value Analysis (BVA)**
+- ✅ **Equivalence Partitioning**
+- ✅ **Decision Table Testing**
+- ✅ **State Transition Testing**
+- ✅ **Use Case Testing**
+- ✅ **Error Guessing**
+- ✅ **Exploratory Testing**
 
-| Type | Frameworks |
-|------|------------|
-| Node.js | React, Vue, Angular, Next.js, Express, NestJS, Fastify |
-| Python | Django, Flask, FastAPI |
-| Java | Spring, Spring Boot |
-| Go | Gin, Echo, Fiber |
-| .NET | ASP.NET Core |
-| PHP | Laravel, Symfony |
-| Ruby | Rails, Sinatra |
+---
 
-## Requirements
+## 🏗️ SDLC Integration
 
-- VS Code 1.85.0 or higher
-- Node.js 18+ (for extension development)
-- Internet connection (for AI features)
-- If you already have an API Key use it or else get it from OpenRouter. Upto 239 Models and 31 of them are free. So just by using a OpenRouter Key you will be able to access all this.
+TestFox serves as the **final quality gate** before release:
 
-## Author
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Software Development Lifecycle                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  📋 Requirements → 💻 Development → 🧪 Unit Tests → 👀 Review    │
+│                                                                  │
+│                            ↓                                     │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │              🦊 TestFox Quality Gate                        │  │
+│  │                                                             │  │
+│  │  ✓ Smoke → Functional → Security → Performance → UAT       │  │
+│  │  ✓ AI-Powered Analysis    ✓ 18+ Test Categories            │  │
+│  │  ✓ Multi-Language Support ✓ Interactive Reports            │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│                            ↓                                     │
+│                      🚀 Release                                  │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-Developed by [@senthazalravi](https://x.com/senthazalravi), @nithiyanandam.sundaram@gmail.com and this project seeks co-founders and investments. connect with ravi.antone@gmail.com . Developed in Stockholm, Sweden.
+---
 
-## Requests
+## 📋 Requirements
 
-- Sponsor our LLM Credits
-- Sponsor our Domain Name and Hosting
-- Sponsor Rewards Program for Educators
+- **VS Code** 1.85.0 or higher
+- **Node.js** 18+ (for test execution)
+- **Internet** (for AI features - optional)
 
-## Contributing
+---
 
-Contributions are welcome! Please read our contributing guidelines before submitting PRs.
+## 🤝 Contributing
 
-Project GIT URL: https://github.com/senthazalravi/TestFox
+Contributions are welcome! Please visit our GitHub repository.
 
-## License
+**GitHub**: [github.com/senthazalravi/TestFox](https://github.com/senthazalravi/TestFox)
+
+---
+
+## 👨‍💻 Author
+
+Developed with ❤️ in **Stockholm, Sweden**
+
+- **Twitter/X**: [@senthazalravi](https://x.com/senthazalravi)
+- **Email**: ravi.antone@gmail.com
+- **Co-founder**: nithiyanandam.sundaram@gmail.com
+
+### 💼 Looking for Co-founders & Investors
+
+Interested in joining TestFox? Contact us!
+
+---
+
+## 🙏 Support the Project
+
+- ⭐ **Star us on GitHub**
+- 📝 **Write a review** on the VS Code Marketplace
+- 💬 **Share** with your developer friends
+- 💰 **Sponsor** our LLM credits and infrastructure
+
+---
+
+## 📄 License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**TestFox** - *The Final Quality Gate* 🦊
+<div align="center">
+
+**TestFox** 🦊 *- The Final Quality Gate*
+
+*Making software testing intelligent, comprehensive, and accessible to everyone.*
+
+</div>

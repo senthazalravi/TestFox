@@ -22,12 +22,25 @@ Write-Host "✅ Found: $($vsixFile.Name)" -ForegroundColor Green
 
 # Step 3: Publish to VS Code Marketplace
 Write-Host "`n📤 Step 2: Publishing to VS Code Marketplace..." -ForegroundColor Yellow
-npm run publish
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ VS Code Marketplace publish failed!" -ForegroundColor Red
-    exit 1
+
+# Check if VSCE_PAT is available
+$vsceToken = $env:VSCE_PAT
+if (-not $vsceToken) {
+    $vsceToken = [System.Environment]::GetEnvironmentVariable('VSCE_PAT', 'User')
 }
-Write-Host "✅ Published to VS Code Marketplace!" -ForegroundColor Green
+
+if (-not $vsceToken) {
+    Write-Host "⚠️  VSCE_PAT not set, skipping VS Code Marketplace publish" -ForegroundColor Yellow
+    Write-Host "To set it: [System.Environment]::SetEnvironmentVariable('VSCE_PAT', 'your-token', 'User')" -ForegroundColor Cyan
+} else {
+    Write-Host "✅ VSCE_PAT found, publishing to VS Code Marketplace..." -ForegroundColor Green
+    npm run publish
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "❌ VS Code Marketplace publish failed!" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "✅ Published to VS Code Marketplace!" -ForegroundColor Green
+}
 
 # Step 4: Publish to OpenVSX
 Write-Host "`n📤 Step 3: Publishing to OpenVSX..." -ForegroundColor Yellow
