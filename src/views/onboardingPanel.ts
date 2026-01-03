@@ -102,8 +102,8 @@ export class OnboardingPanel {
         }
     }
 
-    public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext): void {
-        console.log('🎯 Onboarding Panel: createOrShow called');
+    public static createOrShow(extensionUri: vscode.Uri, context: vscode.ExtensionContext, force: boolean = false): void {
+        console.log('🎯 Onboarding Panel: createOrShow called', { force });
         console.log('🎯 Onboarding Panel: Extension URI:', extensionUri.toString());
         console.log('🎯 Onboarding Panel: Context globalState keys:', Array.from(context.globalState.keys()));
 
@@ -122,10 +122,11 @@ export class OnboardingPanel {
         console.log('🎯 Onboarding Panel: Setup completion check:', {
             setupCompleted: setupCompleted,
             apiKeyConfigured: !!apiKey,
-            apiKeyLength: apiKey?.length || 0
+            apiKeyLength: apiKey?.length || 0,
+            force: force
         });
 
-        if (setupCompleted && apiKey) {
+        if (setupCompleted && apiKey && !force) {
             // Setup is complete, direct users back to Test Control Center
             vscode.window.showInformationMessage(
                 'TestFox: AI is already configured. Use the AI Config button in Test Control Center to modify settings.',
@@ -281,12 +282,12 @@ export class OnboardingPanel {
                     ? `✅ Connection successful! ${modelId.split('/').pop()} is ready to use.`
                     : `❌ Connection failed: ${testResult.error || 'Please check your API key and try again.'}`
             });
-        } catch (error) {
+        } catch (error: any) {
             console.log('❌ Onboarding Panel: Test connection failed with exception');
             console.log('❌ Onboarding Panel: Error details:', {
                 message: error instanceof Error ? error.message : String(error),
                 stack: error instanceof Error ? error.stack : 'No stack',
-                type: error.constructor.name
+                type: error?.constructor?.name || 'Unknown'
             });
 
             this._panel.webview.postMessage({
@@ -854,19 +855,19 @@ export class OnboardingPanel {
 
         // Get available models by provider
         const openRouterModels = [
-            { value: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash ⭐' },
-            { value: 'deepseek/deepseek-r1', label: 'DeepSeek R1 ⭐' },
-            { value: 'qwen/qwen3-coder:free', label: 'Qwen3 Coder 💻 ⭐' },
-            { value: 'nvidia/nemotron-3-nano-30b-a3b:free', label: 'Nemotron 3 Nano ⭐' },
-            { value: 'mistralai/devstral-2512:free', label: 'Devstral 💻 ⭐' },
-            { value: 'z-ai/glm-4.5-air:free', label: 'GLM 4.5 Air ⭐' },
-            { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B ⭐' },
-            { value: 'google/gemma-2-9b-it:free', label: 'Gemma 2 9B ⭐' },
-            { value: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B ⭐' },
-            { value: 'x-ai/grok-beta', label: 'Grok Beta 💰' },
-            { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet 💰' },
-            { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini 💰' },
-            { value: 'openai/gpt-4o', label: 'GPT-4o 💰' }
+            // Top Free Models
+            { value: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash (Free) ⭐' },
+            { value: 'google/gemini-2.0-pro-exp-02-05:free', label: 'Gemini 2.0 Pro (Free) 🚀' },
+            { value: 'deepseek/deepseek-r1:free', label: 'DeepSeek R1 (Free) 🧠' },
+            { value: 'deepseek/deepseek-v3:free', label: 'DeepSeek V3 (Free) ⚡' },
+            { value: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (Free) 🔥' },
+            { value: 'qwen/qwen-2.5-coder-32b-instruct:free', label: 'Qwen 2.5 Coder (Free) 💻' },
+            
+            // Top Premium Models
+            { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet 👑' },
+            { value: 'openai/gpt-4o', label: 'GPT-4o 🤖' },
+            { value: 'x-ai/grok-2-1212', label: 'Grok 2 🌌' },
+            { value: 'mistralai/mistral-large-2411', label: 'Mistral Large 2 🇫🇷' }
         ];
 
         let stepNumber = 0;
@@ -918,21 +919,18 @@ export class OnboardingPanel {
                         <select id="aiModel" class="input-field">
                             <optgroup label="🆓 Free Models">
                                 <option value="google/gemini-2.0-flash-exp:free">Google Gemini 2.0 Flash (Free) ⭐</option>
-                                <option value="qwen/qwen3-coder:free">Qwen 3 Coder (Free) 🔥</option>
-                                <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1 (Free)</option>
-                                <option value="meta-llama/llama-3.1-8b-instruct:free">Meta Llama 3.1 8B (Free)</option>
-                                <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (Free)</option>
-                                <option value="google/gemma-2-9b-it:free">Google Gemma 2 9B (Free)</option>
-                                <option value="mistralai/mistral-7b-instruct:free">Mistral 7B (Free)</option>
+                                <option value="deepseek/deepseek-r1:free">DeepSeek R1 (Free) ⭐</option>
+                                <option value="qwen/qwen-2.5-coder-32b:free">Qwen 2.5 Coder 32B (Free) 🔥</option>
+                                <option value="z-ai/glm-4-9b-chat:free">GLM 4 9B (Free) ⭐</option>
                             </optgroup>
                             <optgroup label="💎 Premium Models">
-                                <option value="anthropic/claude-sonnet-4">Claude Sonnet 4 (Anthropic) 🧠</option>
-                                <option value="anthropic/claude-opus-4">Claude Opus 4.5 (Anthropic) 👑</option>
+                                <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Anthropic) 🧠</option>
+                                <option value="anthropic/claude-3-opus">Claude 3 Opus (Anthropic) 👑</option>
+                                <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B (Meta) 🔥</option>
                                 <option value="openai/gpt-4o">OpenAI GPT-4o</option>
-                                <option value="openai/gpt-4.1">OpenAI GPT-4.1</option>
-                                <option value="x-ai/grok-3">xAI Grok 3</option>
-                                <option value="google/gemini-2.5-pro">Google Gemini 2.5 Pro</option>
-                                <option value="qwen/qwen3-235b">Qwen 3 235B</option>
+                                <option value="openai/gpt-4o-mini">OpenAI GPT-4o Mini</option>
+                                <option value="mistralai/mistral-large-2411">Mistral Large 2</option>
+                                <option value="cohere/command-r-plus">Cohere Command R+</option>
                             </optgroup>
                         </select>
                         <small>OpenRouter provides access to multiple AI providers through a single API</small>

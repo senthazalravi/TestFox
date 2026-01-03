@@ -151,8 +151,8 @@ export class AIE2ETestGenerator {
         }
 
         // API endpoints
-        if (codeAnalysis.apiEndpoints.length > 0) {
-            context.push(`\nAPI Endpoints:\n${codeAnalysis.apiEndpoints.slice(0, 20).map(e => `- ${e.method} ${e.path}`).join('\n')}`);
+        if (codeAnalysis.endpoints.length > 0) {
+            context.push(`\nAPI Endpoints:\n${codeAnalysis.endpoints.slice(0, 20).map(e => `- ${e.method} ${e.path}`).join('\n')}`);
         }
 
         // Read key files for more context
@@ -261,7 +261,7 @@ Return JSON array:
                 fields: f.fields.map(field => ({
                     name: field.name,
                     type: field.type,
-                    required: field.validation?.required
+                    required: field.required
                 }))
             }));
 
@@ -640,7 +640,7 @@ Return JSON array:
             name,
             category,
             description,
-            automationLevel: 'automated',
+            automationLevel: 'full',
             priority: priority as 'critical' | 'high' | 'medium' | 'low',
             status: 'pending',
             tags,

@@ -134,7 +134,7 @@ export async function activate(context: vscode.ExtensionContext) {
         return;
     }
 
-    console.log('TestFox v0.6.39 is now active!');
+    console.log('TestFox v0.6.42 is now active!');
     console.log('Initializing TestFox extension...');
     isActivated = true;
 
@@ -605,12 +605,27 @@ export async function activate(context: vscode.ExtensionContext) {
         }),
 
         vscode.commands.registerCommand('testfox.configureAI', async () => {
-            // Show onboarding panel for seamless configuration
-            OnboardingPanel.createOrShow(context.extensionUri, context);
+            // Check if already configured
+            const config = vscode.workspace.getConfiguration('testfox');
+            const apiKey = config.get<string>('ai.apiKey');
+            const setupCompleted = context.globalState.get<boolean>('testfox.setupCompleted', false);
+
+            if (apiKey && setupCompleted) {
+                // If configured, open settings
+                SettingsPanel.createOrShow(context.extensionUri);
+            } else {
+                // If not, show onboarding
+                OnboardingPanel.createOrShow(context.extensionUri, context);
+            }
+        }),
+
+        vscode.commands.registerCommand('testfox.openTestControlCenter', async () => {
+            await vscode.commands.executeCommand('testfox-control-center.focus');
         }),
 
         vscode.commands.registerCommand('testfox.showOnboarding', async () => {
-            OnboardingPanel.createOrShow(context.extensionUri, context);
+            // Force show onboarding (useful for model switching/reconfiguration)
+            OnboardingPanel.createOrShow(context.extensionUri, context, true);
         }),
 
         vscode.commands.registerCommand('testfox.showTestDetails', (testId: string) => {

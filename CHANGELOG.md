@@ -1,6 +1,32 @@
 # Change Log
 
-All notable changes to the "TestFox" extension will be documented in this file.
+
+## [0.6.43] - 2026-01-03
+
+### New Features
+
+- **Issue Management Integration** 🐛
+  - **GitHub Integration**: Create GitHub issues directly from failed tests.
+  - **Jira Integration**: Generate formatted Jira issue content.
+  - **AI-Powered Enrichment**: Issues are automatically populated with titles, descriptions, labels, and severity using AI.
+  - **Duplicate Prevention**: Checks for existing issues to prevent duplicates.
+
+- **Dynamic Test Skipping** ⏭️
+  - Tests now automatically SKIP instead of failing when required UI elements are missing.
+  - Prevents false negatives due to dynamic content loading or missing elements.
+  - Clear "SKIPPED" status in test results.
+
+- **AI Model Selection** 🤖
+  - Dynamic model switching via `TestFox: Configure AI Settings`.
+  - Support for latest models including Gemini 2.0 Flash, DeepSeek R1, and Qwen 2.5 Coder.
+  - Forced re-onboarding option to change AI provider settings easily.
+
+### Improvements
+
+- **Test Runner Reliability**: Enhanced element detection with auto-skip logic.
+- **Issue Creator**: Better error handling and platform-specific formatting.
+- **Package Stability**: Updated dependencies and build process.
+
 
 ## [0.5.4] - 2024-12-25
 

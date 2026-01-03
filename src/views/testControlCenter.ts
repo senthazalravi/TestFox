@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { TestStore } from '../store/testStore';
-import { TestCase, TestResult } from '../types';
+import { TestCase, TestResult, TestRunState, LogEntry } from '../types';
+import { IssueTracker, IssueProvider } from '../integrations/issueTracker';
 
 /**
  * Test Control Center - Real-time test execution monitoring and control
@@ -59,6 +60,9 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             console.log('TestFox: Received message from webview:', message.command);
             
             switch (message.command) {
+                case 'createIssue':
+                    await this._createIssue(message.error, message.testName);
+                    break;
                 case 'runTests':
                     await vscode.commands.executeCommand('testfox.runAll');
                     break;
@@ -119,7 +123,7 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
 
         // Initial update after a short delay to ensure webview is ready
         setTimeout(() => {
-        this._updateWebview(this._currentState);
+            this._updateWebview(this._currentState);
         }, 100);
         
         console.log('TestFox: Test Control Center fully initialized');
@@ -179,6 +183,64 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
                 command: 'updateState',
                 state: state
             });
+        }
+    }
+
+    private async _createIssue(error: string, testName: string): Promise<void> {
+        const config = vscode.workspace.getConfiguration('testfox');
+        const provider = config.get<IssueProvider>('issue.provider', 'none' as IssueProvider);
+        const token = config.get<string>('issue.token', '');
+        const owner = config.get<string>('issue.owner', '');
+        const repo = config.get<string>('issue.repo', '');
+
+        const labels = config.get<string>('issue.labels', 'bug, e2e, testfox')
+            .split(',').map(s => s.trim()).filter(s => s.length > 0);
+        const assignees = config.get<string>('issue.assignees', '')
+            .split(',').map(s => s.trim()).filter(s => s.length > 0);
+
+        if (provider === 'none' || !token || !owner || !repo) {
+            vscode.window.showErrorMessage('Issue tracker not configured. Please configure it in TestFox Settings.');
+            await vscode.commands.executeCommand('testfox.openSettings');
+            return;
+        }
+
+        try {
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Creating issue...',
+                cancellable: false
+            }, async () => {
+                const tracker = new IssueTracker(provider, token, owner, repo);
+                
+                // Construct payload
+                const payload = {
+                    title: `Test Failure: ${testName}`,
+                    body: `### Test Failure: ${testName}\n\n**Error:**\n\`\`\`\n${error}\n\`\`\`\n\n**Environment:**\n- VS Code: ${vscode.version}\n- OS: ${process.platform}\n- Timestamp: ${new Date().toISOString()}`,
+                    labels: labels,
+                    assignees: assignees.length > 0 ? assignees : undefined
+                };
+
+                const result = await tracker.createIssue(payload);
+
+                if (result.success && result.url) {
+                    vscode.window.showInformationMessage(`Issue created successfully: ${result.url}`, 'Open Issue')
+                        .then(selection => {
+                            if (selection === 'Open Issue') {
+                                vscode.env.openExternal(vscode.Uri.parse(result.url!));
+                            }
+                        });
+                    
+                    // Notify webview
+                    this._view?.webview.postMessage({
+                        command: 'issueCreated',
+                        url: result.url
+                    });
+                } else {
+                    throw new Error(result.error);
+                }
+            });
+        } catch (error: any) {
+            vscode.window.showErrorMessage(`Failed to create issue: ${error.message}`);
         }
     }
 
@@ -392,6 +454,9 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
         .log-entry {
             padding: 2px 0;
             border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
         
         .log-entry.success { color: #89d185; }
@@ -423,6 +488,14 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
         .control-btn:hover:not(:disabled) {
             background: var(--vscode-button-secondaryHoverBackground, #45494e);
         }
+
+        .control-btn.small {
+            padding: 2px 6px;
+            font-size: 10px;
+            margin-left: 8px;
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+        }
         
         .version-info {
             text-align: center;
@@ -437,7 +510,7 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
         <div class="header-logo">🦊</div>
         <div class="header-title">TestFox</div>
         <div class="header-subtitle">AI-Powered Testing</div>
-        </div>
+    </div>
 
     <div class="section">
         <div class="section-title">Quick Actions</div>
@@ -445,7 +518,7 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             <button class="btn" onclick="sendCommand('analyzeProject')">
                 <span class="btn-icon">🔍</span>
                 <span>Analyze</span>
-                    </button>
+            </button>
             <button class="btn" onclick="sendCommand('generateTests')">
                 <span class="btn-icon">✨</span>
                 <span>Generate</span>
@@ -462,20 +535,20 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
                 <span>▶️ Run All Tests</span>
             </button>
         </div>
-        </div>
+    </div>
 
     <div class="section">
         <div class="section-title">Status</div>
         <div class="status-row">
             <div class="status-indicator" id="statusIndicator"></div>
-                    <span class="status-text" id="statusText">Ready</span>
-                <span class="elapsed-time" id="elapsedTime">00:00</span>
-            </div>
+            <span class="status-text" id="statusText">Ready</span>
+            <span class="elapsed-time" id="elapsedTime">00:00</span>
+        </div>
         <div class="progress-bar">
             <div class="progress-fill" id="progressFill" style="width: 0%"></div>
-            </div>
-            <div class="progress-text" id="progressText">0%</div>
         </div>
+        <div class="progress-text" id="progressText">0%</div>
+    </div>
 
     <div class="section">
         <div class="section-title">Results</div>
@@ -487,7 +560,7 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             <div class="stat-item">
                 <div class="stat-value passed" id="passedCount">0</div>
                 <div class="stat-label">Passed</div>
-        </div>
+            </div>
             <div class="stat-item">
                 <div class="stat-value failed" id="failedCount">0</div>
                 <div class="stat-label">Failed</div>
@@ -495,14 +568,14 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             <div class="stat-item">
                 <div class="stat-value skipped" id="skippedCount">0</div>
                 <div class="stat-label">Skip</div>
-                </div>
             </div>
         </div>
+    </div>
 
     <div class="section" id="currentTestSection" style="display: none;">
         <div class="section-title">Current Test</div>
         <div class="current-test" id="currentTest">-</div>
-        </div>
+    </div>
 
     <div class="section">
         <div class="section-title">Controls</div>
@@ -511,14 +584,14 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             <button class="control-btn" id="resumeBtn" onclick="sendCommand('resume')" disabled>▶ Resume</button>
             <button class="control-btn" id="stopBtn" onclick="sendCommand('stop')" disabled>⏹ Stop</button>
         </div>
-        </div>
+    </div>
 
     <div class="section">
         <div class="section-title">Activity Log</div>
         <div class="logs-container" id="logsContainer">
             <div class="log-entry info">Ready to run tests...</div>
         </div>
-        </div>
+    </div>
 
     <div class="section" style="background: linear-gradient(135deg, rgba(147,51,234,0.1) 0%, rgba(79,70,229,0.1) 100%); border: 1px solid rgba(147,51,234,0.3);">
         <div class="section-title" style="color: #a78bfa;">🔌 QA MCP Servers</div>
@@ -555,14 +628,18 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
         </div>
     </div>
 
-    <div class="version-info">TestFox v0.6.39</div>
+    <div class="version-info">TestFox v0.6.42</div>
 
     <script>
         const vscode = acquireVsCodeApi();
         
-        function sendCommand(cmd) {
-            console.log('TestFox UI: Sending command:', cmd);
-            vscode.postMessage({ command: cmd });
+        function sendCommand(cmd, args) {
+            console.log('TestFox UI: Sending command:', cmd, args);
+            vscode.postMessage({ command: cmd, ...args });
+        }
+
+        function createIssue(error, testName) {
+            sendCommand('createIssue', { error, testName });
         }
         
         function formatTime(seconds) {
@@ -619,11 +696,19 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
 
             // Logs
             if (state.logs && state.logs.length > 0) {
-            const logsContainer = document.getElementById('logsContainer');
+                const logsContainer = document.getElementById('logsContainer');
                 logsContainer.innerHTML = state.logs.slice(-10).map(function(log) {
-                    return '<div class="log-entry ' + log.type + '">' + log.message + '</div>';
-            }).join('');
-            logsContainer.scrollTop = logsContainer.scrollHeight;
+                    let content = '<span>' + log.message + '</span>';
+                    if (log.type === 'error') {
+                        // Create Issue button
+                        const safeMessage = (log.message || '').replace(/['"\\\n\r]/g, ' ');
+                        const safeTestName = (state.currentTest || 'Unknown Test').replace(/['"\\\n\r]/g, ' ');
+                        content += '<button class="control-btn small" onclick="createIssue(\\'' + 
+                            safeMessage + '\\', \\'' + safeTestName + '\\')">🐛 Issue</button>';
+                    }
+                    return '<div class="log-entry ' + log.type + '">' + content + '</div>';
+                }).join('');
+                logsContainer.scrollTop = logsContainer.scrollHeight;
             }
         }
         
@@ -633,7 +718,7 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             console.log('TestFox UI: Received message:', message.command);
 
             if (message.command === 'updateState') {
-                    updateUI(message.state);
+                updateUI(message.state);
             }
         });
         
@@ -644,34 +729,4 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
 </body>
 </html>`;
     }
-}
-
-function getNonce() {
-    let text = '';
-    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i < 32; i++) {
-        text += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-    return text;
-}
-
-export interface TestRunState {
-    status: 'idle' | 'running' | 'paused' | 'stopped' | 'completed';
-    elapsed: number;
-    progress: number;
-    currentTest: string | null;
-    logs: LogEntry[];
-    summary: {
-        total: number;
-        passed: number;
-        failed: number;
-        skipped: number;
-    };
-    trigger?: string;
-}
-
-export interface LogEntry {
-    type: 'success' | 'error' | 'warning' | 'info';
-    message: string;
-    timestamp: Date;
 }

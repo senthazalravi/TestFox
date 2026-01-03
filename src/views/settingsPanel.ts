@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { IssueTracker } from '../integrations/issueTracker';
 import { createAIService, AIProvider } from '../ai/aiService';
 
 
@@ -51,7 +52,38 @@ export class SettingsPanel {
         this._panel.webview.onDidReceiveMessage(
             async (message) => {
                 switch (message.command) {
-                    case 'saveSettings':
+                    case 'verifyIssueTracker':
+                    try {
+                        // Use provided credentials or fallback to saved ones if partial
+                        const provider = message.provider;
+                        const token = message.token;
+                        
+                        // User info not strictly needed for verify connection call if we trust token but
+                        // IssueTracker constructor requires them. Passing dummy for verify check if not known.
+                        // Or better, just instantiate standard tracker.
+                        
+                        const config = vscode.workspace.getConfiguration('testfox');
+                        const owner = config.get<string>('issue.owner', 'dummy'); 
+                        const repo = config.get<string>('issue.repo', 'dummy');
+
+                        const tracker = new IssueTracker(provider, token, owner, repo);
+                        const result = await tracker.verifyConnection();
+                        
+                        this._panel.webview.postMessage({
+                            command: 'verificationResult',
+                            success: result.success,
+                            username: result.username,
+                            error: result.error
+                        });
+                    } catch (e: any) {
+                        this._panel.webview.postMessage({
+                            command: 'verificationResult',
+                            success: false,
+                            error: e.message
+                        });
+                    }
+                    break;
+                case 'saveSettings':
                         await this._saveSettings(message.settings);
                         break;
                     case 'getSettings':
@@ -107,6 +139,13 @@ export class SettingsPanel {
             if (settings.securityTestLevel) {
                 await config.update('securityTestLevel', settings.securityTestLevel, vscode.ConfigurationTarget.Global);
             }
+            // Issue Tracker
+            if (settings.issueProvider) await config.update('issue.provider', settings.issueProvider, vscode.ConfigurationTarget.Global);
+            if (settings.issueToken) await config.update('issue.token', settings.issueToken, vscode.ConfigurationTarget.Global);
+            if (settings.issueOwner) await config.update('issue.owner', settings.issueOwner, vscode.ConfigurationTarget.Global);
+            if (settings.issueRepo) await config.update('issue.repo', settings.issueRepo, vscode.ConfigurationTarget.Global);
+            if (settings.issueLabels) await config.update('issue.labels', settings.issueLabels, vscode.ConfigurationTarget.Global);
+            if (settings.issueAssignees) await config.update('issue.assignees', settings.issueAssignees, vscode.ConfigurationTarget.Global);
 
             this._panel.webview.postMessage({ command: 'settingsSaved', success: true });
             vscode.window.showInformationMessage('TestFox settings saved successfully!');
@@ -135,7 +174,15 @@ export class SettingsPanel {
             defaultTimeout: config.get('defaultTimeout', 30000),
             securityTestLevel: config.get('securityTestLevel', 'standard'),
             performanceThreshold: config.get('performanceThreshold', 3000),
-            loadTestConcurrency: config.get('loadTestConcurrency', 10)
+            loadTestConcurrency: config.get('loadTestConcurrency', 10),
+
+            // Issue Tracker
+            issueProvider: config.get('issue.provider', 'none'),
+            issueToken: config.get('issue.token', ''),
+            issueOwner: config.get('issue.owner', ''),
+            issueRepo: config.get('issue.repo', ''),
+            issueLabels: config.get('issue.labels', 'bug,testfox'),
+            issueAssignees: config.get('issue.assignees', '')
         };
 
         this._panel.webview.postMessage({ command: 'currentSettings', settings });
@@ -511,7 +558,7 @@ export class SettingsPanel {
             <h2 class="section-title">🤖 AI Configuration</h2>
             
             <div class="info-box">
-                TestFox uses AI to generate intelligent tests and enhance reports. Get a free API key at 
+                TestFox uses OpenRouter to access top AI models. Get your free API key at 
                 <a href="https://openrouter.ai" style="color: #60a5fa;">openrouter.ai</a>
             </div>
 
@@ -523,104 +570,79 @@ export class SettingsPanel {
             </div>
 
             <div class="form-group">
-                <label for="aiProvider">AI Provider</label>
-                <select id="aiProvider" onchange="toggleProviderFields()">
-                    <option value="openrouter">🔗 OpenRouter (Recommended)</option>
-                    <option value="google-gemini">🤖 Google Gemini</option>
-                    <option value="deepseek">🧠 DeepSeek</option>
-                    <option value="ollama">🐪 Ollama (Local)</option>
-                    <option value="lmstudio">🎭 LM Studio (Local)</option>
-                    <option value="byoApi">🔑 Bring Your Own API</option>
+                <label for="aiModel">AI Model</label>
+                <select id="aiModel" onchange="updateModelInfo()">
+                    <optgroup label="Free Models (Recommended)">
+                        <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Google) - Free ⭐</option>
+                        <option value="google/gemini-2.0-pro-exp-02-05:free">Gemini 2.0 Pro (Google) - Free 🚀</option>
+                        <option value="deepseek/deepseek-r1:free">DeepSeek R1 (DeepSeek) - Free 🧠</option>
+                        <option value="deepseek/deepseek-v3:free">DeepSeek V3 (DeepSeek) - Free ⚡</option>
+                        <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Meta) - Free 🔥</option>
+                        <option value="qwen/qwen-2.5-coder-32b-instruct:free">Qwen 2.5 Coder (Alibaba) - Free 💻</option>
+                    </optgroup>
+                    <optgroup label="Premium Models">
+                        <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Anthropic) - Paid 👑</option>
+                        <option value="openai/gpt-4o">GPT-4o (OpenAI) - Paid 🤖</option>
+                        <option value="x-ai/grok-2-1212">Grok 2 (xAI) - Paid 🌌</option>
+                        <option value="mistralai/mistral-large-2411">Mistral Large 2 (Mistral AI) - Paid 🇫🇷</option>
+                    </optgroup>
                 </select>
+                <!-- Hidden provider field since we default to openrouter -->
+                <input type="hidden" id="aiProvider" value="openrouter">
             </div>
 
             <div class="form-group" id="apiKeyGroup">
-                <label for="aiApiKey">API Key</label>
+                <label for="aiApiKey">OpenRouter API Key</label>
                 <p class="description">Your API key is stored locally and never shared</p>
                 <div class="api-key-group">
-                    <input type="password" id="aiApiKey" placeholder="sk-...">
+                    <input type="password" id="aiApiKey" placeholder="sk-or-...">
                     <button class="btn btn-secondary" onclick="testConnection()">
                         <span id="testBtnText">Test</span>
                     </button>
                 </div>
             </div>
 
-            <div class="form-group" id="baseUrlGroup" style="display: none;">
-                <label for="aiBaseUrl">Base URL</label>
-                <p class="description">The API endpoint for your provider</p>
-                <input type="text" id="aiBaseUrl" placeholder="https://api.example.com/v1">
-            </div>
-
             <div id="connectionStatus" style="margin-top: 10px; margin-bottom: 20px;"></div>
+        </div>
 
+        <!-- Issue Tracker Configuration -->
+        <div class="section">
+            <h2 class="section-title">🐛 Issue Tracker</h2>
             <div class="form-group">
-                <label>AI Model</label>
-                <p class="description">Select the model for test generation</p>
-                <div class="model-grid" id="modelGrid">
-                    <!-- Free Models (Recommended) -->
-                    <div class="model-option" data-model="google/gemini-2.0-flash-exp:free">
-                        <div class="model-name">Gemini 2.0 Flash</div>
-                        <div class="model-provider">Google</div>
-                        <span class="model-badge badge-free">Free ⭐</span>
+                <label for="issueProvider">Provider</label>
+                <select id="issueProvider">
+                    <option value="none">None</option>
+                    <option value="github">GitHub</option>
+                    <option value="gitlab">GitLab</option>
+                    <option value="bitbucket">Bitbucket</option>
+                </select>
+            </div>
+            
+            <div id="issueTrackerConfig" style="display:none;">
+                <div class="form-group">
+                    <label for="issueToken">Auth Token (PAT / OAuth)</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="password" id="issueToken" placeholder="ghp_..." style="flex:1;">
+                        <button class="btn btn-secondary" id="verifyIssueBtn" onclick="verifyConnection()" style="width: auto; white-space: nowrap;">Verify Connection</button>
                     </div>
-                    <div class="model-option" data-model="deepseek/deepseek-r1-0528:free">
-                        <div class="model-name">DeepSeek R1</div>
-                        <div class="model-provider">DeepSeek</div>
-                        <span class="model-badge badge-free">Free</span>
-                    </div>
-                    <div class="model-option" data-model="qwen/qwen3-coder:free">
-                        <div class="model-name">Qwen3 Coder</div>
-                        <div class="model-provider">Alibaba</div>
-                        <span class="model-badge badge-free">Free 💻</span>
-                    </div>
-                    <div class="model-option" data-model="nvidia/nemotron-3-nano-30b-a3b:free">
-                        <div class="model-name">Nemotron 3 Nano</div>
-                        <div class="model-provider">NVIDIA</div>
-                        <span class="model-badge badge-free">Free</span>
-                    </div>
-                    <div class="model-option" data-model="mistralai/devstral-2512:free">
-                        <div class="model-name">Devstral</div>
-                        <div class="model-provider">Mistral AI</div>
-                        <span class="model-badge badge-free">Free 💻</span>
-                    </div>
-                    <div class="model-option" data-model="z-ai/glm-4.5-air:free">
-                        <div class="model-name">GLM 4.5 Air</div>
-                        <div class="model-provider">Zhipu AI</div>
-                        <span class="model-badge badge-free">Free</span>
-                    </div>
-                    <div class="model-option" data-model="meta-llama/llama-3.1-8b-instruct:free">
-                        <div class="model-name">Llama 3.1 8B</div>
-                        <div class="model-provider">Meta</div>
-                        <span class="model-badge badge-free">Free</span>
-                    </div>
-                    <div class="model-option" data-model="google/gemma-2-9b-it:free">
-                        <div class="model-name">Gemma 2 9B</div>
-                        <div class="model-provider">Google</div>
-                        <span class="model-badge badge-free">Free</span>
-                    </div>
-                    <div class="model-option" data-model="mistralai/mistral-7b-instruct:free">
-                        <div class="model-name">Mistral 7B</div>
-                        <div class="model-provider">Mistral AI</div>
-                        <span class="model-badge badge-free">Free</span>
-                    </div>
-                    <!-- Paid Models -->
-                    <div class="model-option" data-model="x-ai/grok-beta">
-                        <div class="model-name">Grok Beta</div>
-                        <div class="model-provider">xAI</div>
-                        <span class="model-badge badge-paid">Paid</span>
-                    </div>
-                    <div class="model-option" data-model="anthropic/claude-3.5-sonnet">
-                        <div class="model-name">Claude 3.5 Sonnet</div>
-                        <div class="model-provider">Anthropic</div>
-                        <span class="model-badge badge-paid">Paid</span>
-                    </div>
-                    <div class="model-option" data-model="openai/gpt-4o-mini">
-                        <div class="model-name">GPT-4o Mini</div>
-                        <div class="model-provider">OpenAI</div>
-                        <span class="model-badge badge-paid">Paid</span>
-                    </div>
+                    <span id="issueConnectionStatus" style="font-size: 11px; margin-top: 4px; display: block;"></span>
                 </div>
-                <input type="hidden" id="aiModel" value="google/gemini-2.0-flash-exp:free">
+                <div class="form-group">
+                    <label for="issueOwner">Owner / Organization</label>
+                    <input type="text" id="issueOwner" placeholder="e.g. microsoft">
+                </div>
+                <div class="form-group">
+                    <label for="issueRepo">Repository Name</label>
+                    <input type="text" id="issueRepo" placeholder="e.g. vscode">
+                </div>
+                <div class="form-group">
+                    <label for="issueLabels">Default Labels (comma separated)</label>
+                    <input type="text" id="issueLabels" placeholder="bug, e2e, testfox">
+                </div>
+                <div class="form-group">
+                    <label for="issueAssignees">Default Assignees (comma separated usernames)</label>
+                    <input type="text" id="issueAssignees" placeholder="qa-lead, dev-lead">
+                </div>
             </div>
         </div>
 
@@ -685,7 +707,14 @@ export class SettingsPanel {
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             vscode.postMessage({ command: 'getSettings' });
-            setupModelSelection();
+            
+            // Auto-test connection when API key is entered
+            const apiKeyInput = document.getElementById('aiApiKey');
+            apiKeyInput.addEventListener('blur', () => {
+                if (apiKeyInput.value && apiKeyInput.value.length > 5) {
+                    testConnection();
+                }
+            });
         });
 
         // Handle messages from extension
@@ -709,102 +738,122 @@ export class SettingsPanel {
             }
         });
 
+        function verifyConnection() {
+            const provider = document.getElementById('issueProvider').value;
+            const token = document.getElementById('issueToken').value;
+            
+            if (!provider || provider === 'none') {
+                updateStatus('Please select a provider first.', 'error');
+                return;
+            }
+            if (!token) {
+                updateStatus('Please enter a token.', 'error');
+                return;
+            }
+            
+            updateStatus('Verifying...', 'info');
+            vscode.postMessage({ 
+                command: 'verifyIssueTracker', 
+                provider, 
+                token 
+            });
+        }
+
+        function updateStatus(msg, type) {
+            const el = document.getElementById('issueConnectionStatus');
+            el.textContent = msg;
+            el.style.color = type === 'error' ? '#f48771' : 
+                             type === 'success' ? '#89d185' : '#858585';
+        }
+
+        // Handle verification result
+        window.addEventListener('message', event => {
+            const message = event.data;
+            if (message.command === 'verificationResult') {
+                if (message.success) {
+                    updateStatus('✅ Connected as: ' + message.username, 'success');
+                } else {
+                    updateStatus('❌ Error: ' + message.error, 'error');
+                }
+            }
+        });
+
         function loadSettings(settings) {
             currentSettings = settings;
             
             document.getElementById('aiEnabled').checked = settings.aiEnabled;
-            document.getElementById('aiProvider').value = settings.aiProvider;
-            document.getElementById('aiApiKey').value = settings.aiApiKey || '';
-            document.getElementById('aiBaseUrl').value = settings.aiBaseUrl || '';
+            // Provider is hidden and defaulted to openrouter
+            document.getElementById('aiProvider').value = 'openrouter'; 
             document.getElementById('aiModel').value = settings.aiModel;
+            if (settings.aiApiKey) {
+                document.getElementById('aiApiKey').value = settings.aiApiKey;
+            }
 
-            toggleProviderFields();
             document.getElementById('autoDetectProject').checked = settings.autoDetectProject;
             document.getElementById('autoAnalyze').checked = settings.autoAnalyze;
             document.getElementById('browserHeadless').checked = settings.browserHeadless;
             document.getElementById('defaultTimeout').value = settings.defaultTimeout;
             document.getElementById('securityTestLevel').value = settings.securityTestLevel;
             
-            // Update model selection
-            selectModel(settings.aiModel);
+            // Update Issue Tracker
+            document.getElementById('issueProvider').value = settings.issueProvider || 'none';
+            document.getElementById('issueToken').value = settings.issueToken || '';
+            document.getElementById('issueOwner').value = settings.issueOwner || '';
+            document.getElementById('issueRepo').value = settings.issueRepo || '';
+            document.getElementById('issueLabels').value = settings.issueLabels || '';
+            document.getElementById('issueAssignees').value = settings.issueAssignees || '';
+            toggleIssueConfig();
+        }
+        
+        function updateModelInfo() {
+            // Can add logic here if we need to show extra info based on model selection
+            // For now it just ensures UI is reactive
         }
 
-        function setupModelSelection() {
-            document.querySelectorAll('.model-option').forEach(option => {
-                option.addEventListener('click', () => {
-                    const model = option.dataset.model;
-                    selectModel(model);
-                });
-            });
+        function toggleIssueConfig() {
+            const provider = document.getElementById('issueProvider').value;
+            const configDiv = document.getElementById('issueTrackerConfig');
+            configDiv.style.display = provider === 'none' ? 'none' : 'block';
         }
-
-        function selectModel(model) {
-            document.querySelectorAll('.model-option').forEach(opt => {
-                opt.classList.remove('selected');
-            });
-            const selected = document.querySelector(\`.model-option[data-model="\${model}"]\`);
-            if (selected) {
-                selected.classList.add('selected');
-            }
-            document.getElementById('aiModel').value = model;
-        }
+        
+        document.getElementById('issueProvider').addEventListener('change', toggleIssueConfig);
 
         function saveSettings() {
             const settings = {
                 aiEnabled: document.getElementById('aiEnabled').checked,
-                aiProvider: document.getElementById('aiProvider').value,
+                aiProvider: 'openrouter', // Force openrouter
                 aiApiKey: document.getElementById('aiApiKey').value,
-                aiBaseUrl: document.getElementById('aiBaseUrl').value,
                 aiModel: document.getElementById('aiModel').value,
                 autoDetectProject: document.getElementById('autoDetectProject').checked,
                 autoAnalyze: document.getElementById('autoAnalyze').checked,
                 browserHeadless: document.getElementById('browserHeadless').checked,
                 defaultTimeout: document.getElementById('defaultTimeout').value,
-                securityTestLevel: document.getElementById('securityTestLevel').value
+                securityTestLevel: document.getElementById('securityTestLevel').value,
+                issueProvider: document.getElementById('issueProvider').value,
+                issueToken: document.getElementById('issueToken').value,
+                issueOwner: document.getElementById('issueOwner').value,
+                issueRepo: document.getElementById('issueRepo').value,
+                issueLabels: document.getElementById('issueLabels').value,
+                issueAssignees: document.getElementById('issueAssignees').value
             };
             
             vscode.postMessage({ command: 'saveSettings', settings });
         }
 
-        function toggleProviderFields() {
-            const provider = document.getElementById('aiProvider').value;
-            const apiKeyGroup = document.getElementById('apiKeyGroup');
-            const baseUrlGroup = document.getElementById('baseUrlGroup');
-
-            // API key is needed for OpenRouter, Gemini, DeepSeek, and BYO API
-            const needsApiKey = ['openrouter', 'google-gemini', 'deepseek', 'byoApi'].includes(provider);
-            apiKeyGroup.style.display = needsApiKey ? 'block' : 'none';
-
-            // Base URL is needed for DeepSeek, Ollama, LM Studio, and BYO API
-            const needsBaseUrl = ['deepseek', 'ollama', 'lmstudio', 'byoApi'].includes(provider);
-            baseUrlGroup.style.display = needsBaseUrl ? 'block' : 'none';
-            
-            // Set defaults if empty
-            const baseUrlInput = document.getElementById('aiBaseUrl');
-            if (!baseUrlInput.value) {
-                if (provider === 'google-gemini') baseUrlInput.value = 'https://generativelanguage.googleapis.com/v1beta';
-                if (provider === 'deepseek') baseUrlInput.value = 'https://api.deepseek.com/v1';
-                if (provider === 'ollama') baseUrlInput.value = 'http://localhost:11434';
-                if (provider === 'lmstudio') baseUrlInput.value = 'http://localhost:1234';
-            }
-        }
-
         function testConnection() {
             const apiKey = document.getElementById('aiApiKey').value;
             const model = document.getElementById('aiModel').value;
-            const provider = document.getElementById('aiProvider').value;
-            const baseUrl = document.getElementById('aiBaseUrl').value;
+            const provider = 'openrouter';
             
-            const needsApiKey = ['openrouter', 'google-gemini', 'deepseek', 'byoApi'].includes(provider);
-            if (needsApiKey && !apiKey) {
+            if (!apiKey) {
                 showToast('Please enter an API key first', 'error');
                 return;
             }
             
             document.getElementById('testBtnText').innerHTML = '<span class="loading"></span>';
-            document.getElementById('connectionStatus').textContent = 'Testing...';
+            document.getElementById('connectionStatus').textContent = 'Testing connection to OpenRouter...';
             
-            vscode.postMessage({ command: 'testConnection', apiKey, model, provider, baseUrl });
+            vscode.postMessage({ command: 'testConnection', apiKey, model, provider });
         }
 
         function showConnectionResult(result) {
@@ -820,9 +869,8 @@ export class SettingsPanel {
 
         function resetToDefaults() {
             document.getElementById('aiEnabled').checked = true;
-            document.getElementById('aiProvider').value = 'openrouter';
+            document.getElementById('aiModel').value = 'google/gemini-2.0-flash-exp:free';
             document.getElementById('aiApiKey').value = '';
-            selectModel('x-ai/grok-beta');
             document.getElementById('autoDetectProject').checked = true;
             document.getElementById('autoAnalyze').checked = true;
             document.getElementById('browserHeadless').checked = true;

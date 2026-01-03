@@ -26,7 +26,11 @@ export interface ProjectInfo {
     port?: number;
     entryPoint?: string;
     configFiles: string[];
+    hasBackend?: boolean;
+    hasFrontend?: boolean;
 }
+
+export type CodeAnalysis = AnalysisResult;
 
 export interface AnalysisResult {
     routes: RouteInfo[];
@@ -154,6 +158,9 @@ export type TestCategory =
     | 'console_logs'    // Browser console error/warning monitoring
     | 'network_logs'    // Network request/response monitoring
 
+    // E2E UI Testing
+    | 'ui_e2e'          // Specialized E2E UI testing
+    
     // Account Management
     | 'account_management'; // User account creation, update, deletion testing
 
@@ -267,6 +274,9 @@ export interface TestCase {
     retries?: number;
     istqbTechnique?: IstqbTechnique;
     securityType?: SecurityTestType;
+    status?: TestStatus;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
 export interface TestStep {
@@ -401,4 +411,22 @@ export interface ManualTestEntry {
     timestamp: Date;
     evidence?: string[];
 }
+export interface LogEntry {
+    message: string;
+    type: 'info' | 'error' | 'warning' | 'success'; 
+    timestamp: Date;
+}
 
+export interface TestRunState {
+    status: 'idle' | 'running' | 'paused' | 'stopped' | 'completed';
+    elapsed: number;
+    progress: number;
+    currentTest: string | null;
+    logs: LogEntry[];
+    summary: {
+        total: number;
+        passed: number;
+        failed: number;
+        skipped: number;
+    };
+}

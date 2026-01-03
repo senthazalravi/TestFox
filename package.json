@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing for JavaScript, Python, Java, C, C++, Rust, Go & more. 18+ test categories including security (OWASP), performance, accessibility. FREE AI models available via OpenRouter.",
-  "version": "0.6.39",
+  "version": "0.6.43",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -59,31 +59,6 @@
   "activationEvents": [
     "onStartupFinished",
     "onView:testfox-control-center",
-    "onCommand:testfox.analyze",
-    "onCommand:testfox.generateTests",
-    "onCommand:testfox.runAll",
-    "onCommand:testfox.runCategory",
-    "onCommand:testfox.generateCategory",
-    "onCommand:testfox.runScheduledTests",
-    "onCommand:testfox.checkAppStatus",
-    "onCommand:testfox.openDashboard",
-    "onCommand:testfox.exportReport",
-    "onCommand:testfox.markManual",
-    "onCommand:testfox.stopApp",
-    "onCommand:testfox.refreshTests",
-    "onCommand:testfox.configureAI",
-    "onCommand:testfox.showTestDetails",
-    "onCommand:testfox.generateWebReport",
-    "onCommand:testfox.runFullCycle",
-    "onCommand:testfox.openSettings",
-    "onCommand:testfox.runCrossBrowser",
-    "onCommand:testfox.installBrowsers",
-    "onCommand:testfox.openDefectDashboard",
-    "onCommand:testfox.openBrowserDashboard",
-    "onCommand:testfox.startWebServer",
-    "onCommand:testfox.stopWebServer",
-    "onCommand:testfox.createGitHubIssue",
-    "onCommand:testfox.createJiraIssue",
     "onView:testfox-explorer"
   ],
   "main": "./out/extension.js",
@@ -433,41 +408,38 @@
           "default": "",
           "description": "API key for the selected AI provider"
         },
+        "testfox.ai.baseUrl": {
+          "type": "string",
+          "default": "https://openrouter.ai/api/v1",
+          "description": "Base URL for the AI provider (e.g. https://openrouter.ai/api/v1)"
+        },
         "testfox.ai.model": {
           "type": "string",
           "default": "google/gemini-2.0-flash-exp:free",
           "markdownDescription": "AI model to use for test generation. **FREE models recommended** - Gemini 2.0 Flash, DeepSeek R1, and Qwen3 Coder are excellent free options.",
           "enum": [
             "google/gemini-2.0-flash-exp:free",
-            "deepseek/deepseek-r1-0528:free",
-            "qwen/qwen3-coder:free",
-            "nvidia/nemotron-3-nano-30b-a3b:free",
-            "mistralai/devstral-2512:free",
-            "z-ai/glm-4.5-air:free",
-            "meta-llama/llama-3.1-8b-instruct:free",
-            "google/gemma-2-9b-it:free",
-            "mistralai/mistral-7b-instruct:free",
-            "x-ai/grok-beta",
-            "x-ai/grok-2-1212",
+            "google/gemini-2.0-pro-exp-02-05:free",
+            "deepseek/deepseek-r1:free",
+            "deepseek/deepseek-v3:free",
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "qwen/qwen-2.5-coder-32b-instruct:free",
             "anthropic/claude-3.5-sonnet",
             "openai/gpt-4o",
-            "openai/gpt-4o-mini"
+            "x-ai/grok-2-1212",
+            "mistralai/mistral-large-2411"
           ],
           "enumDescriptions": [
-            "Gemini 2.0 Flash (FREE) - Google's latest fast model",
-            "DeepSeek R1 (FREE) - Advanced reasoning model",
-            "Qwen3 Coder (FREE) - Specialized for code analysis",
-            "Nemotron 3 Nano (FREE) - NVIDIA's efficient model",
-            "Devstral (FREE) - Mistral's developer model",
-            "GLM 4.5 Air (FREE) - Fast multilingual model",
-            "Llama 3.1 8B (FREE) - Meta's open model",
-            "Gemma 2 9B (FREE) - Google's efficient model",
-            "Mistral 7B (FREE) - Fast open model",
-            "Grok Beta - xAI's capable model",
-            "Grok 2 - Latest Grok version",
-            "Claude 3.5 Sonnet - Best for complex analysis",
-            "GPT-4o - OpenAI's flagship model",
-            "GPT-4o Mini - Fast and affordable"
+            "Gemini 2.0 Flash (Free) - Google's latest fast model",
+            "Gemini 2.0 Pro (Free) - Google's advanced reasoning model",
+            "DeepSeek R1 (Free) - Advanced reasoning model",
+            "DeepSeek V3 (Free) - Fast and capable model",
+            "Llama 3.3 70B (Free) - Meta's flagship open model",
+            "Qwen 2.5 Coder (Free) - Specialized for code from Alibaba",
+            "Claude 3.5 Sonnet (Paid) - Best for complex analysis",
+            "GPT-4o (Paid) - OpenAI's flagship model",
+            "Grok 2 (Paid) - xAI's latest model",
+            "Mistral Large 2 (Paid) - Mistral's flagship model"
           ],
           "description": "AI model to use for test generation (FREE models recommended)"
         },
@@ -526,6 +498,42 @@
           "type": "boolean",
           "default": true,
           "description": "Show notification when automated tests complete"
+        },
+        "testfox.issue.provider": {
+          "type": "string",
+          "enum": [
+            "none",
+            "github",
+            "gitlab",
+            "bitbucket"
+          ],
+          "default": "none",
+          "description": "Issue tracker provider"
+        },
+        "testfox.issue.token": {
+          "type": "string",
+          "default": "",
+          "description": "Authentication token for issue tracker"
+        },
+        "testfox.issue.owner": {
+          "type": "string",
+          "default": "",
+          "description": "Repository owner or organization"
+        },
+        "testfox.issue.repo": {
+          "type": "string",
+          "default": "",
+          "description": "Repository name"
+        },
+        "testfox.issue.labels": {
+          "type": "string",
+          "default": "bug,testfox",
+          "description": "Default labels for created issues"
+        },
+        "testfox.issue.assignees": {
+          "type": "string",
+          "default": "",
+          "description": "Default assignees for created issues"
         }
       }
     }

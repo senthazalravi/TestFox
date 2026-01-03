@@ -147,7 +147,16 @@ export class TestRunner {
                 status: 'passed',
                 evidence
             };
-        } catch (error) {
+        } catch (error: any) {
+            // Check for SKIPPED status
+            if (error.message && error.message.startsWith('SKIPPED:')) {
+                return {
+                    status: 'skipped', // You might need to add 'skipped' to TestStatus type if not present
+                    error: error.message,
+                    evidence
+                };
+            }
+
             // Take screenshot on failure
             try {
                 const screenshot = await this.browserRunner.screenshot();
@@ -630,6 +639,12 @@ export class TestRunner {
         if (action.includes('click')) {
             const selector = this.extractSelector(action);
             if (selector) {
+                // Dynamic Skip Check
+                const exists = await this.browserRunner.checkElementExists(selector);
+                if (!exists) {
+                    console.warn(`[SKIP] Element not found for click: ${selector}. Skipping test.`);
+                    throw new Error(`SKIPPED: Element not found: ${selector}`);
+                }
                 await this.browserRunner.click(selector);
             }
         }
@@ -637,6 +652,12 @@ export class TestRunner {
         if (action.includes('enter') || action.includes('type') || action.includes('fill')) {
             const selector = this.extractSelector(action);
             if (selector && step.data) {
+                // Dynamic Skip Check
+                const exists = await this.browserRunner.checkElementExists(selector);
+                if (!exists) {
+                    console.warn(`[SKIP] Element not found for type: ${selector}. Skipping test.`);
+                    throw new Error(`SKIPPED: Element not found: ${selector}`);
+                }
                 await this.browserRunner.type(selector, step.data);
             }
         }

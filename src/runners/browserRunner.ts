@@ -229,6 +229,17 @@ export class BrowserRunner {
         }
     }
 
+    async checkElementExists(selector: string, timeout = 3000): Promise<boolean> {
+        if (!this.page) return false;
+        try {
+            const element = await this.page.locator(selector).first();
+            await element.waitFor({ state: 'attached', timeout });
+            return await element.isVisible();
+        } catch {
+            return false;
+        }
+    }
+
     async close(): Promise<void> {
         if (this.page) {
             try {

@@ -75,24 +75,24 @@ export class OpenRouterClient {
     private output = vscode.window.createOutputChannel('TestFox AI');
 
     // Top-tier free models on OpenRouter (prioritized order)
+    // Top-tier free models on OpenRouter (prioritized order)
     static readonly FREE_MODELS = [
-        'google/gemini-2.0-flash-exp:free',      // Google's latest free model - BEST
-        'deepseek/deepseek-r1-0528:free',       // Advanced reasoning
-        'qwen/qwen3-coder:free',                // Code-specialized
-        'meta-llama/llama-3.1-8b-instruct:free', // Meta's open model
-        'google/gemma-2-9b-it:free',            // Google's efficient model
-        'mistralai/mistral-7b-instruct:free',   // Fast open model
-        'nvidia/nemotron-3-nano-30b-a3b:free',  // NVIDIA's efficient model
-        'mistralai/devstral-2512:free',         // Mistral's developer model
-        'z-ai/glm-4.5-air:free'                 // Fast multilingual model
+        'google/gemini-2.0-flash-exp:free',          // Google's latest free model - FAST
+        'google/gemini-2.0-pro-exp-02-05:free',      // Google's most capable free model - BEST
+        'deepseek/deepseek-r1:free',                 // Advanced reasoning
+        'deepseek/deepseek-v3:free',                 // General purpose
+        'meta-llama/llama-3.3-70b-instruct:free',    // Meta's open model
+        'qwen/qwen-2.5-coder-32b-instruct:free',     // Code-specialized
+        'mistralai/mistral-nemo:free',               // Mistral efficient
+        'nvidia/llama-3.1-nemotron-70b-instruct:free' // NVIDIA's optimized model
     ];
 
     // Premium models (require credits) - fallback only
     static readonly PREMIUM_MODELS = [
-        'x-ai/grok-beta',
-        'x-ai/grok-2-1212',
         'anthropic/claude-3.5-sonnet',
         'openai/gpt-4o',
+        'x-ai/grok-2-1212',
+        'mistralai/mistral-large-2411',
         'openai/gpt-4o-mini'
     ];
 
@@ -147,8 +147,11 @@ export class OpenRouterClient {
         this.output.appendLine('TestFox AI: Validating OpenRouter API key...');
 
         try {
+            const config = vscode.workspace.getConfiguration('testfox');
+            const baseUrl = config.get<string>('ai.baseUrl') || 'https://openrouter.ai/api/v1';
+            
             const client = axios.create({
-                baseURL: 'https://openrouter.ai/api/v1',
+                baseURL: baseUrl,
                 timeout: 10000,
                 headers: {
                     'Authorization': `Bearer ${this.apiKey}`,
@@ -193,8 +196,11 @@ export class OpenRouterClient {
 
         this.output.appendLine(`TestFox AI: Generating with model: ${this.model}`);
 
+        const config = vscode.workspace.getConfiguration('testfox');
+        const baseUrl = config.get<string>('ai.baseUrl') || 'https://openrouter.ai/api/v1';
+
         const client = axios.create({
-            baseURL: 'https://openrouter.ai/api/v1',
+            baseURL: baseUrl,
             timeout: 60000,
             headers: {
                 'Authorization': `Bearer ${this.apiKey}`,
@@ -386,8 +392,11 @@ export class OpenRouterClient {
         }
 
         try {
+            const config = vscode.workspace.getConfiguration('testfox');
+            const baseUrl = config.get<string>('ai.baseUrl') || 'https://openrouter.ai/api/v1';
+
             const client = axios.create({
-                baseURL: 'https://openrouter.ai/api/v1',
+                baseURL: baseUrl,
                 timeout: 30000,
                 headers: {
                     'Authorization': `Bearer ${this.apiKey}`,
@@ -457,8 +466,11 @@ export class OpenRouterClient {
             // Simple test request - don't actually call generate if not ready
             if (this.state !== 'ready') {
                 // Just test API access
+                const config = vscode.workspace.getConfiguration('testfox');
+                const baseUrl = config.get<string>('ai.baseUrl') || 'https://openrouter.ai/api/v1';
+
                 const client = axios.create({
-                    baseURL: 'https://openrouter.ai/api/v1',
+                    baseURL: baseUrl,
                     timeout: 10000,
                     headers: {
                         'Authorization': `Bearer ${this.apiKey}`,
