@@ -61,6 +61,9 @@ export class OnboardingPanel {
                     case 'saveAndContinue':
                         await this._handleSaveAndContinue(message.provider, message.apiKey, message.baseUrl, message.modelId);
                         return;
+                    case 'quickOpenRouterSetup':
+                        await this._handleQuickOpenRouterSetup();
+                        return;
                     case 'authenticateGitHub':
                         await this._handleGitHubAuth();
                         return;
@@ -554,23 +557,26 @@ export class OnboardingPanel {
             return;
         }
 
-        try {
-            // Save model
-            const config = vscode.workspace.getConfiguration('testfox');
-            await config.update('ai.model', modelId, vscode.ConfigurationTarget.Global);
+        // Handle OpenRouter auto-selection
+        let actualModelId = modelId;
+        if (modelId === 'openrouter-auto') {
+            actualModelId = 'google/gemini-2.0-flash-exp:free'; // Default to best free model
+        }
 
-            // Update OpenRouter client
+        try {
+            console.log('🎯 Onboarding Panel: Testing model:', actualModelId);
+            
             const openRouter = getOpenRouterClient();
             openRouter.setApiKey(apiKey);
 
             // Test the selected model
-            const testResult = await openRouter.testConnection();
+            const testResult = await openRouter.testConnection(actualModelId);
 
             if (testResult.success) {
                 this._panel.webview.postMessage({
                     command: 'modelSelected',
                     success: true,
-                    message: `Model "${modelId}" selected and verified successfully!`
+                    message: `Model "${actualModelId}" selected and verified successfully!`
                 });
 
                 // Auto-advance to complete setup after a delay
@@ -584,11 +590,33 @@ export class OnboardingPanel {
                     message: `Model selected but verification failed: ${testResult.error}`
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             this._panel.webview.postMessage({
                 command: 'modelSelected',
                 success: false,
                 message: `Failed to select model: ${error instanceof Error ? error.message : String(error)}`
+            });
+        }
+    }
+
+    private async _handleQuickOpenRouterSetup(): Promise<void> {
+        try {
+            // Automatically select OpenRouter and show its configuration
+            this._panel.webview.postMessage({
+                command: 'selectProvider',
+                provider: 'openrouter',
+                message: 'Setting up OpenRouter - the recommended AI provider with 8+ free models. Please enter your API key below.'
+            });
+            
+            // Also show a message to guide the user
+            this._panel.webview.postMessage({
+                command: 'showApiKeyPrompt',
+                message: '🔑 Enter your OpenRouter API key to get started with free AI models'
+            });
+        } catch (error) {
+            this._panel.webview.postMessage({
+                command: 'setupError',
+                message: `Failed to setup OpenRouter: ${error instanceof Error ? error.message : String(error)}`
             });
         }
     }
@@ -877,6 +905,15 @@ export class OnboardingPanel {
                 <h2>${this.needsProjectAnalysis ? ++stepNumber : ++stepNumber}: Configure AI Provider</h2>
                 <p>TestFox supports multiple AI providers for intelligent test generation. Choose your preferred option:</p>
 
+                <!-- OpenRouter Quick Setup -->
+                <div class="provider-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0; color: white;">🔗 OpenRouter - Recommended</h3>
+                    <p style="color: rgba(255,255,255,0.9); margin-bottom: 15px;">Access 8+ free AI models including Gemini, DeepSeek, GLM-4, and more through a single API key.</p>
+                    <button id="quickOpenRouterSetup" class="primary-button" style="background: white; color: #667eea; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                        Quick Setup with OpenRouter
+                    </button>
+                </div>
+
                 <div class="form-group">
                     <label for="aiProvider">AI Provider</label>
                     <select id="aiProvider" class="input-field">
@@ -898,10 +935,15 @@ export class OnboardingPanel {
                         <label for="aiModel">AI Model</label>
                         <select id="aiModel" class="input-field">
                             <optgroup label="🆓 Free Models">
+                                <option value="openrouter-auto">🔗 OpenRouter Auto (Best Free Model) ⭐</option>
                                 <option value="google/gemini-2.0-flash-exp:free">Google Gemini 2.0 Flash (Free) ⭐</option>
+                                <option value="google/gemini-2.0-pro-exp-02-05:free">Google Gemini 2.0 Pro (Free) 🧠</option>
                                 <option value="deepseek/deepseek-r1:free">DeepSeek R1 (Free) ⭐</option>
-                                <option value="qwen/qwen-2.5-coder-32b:free">Qwen 2.5 Coder 32B (Free) 🔥</option>
+                                <option value="deepseek/deepseek-v3:free">DeepSeek V3 (Free) 🔥</option>
+                                <option value="qwen/qwen-2.5-coder-32b-instruct:free">Qwen 2.5 Coder 32B (Free) 🔥</option>
+                                <option value="meta-llama/llama-3.3-70b-instruct:free">Meta Llama 3.3 70B (Free) 🚀</option>
                                 <option value="z-ai/glm-4-9b-chat:free">GLM 4 9B (Free) ⭐</option>
+                                <option value="mistralai/mistral-nemo:free">Mistral Nemo (Free) 🌟</option>
                             </optgroup>
                             <optgroup label="💎 Premium Models">
                                 <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Anthropic) 🧠</option>
@@ -1187,7 +1229,17 @@ export class OnboardingPanel {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="${styleUri}" rel="stylesheet">
-    <title>TestFox Setup</title>
+    <title>TestFox - AI-Powered Testing Setup</title>
+    <style>
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
+        }
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -1312,6 +1364,15 @@ export class OnboardingPanel {
         }
 
         // --- AI Event Listeners ---
+        const quickOpenRouterBtn = document.getElementById('quickOpenRouterSetup');
+        if (quickOpenRouterBtn) {
+            quickOpenRouterBtn.addEventListener('click', () => {
+                quickOpenRouterBtn.disabled = true;
+                quickOpenRouterBtn.textContent = 'Setting up...';
+                vscode.postMessage({ command: 'quickOpenRouterSetup' });
+            });
+        }
+
         if (testConnectionBtn) {
             testConnectionBtn.addEventListener('click', () => {
                 if (isConnecting) return;
@@ -1409,6 +1470,37 @@ export class OnboardingPanel {
         window.addEventListener('message', event => {
             const message = event.data;
             switch (message.command) {
+                case 'selectProvider':
+                    // Auto-select OpenRouter provider
+                    const providerSelect = document.getElementById('aiProvider');
+                    if (providerSelect) {
+                        providerSelect.value = message.provider;
+                        providerSelect.dispatchEvent(new Event('change'));
+                    }
+                    // Show status message
+                    if (connectionStatus) {
+                        connectionStatus.className = 'test-result success';
+                        connectionStatus.textContent = message.message;
+                        connectionStatus.classList.remove('hidden');
+                    }
+                    break;
+                case 'showApiKeyPrompt':
+                    // Highlight the API key input field
+                    const apiKeyInput = document.getElementById('apiKey');
+                    if (apiKeyInput) {
+                        apiKeyInput.style.border = '2px solid #667eea';
+                        apiKeyInput.style.boxShadow = '0 0 10px rgba(102, 126, 234, 0.3)';
+                        apiKeyInput.focus();
+                        // Add pulsing animation
+                        apiKeyInput.classList.add('pulse-animation');
+                    }
+                    // Show the prompt message
+                    if (connectionStatus) {
+                        connectionStatus.className = 'test-result success';
+                        connectionStatus.textContent = message.message;
+                        connectionStatus.classList.remove('hidden');
+                    }
+                    break;
                 case 'connectionStatus':
                     isConnecting = false;
                     if (testConnectionBtn) {

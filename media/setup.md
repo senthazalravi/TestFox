@@ -44,7 +44,7 @@ Unlock TestFox's full potential with AI-powered test generation.
 ```
 
 **Available AI Models:**
-- 🆓 **Free Models**: Gemini 2.0 Flash, DeepSeek R1, Qwen3 Coder
+- 🆓 **Free Models**: Openrouter, Gemini 2.0 Flash, DeepSeek R1, Qwen3 Coder
 - 🚀 **Premium Models**: Claude 3.5 Sonnet, GPT-4o, Llama 3.1
 
 ---

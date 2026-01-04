@@ -13,6 +13,7 @@ import { ContextAnalyzer, PageContext } from '../core/contextAnalyzer';
 
 /**
  * AI-enhanced test generator using OpenRouter
+ * OpenRouter provides access to multiple AI models through a unified API
  */
 export class TestGeneratorAI {
     private aiService: any;
@@ -31,13 +32,14 @@ export class TestGeneratorAI {
             const baseUrl = config.get<string>('ai.baseUrl') || '';
             const model = config.get<string>('ai.model') || '';
 
+            // Initialize AI service with OpenRouter as primary provider
             this.aiService = createAIService({
                 provider: provider as AIProvider,
                 apiKey,
                 baseUrl,
                 model
             });
-            console.log('🤖 TestFox AI: Initialized AI service with provider:', provider);
+            console.log('🤖 TestFox AI: Initialized AI service with OpenRouter provider:', provider);
         } catch (error) {
             console.error('❌ TestFox AI: Failed to initialize AI service:', error);
             // Fallback to basic OpenRouter setup
@@ -45,6 +47,7 @@ export class TestGeneratorAI {
                 provider: AIProvider.OPENROUTER,
                 model: 'google/gemini-2.0-flash-exp:free'
             });
+            console.log('🤖 TestFox AI: Using OpenRouter as fallback provider');
         }
     }
 
@@ -73,11 +76,11 @@ export class TestGeneratorAI {
     }
 
     /**
-     * Generate tests using AI
+     * Generate tests using AI powered by OpenRouter
      */
     async generateWithAI(): Promise<TestCase[]> {
-        console.log('🤖 AI Test Generator: Starting AI-powered test generation');
-        console.log('🤖 AI Test Generator: Timestamp:', new Date().toISOString());
+        console.log('🤖 TestFox AI: Starting AI-powered test generation via OpenRouter');
+        console.log('🤖 TestFox AI: Timestamp:', new Date().toISOString());
 
         const projectInfo = this.testStore.getProjectInfo();
         const analysisResult = this.testStore.getAnalysisResult();
@@ -113,7 +116,7 @@ export class TestGeneratorAI {
 
         return await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: 'TestFox AI: Generating tests...',
+            title: 'TestFox AI via OpenRouter: Generating tests...',
             cancellable: false
         }, async (progress) => {
             try {

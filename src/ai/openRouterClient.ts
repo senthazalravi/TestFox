@@ -83,8 +83,8 @@ export class OpenRouterClient {
         'deepseek/deepseek-v3:free',                 // General purpose
         'meta-llama/llama-3.3-70b-instruct:free',    // Meta's open model
         'qwen/qwen-2.5-coder-32b-instruct:free',     // Code-specialized
+        'z-ai/glm-4-9b-chat:free',                   // General purpose
         'mistralai/mistral-nemo:free',               // Mistral efficient
-        'nvidia/llama-3.1-nemotron-70b-instruct:free' // NVIDIA's optimized model
     ];
 
     // Premium models (require credits) - fallback only

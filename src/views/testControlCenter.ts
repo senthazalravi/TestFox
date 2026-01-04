@@ -98,14 +98,8 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
                 case 'mcpPlaywright':
                     await vscode.commands.executeCommand('testfox.mcpRunServer', 'playwright-mcp');
                     break;
-                case 'mcpPuppeteer':
-                    await vscode.commands.executeCommand('testfox.mcpRunServer', 'puppeteer-mcp');
-                    break;
                 case 'mcpFetch':
                     await vscode.commands.executeCommand('testfox.mcpRunServer', 'fetch-mcp');
-                    break;
-                case 'mcpDatabase':
-                    await vscode.commands.executeCommand('testfox.mcpRunServer', 'postgres-mcp');
                     break;
                 case 'mcpRunAll':
                     await vscode.commands.executeCommand('testfox.mcpRunAll');
@@ -603,17 +597,9 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
                 <span class="btn-icon">🎭</span>
                 <span>Playwright</span>
             </button>
-            <button class="btn" onclick="sendCommand('mcpPuppeteer')" style="border-color: rgba(147,51,234,0.5);">
-                <span class="btn-icon">🤖</span>
-                <span>Puppeteer</span>
-            </button>
             <button class="btn" onclick="sendCommand('mcpFetch')" style="border-color: rgba(147,51,234,0.5);">
-                <span class="btn-icon">🌐</span>
-                <span>API Tests</span>
-            </button>
-            <button class="btn" onclick="sendCommand('mcpDatabase')" style="border-color: rgba(147,51,234,0.5);">
-                <span class="btn-icon">🗄️</span>
-                <span>Database</span>
+                <span class="btn-icon">📮</span>
+                <span>Postman</span>
             </button>
             <button class="btn btn-primary" onclick="sendCommand('mcpRunAll')" style="background: linear-gradient(135deg, #9333ea 0%, #4f46e5 100%);">
                 <span>🚀 Run All MCP Tests</span>
@@ -624,7 +610,7 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             </button>
         </div>
         <div id="mcpStatus" style="margin-top: 10px; font-size: 11px; color: #a78bfa;">
-            6 MCP Servers Available
+            2 MCP Servers Available
         </div>
     </div>
 

@@ -561,11 +561,6 @@ export class SettingsPanel {
         <!-- AI Configuration Section -->
         <div class="section">
             <h2 class="section-title">🤖 AI Configuration</h2>
-            
-            <div class="info-box">
-                TestFox uses OpenRouter to access top AI models. Get your free API key at 
-                <a href="https://openrouter.ai" style="color: #60a5fa;">openrouter.ai</a>
-            </div>
 
             <div class="form-group">
                 <div class="checkbox-group">
