@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing for JavaScript, Python, Java, C, C++, Rust, Go & more. 18+ test categories including security (OWASP), performance, accessibility. FREE AI models available via OpenRouter.",
-  "version": "0.6.43",
+  "version": "0.6.45",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {

@@ -985,14 +985,15 @@ async function checkAndShowOnboarding(context: vscode.ExtensionContext): Promise
     const config = vscode.workspace.getConfiguration('testfox');
     const apiKey = config.get<string>('ai.apiKey');
     const setupCompleted = context.globalState.get<boolean>('testfox.setupCompleted', false);
+    const onboardingShown = context.globalState.get<boolean>('testfox.onboardingShown', false);
 
-    // Don't show onboarding if setup is already completed
-    if (setupCompleted) {
+    // Don't show onboarding if setup is already completed and onboarding was shown
+    if (setupCompleted && onboardingShown) {
         return;
     }
 
-    // Show onboarding if AI is not configured
-    if (!apiKey) {
+    // Show onboarding on first install or if AI is not configured
+    if (!onboardingShown || !apiKey) {
         // Mark as shown immediately to prevent multiple prompts
         await context.globalState.update('testfox.onboardingShown', true);
 
@@ -1001,12 +1002,18 @@ async function checkAndShowOnboarding(context: vscode.ExtensionContext): Promise
             const result = await vscode.window.showInformationMessage(
                 '🦊 Welcome to TestFox! AI-powered testing is ready.',
                 'Set Up AI',
-                'Skip for Now'
+                'Skip AI (Rule-based)',
+                'Configure Later'
             );
 
             if (result === 'Set Up AI') {
                 // Show the onboarding panel for AI setup
                 OnboardingPanel.createOrShow(context.extensionUri, context);
+            } else if (result === 'Skip AI (Rule-based)') {
+                // Mark setup as completed with rule-based mode
+                await context.globalState.update('testfox.setupCompleted', true);
+                await config.update('ai.enabled', false, vscode.ConfigurationTarget.Global);
+                vscode.window.showInformationMessage('TestFox configured for rule-based testing. Use "AI Config" button later to enable AI features.');
             }
         }, 2000);
     }

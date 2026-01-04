@@ -146,6 +146,11 @@ export class SettingsPanel {
             if (settings.issueRepo) await config.update('issue.repo', settings.issueRepo, vscode.ConfigurationTarget.Global);
             if (settings.issueLabels) await config.update('issue.labels', settings.issueLabels, vscode.ConfigurationTarget.Global);
             if (settings.issueAssignees) await config.update('issue.assignees', settings.issueAssignees, vscode.ConfigurationTarget.Global);
+            
+            // Mark setup as completed so onboarding doesn't show again
+            if (settings.aiApiKey && settings.aiModel) {
+                await vscode.commands.executeCommand('testfox.setupCompleted', true);
+            }
 
             this._panel.webview.postMessage({ command: 'settingsSaved', success: true });
             vscode.window.showInformationMessage('TestFox settings saved successfully!');

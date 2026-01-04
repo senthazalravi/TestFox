@@ -1,6 +1,34 @@
 # Change Log
 
 
+## [0.6.45] - 2026-01-04
+
+### Bug Fixes
+
+- **Onboarding Flow** 🎯
+  - Fixed onboarding to properly trigger on first extension install
+  - Added "Skip AI (Rule-based)" option for users who want to use rule-based testing only
+  - Improved onboarding state management to prevent multiple prompts
+
+- **AI Model Configuration** 🤖
+  - Fixed "Model Not Exist" error when using invalid DeepSeek models
+  - Added automatic fallback to valid models when model doesn't exist
+  - Enhanced model validation in OpenRouter client
+  - Improved error handling for AI generation failures
+
+### Improvements
+
+- **Better Error Handling** ✅
+  - Enhanced fallback logic when AI models are unavailable
+  - Improved user feedback for configuration issues
+  - Better handling of edge cases in AI provider setup
+
+- **User Experience** 🚀
+  - Clearer onboarding options and messaging
+  - Improved rule-based testing workflow
+  - Better integration between AI and rule-based modes
+
+
 ## [0.6.43] - 2026-01-03
 
 ### New Features

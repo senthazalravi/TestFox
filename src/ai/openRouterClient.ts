@@ -251,6 +251,21 @@ export class OpenRouterClient {
                     ? err.response.data
                     : JSON.stringify(err.response.data);
 
+                // Check if it's a model not found error and try fallback
+                if (text.includes('Model Not Exist') || text.includes('model_not_found')) {
+                    this.output.appendLine(`TestFox AI: Model ${this.model} not found, trying fallback...`);
+                    
+                    // Try fallback model
+                    const fallbackModel = 'google/gemini-2.0-flash-exp:free';
+                    this.model = fallbackModel;
+                    
+                    try {
+                        return await this.generate(prompt); // Retry with fallback
+                    } catch (fallbackErr: any) {
+                        this.output.appendLine(`TestFox AI: Fallback model also failed: ${fallbackErr.message}`);
+                    }
+                }
+
                 throw new Error(`OpenRouter error: ${text.slice(0, 200)}`);
             }
 
@@ -281,9 +296,51 @@ export class OpenRouterClient {
     /**
      * Set the model (legacy method)
      */
-    setModel(model: string): void {
-        this.model = model;
-        this.output.appendLine(`TestFox AI: Model set to ${model}`);
+    async setModel(model: string): Promise<void> {
+        // Validate model exists before setting it
+        if (this.apiKey) {
+            try {
+                const config = vscode.workspace.getConfiguration('testfox');
+                const baseUrl = config.get<string>('ai.baseUrl') || 'https://openrouter.ai/api/v1';
+                
+                const client = axios.create({
+                    baseURL: baseUrl,
+                    timeout: 5000,
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'HTTP-Referer': 'https://github.com/testfox/testfox-vscode',
+                        'X-Title': 'TestFox VS Code Extension'
+                    }
+                });
+
+                // Test if model exists by making a small request
+                const response = await client.post('/chat/completions', {
+                    model: model,
+                    messages: [{ role: 'user', content: 'test' }],
+                    max_tokens: 1
+                });
+
+                if (response.status === 200) {
+                    this.model = model;
+                    this.output.appendLine(`TestFox AI: Model set to ${model}`);
+                } else {
+                    throw new Error(`Model validation failed with status ${response.status}`);
+                }
+            } catch (err: any) {
+                if (err.response?.data && (
+                    JSON.stringify(err.response.data).includes('Model Not Exist') ||
+                    JSON.stringify(err.response.data).includes('model_not_found')
+                )) {
+                    this.output.appendLine(`TestFox AI: Model ${model} does not exist, using fallback...`);
+                    this.model = 'google/gemini-2.0-flash-exp:free'; // Fallback to known good model
+                } else {
+                    this.output.appendLine(`TestFox AI: Model validation failed: ${err.message}`);
+                    this.model = model; // Set anyway, might be a network issue
+                }
+            }
+        } else {
+            this.model = model;
+        }
     }
 
     /**

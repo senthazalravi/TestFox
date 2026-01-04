@@ -640,35 +640,15 @@ export class OnboardingPanel {
     }
 
     private async _handleSkip(): Promise<void> {
-        if (this.needsProjectAnalysis) {
-            // Project analysis is required for basic functionality
-            vscode.window.showWarningMessage('TestFox: Project analysis is required for test generation.');
-            return;
-        }
-
-        if (this.needsGitHubAuth && !this.needsAISetup) {
-            // Only GitHub auth needed
-            this._panel.dispose();
-            vscode.window.showInformationMessage(
-                'TestFox: You can authenticate with GitHub later to enable issue creation for failed tests.'
-            );
-            return;
-        }
-
-        const result = await vscode.window.showWarningMessage(
-            'TestFox can work without AI, but AI-powered test generation will be disabled. You can configure it later from settings.',
-            'Continue Without AI',
-            'Configure Now'
+        // Disable AI and mark setup as completed
+        const config = vscode.workspace.getConfiguration('testfox');
+        await config.update('ai.enabled', false, vscode.ConfigurationTarget.Global);
+        await this._context.globalState.update('testfox.setupCompleted', true);
+        
+        this._panel.dispose();
+        vscode.window.showInformationMessage(
+            'TestFox configured for rule-based testing. Use "AI Config" button in Test Control Center to enable AI features later.'
         );
-
-        if (result === 'Continue Without AI') {
-            this._panel.dispose();
-            vscode.window.showInformationMessage(
-                'TestFox: You can configure AI later using "TestFox: Configure AI Settings" command.'
-            );
-        } else if (result === 'Configure Now') {
-            // Keep panel open
-        }
     }
 
     private async _handleAnalyzeProject(): Promise<void> {
