@@ -73,11 +73,17 @@ export class OnboardingPanel {
                     case 'completeSetup':
                         await this._handleCompleteSetup();
                         return;
-                case 'skip':
-                    await this._handleSkip();
+                    case 'skip':
+                        await this._handleSkip();
                         return;
                     case 'openSettings':
                         await vscode.commands.executeCommand('workbench.action.openSettings', 'testfox');
+                        return;
+                    case 'launchAIWizard':
+                        // Launch the new AI Config Wizard
+                        await vscode.commands.executeCommand('testfox.configureAI');
+                        // Close onboarding panel
+                        this._panel.dispose();
                         return;
                 }
             },
@@ -905,6 +911,15 @@ export class OnboardingPanel {
                 <h2>${this.needsProjectAnalysis ? ++stepNumber : ++stepNumber}: Configure AI Provider</h2>
                 <p>TestFox supports multiple AI providers for intelligent test generation. Choose your preferred option:</p>
 
+                <!-- AI Config Wizard Button -->
+                <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 8px;">
+                    <h3 style="margin: 0 0 10px 0; color: white;">🧙‍♂️ Try the New AI Config Wizard!</h3>
+                    <p style="margin: 0 0 15px 0; color: rgba(255,255,255,0.9);">Step-by-step guided setup with automatic model discovery for Ollama and better validation.</p>
+                    <button id="launchAIWizard" class="primary-button" style="background: white; color: #10b981; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                        🚀 Launch AI Config Wizard
+                    </button>
+                </div>
+
                 <!-- OpenRouter Quick Setup -->
                 <div class="provider-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
                     <h3 style="margin-top: 0; color: white;">🔗 OpenRouter - Recommended</h3>
@@ -1540,8 +1555,22 @@ export class OnboardingPanel {
                         authStatus.classList.remove('hidden');
                     }
                     break;
+                case 'setupComplete':
+                    // Wizard completed successfully
+                    break;
+                case 'setupError':
+                    vscode.window.showErrorMessage(message.message);
+                    break;
             }
         });
+
+        // Handle AI Config Wizard button
+        const launchAIWizardBtn = document.getElementById('launchAIWizard');
+        if (launchAIWizardBtn) {
+            launchAIWizardBtn.addEventListener('click', () => {
+                vscode.postMessage({ command: 'launchAIWizard' });
+            });
+        }
     </script>
 </body>
 </html>`;

@@ -605,17 +605,22 @@ export async function activate(context: vscode.ExtensionContext) {
         }),
 
         vscode.commands.registerCommand('testfox.configureAI', async () => {
-            // Check if already configured
-            const config = vscode.workspace.getConfiguration('testfox');
-            const apiKey = config.get<string>('ai.apiKey');
-            const setupCompleted = context.globalState.get<boolean>('testfox.setupCompleted', false);
+            // Import and launch the new AI Config Wizard
+            try {
+                const { AIConfigWizard } = await import('./views/aiConfigWizard');
+                const wizard = new AIConfigWizard();
+                await wizard.startWizard();
+            } catch (error) {
+                // Fallback to old onboarding if wizard fails
+                const config = vscode.workspace.getConfiguration('testfox');
+                const apiKey = config.get<string>('ai.apiKey');
+                const setupCompleted = context.globalState.get<boolean>('testfox.setupCompleted', false);
 
-            if (apiKey && setupCompleted) {
-                // If configured, open settings
-                SettingsPanel.createOrShow(context.extensionUri);
-            } else {
-                // If not, show onboarding
-                OnboardingPanel.createOrShow(context.extensionUri, context);
+                if (apiKey && setupCompleted) {
+                    SettingsPanel.createOrShow(context.extensionUri);
+                } else {
+                    OnboardingPanel.createOrShow(context.extensionUri, context);
+                }
             }
         }),
 
