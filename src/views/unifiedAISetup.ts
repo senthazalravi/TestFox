@@ -237,13 +237,27 @@ export class UnifiedAISetup {
 
             <!-- Test Results -->
             <div class="test-result" id="test-result"></div>
+            
+            <!-- Debug Info -->
+            <div style="margin-top: 20px; padding: 10px; background: var(--vscode-textBlockQuote-background); border-radius: 5px;">
+                <h4>Debug Info</h4>
+                <button onclick="testJavaScript()" style="background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-foreground); border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+                    Test JavaScript
+                </button>
+                <div id="debug-info" style="margin-top: 10px; font-family: monospace; font-size: 12px;"></div>
+            </div>
         </div>
 
         <script>
             const vscode = acquireVsCodeApi();
             let selectedProvider = null;
 
+            // Debug: Log that script is loaded
+            console.log('TestFox AI Setup script loaded');
+            document.getElementById('debug-info').innerHTML = 'Script loaded successfully!';
+
             function selectProvider(provider) {
+                console.log('Selecting provider:', provider);
                 selectedProvider = provider;
                 
                 // Update UI
@@ -254,7 +268,8 @@ export class UnifiedAISetup {
                 document.getElementById(provider + '-form').classList.add('active');
             }
 
-            async function testOllamaConnection() {
+            function testOllamaConnection() {
+                console.log('Testing Ollama connection...');
                 const model = document.getElementById('ollama-model').value;
                 const host = document.getElementById('ollama-host').value;
                 
@@ -265,19 +280,14 @@ export class UnifiedAISetup {
 
                 showLoading(true);
                 
-                try {
-                    const result = await vscode.postMessage({
-                        command: 'testOllamaConnection',
-                        data: { model, host }
-                    });
-                } catch (error) {
-                    showResult('Connection test failed: ' + error.message, 'error');
-                } finally {
-                    showLoading(false);
-                }
+                vscode.postMessage({
+                    command: 'testOllamaConnection',
+                    data: { model, host }
+                });
             }
 
-            async function testCustomConnection() {
+            function testCustomConnection() {
+                console.log('Testing custom connection...');
                 const model = document.getElementById('custom-model').value;
                 const url = document.getElementById('custom-url').value;
                 const key = document.getElementById('custom-key').value;
@@ -300,19 +310,14 @@ export class UnifiedAISetup {
 
                 showLoading(true);
                 
-                try {
-                    const result = await vscode.postMessage({
-                        command: 'testCustomConnection',
-                        data: { model, url, key, payloadTemplate }
-                    });
-                } catch (error) {
-                    showResult('Connection test failed: ' + error.message, 'error');
-                } finally {
-                    showLoading(false);
-                }
+                vscode.postMessage({
+                    command: 'testCustomConnection',
+                    data: { model, url, key, payloadTemplate }
+                });
             }
 
             function saveOllamaConfig() {
+                console.log('Saving Ollama config...');
                 const model = document.getElementById('ollama-model').value;
                 const host = document.getElementById('ollama-host').value;
                 
@@ -321,6 +326,7 @@ export class UnifiedAISetup {
                     return;
                 }
 
+                console.log('Sending Ollama config:', { model, host });
                 vscode.postMessage({
                     command: 'saveOllamaConfig',
                     data: { model, host }
@@ -328,6 +334,7 @@ export class UnifiedAISetup {
             }
 
             function saveCustomConfig() {
+                console.log('Saving custom config...');
                 const model = document.getElementById('custom-model').value;
                 const url = document.getElementById('custom-url').value;
                 const key = document.getElementById('custom-key').value;
@@ -348,6 +355,7 @@ export class UnifiedAISetup {
                     return;
                 }
 
+                console.log('Sending custom config:', { model, url, key: key ? '***' : null, payloadTemplate });
                 vscode.postMessage({
                     command: 'saveCustomConfig',
                     data: { model, url, key, payloadTemplate }
@@ -359,6 +367,25 @@ export class UnifiedAISetup {
                 resultDiv.textContent = message;
                 resultDiv.className = 'test-result ' + type;
                 resultDiv.style.display = 'block';
+            }
+
+            function testJavaScript() {
+                console.log('Testing JavaScript functionality...');
+                document.getElementById('debug-info').innerHTML = 'JavaScript test: ' + new Date().toISOString();
+                
+                // Test button clicks
+                try {
+                    selectProvider('ollama');
+                    document.getElementById('debug-info').innerHTML += '<br>Provider selection works!';
+                    
+                    // Test message sending
+                    vscode.postMessage({
+                        command: 'testJavaScript',
+                        data: { test: 'hello from webview' }
+                    });
+                } catch (error) {
+                    document.getElementById('debug-info').innerHTML += '<br>Error: ' + error.message;
+                }
             }
 
             function showLoading(show) {
@@ -393,22 +420,36 @@ export class UnifiedAISetup {
   }
 
   private async _handleMessage(message: any) {
+    console.log('Received message:', message);
+    
     switch (message.command) {
       case 'testOllamaConnection':
+        console.log('Testing Ollama connection with data:', message.data);
         await this._testOllamaConnection(message.data);
         break;
 
       case 'testCustomConnection':
+        console.log('Testing custom connection with data:', message.data);
         await this._testCustomConnection(message.data);
         break;
 
       case 'saveOllamaConfig':
+        console.log('Saving Ollama config with data:', message.data);
         await this._saveOllamaConfig(message.data);
         break;
 
       case 'saveCustomConfig':
+        console.log('Saving custom config with data:', message.data);
         await this._saveCustomConfig(message.data);
         break;
+        
+      case 'testJavaScript':
+        console.log('JavaScript test received:', message.data);
+        vscode.window.showInformationMessage('✅ JavaScript communication working!');
+        break;
+        
+      default:
+        console.log('Unknown message command:', message.command);
     }
   }
 

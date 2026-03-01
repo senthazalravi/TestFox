@@ -13,6 +13,7 @@ import { IssueCreator } from './core/issueCreator';
 import { TestCoverageTracker } from './core/testCoverageTracker';
 import { OnboardingPanel } from './views/onboardingPanel';
 import { UnifiedAISetup } from './views/unifiedAISetup';
+import { MCPControlPanel } from './views/mcpControlPanel';
 import * as path from 'path';
 import { DashboardPanel } from './views/dashboard/dashboardPanel';
 import { ReportPanel } from './views/reportPanel';
@@ -35,6 +36,7 @@ import { WebServer } from './server/webServer';
 import { TestStore } from './store/testStore';
 import { TestScheduler } from './core/scheduler';
 import { MCPServerManager } from './mcp/mcpServerManager';
+import { registerMCPCommands } from './commands/mcpCommands';
 // import { RuntimeAppAnalyzer } from './runtime/runtimeAppAnalyzer';
 import { BackendTestGenerator } from './generators/backendTestGenerator';
 
@@ -565,6 +567,13 @@ export async function activate(context: vscode.ExtensionContext) {
             await generateTestCategory(category);
         }),
 
+        // MCP Commands - AI + MCP Automation
+        ...registerMCPCommands(context),
+        
+        vscode.commands.registerCommand('testfox.mcpControl', async () => {
+            MCPControlPanel.createOrShow(context.extensionUri);
+        }),
+        
         vscode.commands.registerCommand('testfox.runScheduledTests', async () => {
             await scheduler.runNow();
         }),

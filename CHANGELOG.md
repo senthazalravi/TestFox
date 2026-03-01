@@ -1,5 +1,26 @@
 # Change Log
 
+## [7.0.5] - 2026-03-01
+
+### 🐛 Bug Fixes
+
+- **AI Configuration Button Fixes** 🔧
+  - **Fixed JavaScript Communication**: Resolved `vscode.postMessage()` usage issues that prevented button clicks
+  - **Enhanced Error Handling**: Added comprehensive debugging and user feedback for AI configuration
+  - **Improved Provider Selection**: Fixed Ollama and Custom API provider button functionality
+  - **Connection Testing**: Fixed test connection buttons for both AI providers
+  - **Configuration Saving**: Fixed save configuration buttons to properly store settings
+  - **Debug Panel**: Added debugging tools for troubleshooting AI configuration issues
+
+### 🔍 Technical Improvements
+
+- **Webview Communication**: Enhanced message passing between webview and extension
+- **Error Feedback**: Better error messages and loading states for AI configuration
+- **Console Logging**: Added comprehensive logging for debugging AI setup issues
+- **User Experience**: Clear visual feedback for all AI configuration operations
+
+---
+
 ## [7.0.4] - 2026-03-01
 
 ### 🚀 Major Features

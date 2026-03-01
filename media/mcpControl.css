@@ -1,0 +1,274 @@
+/**
+ * MCP Control Panel Styles
+ * Modern, responsive design for TestFox MCP automation
+ */
+
+/* Base styles */
+.mcp-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: var(--vscode-font-family);
+}
+
+.mcp-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 30px;
+    background: linear-gradient(135deg, var(--vscode-button-background) 0%, var(--vscode-button-hoverBackground) 100%);
+    border-radius: 12px;
+    color: var(--vscode-button-foreground);
+}
+
+.mcp-header h1 {
+    font-size: 2.5rem;
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.mcp-header p {
+    font-size: 1.1rem;
+    margin: 0;
+    opacity: 0.9;
+}
+
+/* MCP Grid Layout */
+.mcp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 25px;
+    margin-bottom: 40px;
+}
+
+/* MCP Cards */
+.mcp-card {
+    background: var(--vscode-editor-background);
+    border: 2px solid var(--vscode-panel-border);
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.mcp-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, var(--vscode-button-background), transparent);
+    transition: left 0.5s ease;
+}
+
+.mcp-card:hover::before {
+    left: 100%;
+}
+
+.mcp-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+    border-color: var(--vscode-button-background);
+}
+
+.mcp-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    display: block;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+    transition: transform 0.3s ease;
+}
+
+.mcp-card:hover .mcp-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.mcp-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--vscode-foreground);
+    margin-bottom: 15px;
+    letter-spacing: -0.5px;
+}
+
+.mcp-description {
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 25px;
+}
+
+.mcp-description strong {
+    color: var(--vscode-foreground);
+    font-weight: 600;
+}
+
+/* Buttons */
+.mcp-button {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    padding: 14px 28px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.mcp-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+}
+
+.mcp-button:hover {
+    background: var(--vscode-button-hoverBackground);
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.mcp-button:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+.mcp-button:active {
+    transform: scale(0.98);
+}
+
+/* Quick Actions */
+.mcp-quick-actions {
+    background: var(--vscode-textBlockQuote-background);
+    border: 1px solid var(--vscode-textBlockQuote-border);
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+.mcp-quick-actions h3 {
+    color: var(--vscode-foreground);
+    margin: 0 0 20px 0;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mcp-quick-buttons {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.mcp-quick-button {
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-foreground);
+    border: 1px solid var(--vscode-button-border);
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 150px;
+}
+
+.mcp-quick-button:hover {
+    background: var(--vscode-button-background);
+    border-color: var(--vscode-button-hoverBackground);
+    transform: translateY(-2px);
+}
+
+/* Status Section */
+.mcp-status {
+    background: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.mcp-status h3 {
+    color: var(--vscode-foreground);
+    margin: 0 0 15px 0;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mcp-status p {
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Loading states */
+.mcp-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.mcp-loading .mcp-icon {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .mcp-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .mcp-quick-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .mcp-quick-button {
+        width: 100%;
+        max-width: 250px;
+    }
+}
+
+/* Dark theme support */
+.vscode-dark .mcp-card {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+}
+
+.vscode-dark .mcp-card:hover {
+    box-shadow: 0 12px 35px rgba(0,0,0,0.4);
+}
+
+/* High contrast mode */
+.vscode-high-contrast .mcp-card {
+    border-width: 3px;
+}
+
+.vscode-high-contrast .mcp-button {
+    border: 2px solid var(--vscode-button-foreground);
+}
