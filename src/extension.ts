@@ -37,7 +37,8 @@ import { TestStore } from './store/testStore';
 import { TestScheduler } from './core/scheduler';
 import { MCPServerManager } from './mcp/mcpServerManager';
 import { registerMCPCommands } from './commands/mcpCommands';
-// import { RuntimeAppAnalyzer } from './runtime/runtimeAppAnalyzer';
+import { AIConnectionManager } from './core/aiConnectionManager';
+import { PortChecker } from './core/portChecker';
 import { BackendTestGenerator } from './generators/backendTestGenerator';
 
 let projectDetector: ProjectDetector;
@@ -63,6 +64,8 @@ let webServer: WebServer;
 let scheduler: TestScheduler;
 let mcpServerManager: MCPServerManager;
 let runtimeAppAnalyzer: RuntimeAppAnalyzer;
+let aiConnectionManager: AIConnectionManager;
+let portChecker: PortChecker;
 
 // Status bar items
 let statusBarMain: vscode.StatusBarItem;
@@ -280,46 +283,26 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     try {
-        // Initialize AI client with status bar
-        logDiagnostic('Initializing AI client...');
-        const openRouter = getOpenRouterClient();
-        openRouter.initStatusBar(statusBarAI);
-
-        // Load AI configuration (including API key from settings)
-        loadAIConfiguration(context);
-        
-        // Check if AI is configured
-        const config = vscode.workspace.getConfiguration('testfox');
-        const apiKey = config.get<string>('ai.apiKey');
-        const model = config.get<string>('ai.model');
-        
-        if (apiKey) {
-            logDiagnostic(`AI API key found: ${apiKey.substring(0, 10)}...${apiKey.substring(apiKey.length - 4)}`);
-            logDiagnostic(`AI model configured: ${model || 'default (Gemini 2.0 Flash)'}`);
-            
-            // Test connection in background
-            openRouter.testConnection().then(result => {
-                if (result.success) {
-                    logDiagnostic('✅ AI connection test successful');
-                } else {
-                    logDiagnostic(`❌ AI connection test failed: ${result.error}`, 'error');
-                    vscode.window.showWarningMessage(
-                        `TestFox: AI connection failed - ${result.error}`,
-                        'Open Diagnostics'
-                    ).then(selection => {
-                        if (selection === 'Open Diagnostics') {
-                            outputChannel.show(true);
-                        }
-                    });
-                }
-            }).catch(err => {
-                logDiagnostic(`❌ AI connection test error: ${err.message}`, 'error');
-            });
-        } else {
-            logDiagnostic('⚠️ AI API key not configured - AI features will be disabled', 'warn');
-        }
+        // Initialize AI Connection Manager
+        console.log('TestFox: Creating AI Connection Manager...');
+        aiConnectionManager = new AIConnectionManager(outputChannel, statusBarAI);
+        await aiConnectionManager.initialize();
+        console.log('TestFox: AI Connection Manager created and initialized');
     } catch (error) {
-        logDiagnostic(`Failed to initialize AI: ${error}`, 'error');
+        console.error('Failed to initialize AI Connection Manager:', error);
+        logDiagnostic(`Failed to initialize AI Connection Manager: ${error}`, 'error');
+    }
+
+    try {
+        // Initialize Port Checker
+        console.log('TestFox: Creating Port Checker...');
+        portChecker = new PortChecker(appRunner, outputChannel);
+        await portChecker.promptToStartApplications();
+        portChecker.startPeriodicChecks();
+        console.log('TestFox: Port Checker created and initialized');
+    } catch (error) {
+        console.error('Failed to initialize Port Checker:', error);
+        logDiagnostic(`Failed to initialize Port Checker: ${error}`, 'error');
     }
 
     try {
@@ -622,6 +605,48 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('testfox.refreshTests', () => {
             testExplorerProvider.refresh();
             testResultsProvider.refresh();
+        }),
+
+        // AI Connection Commands
+        vscode.commands.registerCommand('testfox.testAIConnection', async () => {
+            if (aiConnectionManager) {
+                await aiConnectionManager.testConnection();
+            } else {
+                vscode.window.showErrorMessage('AI Connection Manager not initialized');
+            }
+        }),
+
+        vscode.commands.registerCommand('testfox.recheckAIConfiguration', async () => {
+            if (aiConnectionManager) {
+                await aiConnectionManager.recheckConfiguration();
+            } else {
+                vscode.window.showErrorMessage('AI Connection Manager not initialized');
+            }
+        }),
+
+        // Port Checking Commands
+        vscode.commands.registerCommand('testfox.checkPorts', async () => {
+            if (portChecker) {
+                const statuses = await portChecker.checkApplicationPorts();
+                const message = statuses.filter(s => s.isRunning).length > 0 
+                    ? `Found ${statuses.filter(s => s.isRunning).length} running applications`
+                    : 'No running applications found';
+                vscode.window.showInformationMessage(message, 'View Details').then(selection => {
+                    if (selection === 'View Details') {
+                        outputChannel.show(true);
+                    }
+                });
+            } else {
+                vscode.window.showErrorMessage('Port Checker not initialized');
+            }
+        }),
+
+        vscode.commands.registerCommand('testfox.startApplications', async () => {
+            if (portChecker) {
+                await portChecker.promptToStartApplications();
+            } else {
+                vscode.window.showErrorMessage('Port Checker not initialized');
+            }
         }),
 
         vscode.commands.registerCommand('testfox.configureAI', async () => {
@@ -3143,6 +3168,12 @@ export function deactivate() {
     }
     if (webServer) {
         webServer.stop();
+    }
+    if (aiConnectionManager) {
+        aiConnectionManager.dispose();
+    }
+    if (portChecker) {
+        portChecker.dispose();
     }
     isActivated = false;
     console.log('TestFox has been deactivated');
