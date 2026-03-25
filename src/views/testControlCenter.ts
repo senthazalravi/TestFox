@@ -127,12 +127,18 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
                 case 'mcpChromeDevTools':
                     await vscode.commands.executeCommand('testfox.mcpRunServer', 'chrome-devtools-mcp');
                     break;
+                case 'mcpQAUse':
+                    await vscode.commands.executeCommand('testfox.mcpRunServer', 'qa-use-mcp');
+                    break;
                 // (Payment test commands removed - now available in Test Explorer)
                 case 'mcpRunAll':
                     await vscode.commands.executeCommand('testfox.mcpRunAll');
                     break;
                 case 'mcpReport':
                     await vscode.commands.executeCommand('testfox.mcpGenerateReport');
+                    break;
+                case 'enhanceWithAI':
+                    await vscode.commands.executeCommand('testfox.configureAI');
                     break;
             }
         });
@@ -766,6 +772,10 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
                 <span class="btn-icon">🔧</span>
                 <span>DevTools</span>
             </button>
+            <button class="btn" onclick="sendCommand('mcpQAUse')" style="border-color: rgba(147,51,234,0.5);">
+                <span class="btn-icon">🧪</span>
+                <span>QA Use</span>
+            </button>
             <button class="btn btn-primary" onclick="sendCommand('mcpRunAll')" style="background: linear-gradient(135deg, #9333ea 0%, #4f46e5 100%);">
                 <span>🚀 Run All MCP Tests</span>
             </button>
@@ -775,7 +785,7 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             </button>
         </div>
         <div id="mcpStatus" style="margin-top: 10px; font-size: 11px; color: #a78bfa;">
-            3 MCP Servers Available
+            4 MCP Servers Available
             </div>
         </div>
 

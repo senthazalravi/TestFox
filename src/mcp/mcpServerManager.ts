@@ -98,6 +98,14 @@ export const QA_MCP_SERVERS: Omit<MCPServerConfig, 'status'>[] = [
         capabilities: ['browser_automation', 'mobile_testing'],
     },
     {
+        id: 'qa-use-mcp',
+        name: 'QA Use MCP Server',
+        description: 'Quality assurance testing with comprehensive browser automation using Playwright',
+        command: 'node',
+        args: ['${extensionPath}/../qa-use-mcp/dist/src/index.js'],
+        capabilities: ['browser_automation', 'accessibility_testing', 'performance_testing', 'visual_testing'],
+    },
+    {
         id: 'fetch-mcp',
         name: 'Fetch MCP Server',
         description: 'HTTP/API testing and endpoint validation',
@@ -429,36 +437,6 @@ export class MCPServerManager {
                 category: 'security_scanning',
                 status: 'passed',
                 duration: 800,
-                message: 'Security headers are properly configured'
-            }
-        ];
-    }
-
-    private generatePerformanceTests(server: MCPServerConfig, targetUrl?: string): MCPTestCase[] {
-        return [
-            {
-                id: `${server.id}-perf-1`,
-                name: 'Page Load Performance',
-                category: 'performance_testing',
-                status: 'passed',
-                duration: 2000,
-                message: 'Page loads within acceptable time (< 3s)'
-            },
-            {
-                id: `${server.id}-perf-2`,
-                name: 'Time to Interactive',
-                category: 'performance_testing',
-                status: 'passed',
-                duration: 1800,
-                message: 'Page is interactive within 2s'
-            },
-            {
-                id: `${server.id}-perf-3`,
-                name: 'Resource Loading',
-                category: 'performance_testing',
-                status: 'passed',
-                duration: 1500,
-                message: 'All resources loaded efficiently'
             }
         ];
     }

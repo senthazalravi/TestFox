@@ -42,3 +42,8 @@ webview-ui/*.config.*
 .env
 .DS_Store
 Thumbs.db
+
+# Publishing files (contain secrets)
+PUBLISHING.md
+.publishing-remember.md
+RELEASE_STATUS*.md

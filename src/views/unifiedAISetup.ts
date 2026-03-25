@@ -83,14 +83,25 @@ export class UnifiedAISetup {
                 cursor: pointer;
                 text-align: center;
                 transition: all 0.2s;
+                user-select: none;
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
             }
             .provider-option:hover {
                 border-color: var(--vscode-button-hoverBackground);
                 background-color: var(--vscode-button-hoverBackground);
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            }
+            .provider-option:active {
+                transform: translateY(0);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             }
             .provider-option.selected {
                 border-color: var(--vscode-focusBorder);
                 background-color: var(--vscode-button-background);
+                transform: scale(1.02);
             }
             .form-section {
                 display: none;
@@ -181,6 +192,15 @@ export class UnifiedAISetup {
                     <h3>🔗 Bring Your Own API</h3>
                     <p>Use any OpenAI-compatible API</p>
                 </div>
+            </div>
+
+            <!-- Test Buttons -->
+            <div style="margin: 20px 0; padding: 15px; background: var(--vscode-textBlockQuote-background); border-radius: 5px;">
+                <h4>🧪 Test Buttons</h4>
+                <button onclick="testButtonClick('ollama')" style="margin-right: 10px;">Test Ollama Button</button>
+                <button onclick="testButtonClick('custom')" style="margin-right: 10px;">Test Custom Button</button>
+                <button onclick="testProviderSelection()" style="margin-right: 10px;">Test Provider Selection</button>
+                <div id="test-output" style="margin-top: 10px; font-family: monospace; font-size: 12px;"></div>
             </div>
 
             <!-- Ollama Configuration -->
@@ -388,6 +408,36 @@ export class UnifiedAISetup {
                 }
             }
 
+            function testButtonClick(provider) {
+                console.log('Testing button click for:', provider);
+                document.getElementById('test-output').innerHTML = 'Button clicked: ' + provider + ' at ' + new Date().toISOString();
+                
+                // Test if we can find the provider option element
+                const element = document.getElementById(provider + '-option');
+                if (element) {
+                    document.getElementById('test-output').innerHTML += '<br>Found element: ' + provider + '-option';
+                } else {
+                    document.getElementById('test-output').innerHTML += '<br>ERROR: Element not found: ' + provider + '-option';
+                }
+            }
+
+            function testProviderSelection() {
+                console.log('Testing provider selection...');
+                document.getElementById('test-output').innerHTML = 'Testing provider selection...';
+                
+                try {
+                    selectProvider('ollama');
+                    document.getElementById('test-output').innerHTML += '<br>Ollama selection: SUCCESS';
+                    
+                    setTimeout(() => {
+                        selectProvider('custom');
+                        document.getElementById('test-output').innerHTML += '<br>Custom selection: SUCCESS';
+                    }, 1000);
+                } catch (error) {
+                    document.getElementById('test-output').innerHTML += '<br>Provider selection ERROR: ' + error.message;
+                }
+            }
+
             function showLoading(show) {
                 const buttons = document.querySelectorAll('.button');
                 buttons.forEach(btn => {
@@ -403,6 +453,34 @@ export class UnifiedAISetup {
 
             // Initialize with first provider
             selectProvider('ollama');
+
+            // Add event listeners as backup to onclick handlers
+            console.log('Adding event listeners...');
+            
+            const ollamaOption = document.getElementById('ollama-option');
+            const customOption = document.getElementById('custom-option');
+            
+            if (ollamaOption) {
+                ollamaOption.addEventListener('click', function(e) {
+                    console.log('Ollama option clicked via event listener');
+                    e.preventDefault();
+                    selectProvider('ollama');
+                });
+                console.log('Ollama event listener added');
+            } else {
+                console.error('Ollama option not found!');
+            }
+            
+            if (customOption) {
+                customOption.addEventListener('click', function(e) {
+                    console.log('Custom option clicked via event listener');
+                    e.preventDefault();
+                    selectProvider('custom');
+                });
+                console.log('Custom event listener added');
+            } else {
+                console.error('Custom option not found!');
+            }
 
             // Handle messages from extension
             window.addEventListener('message', event => {

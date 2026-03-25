@@ -1,5 +1,147 @@
 # Change Log
 
+## [7.0.9] - 2026-03-24
+
+### 🔄 Automated Testing Workflows
+
+- **Git Commit Hook Integration** 🔗
+  - Automatic detection of new git commits (polling + VS Code Git API)
+  - Prompts user to run tests on commit: "Run Full Cycle", "Quick Test", or "Skip"
+  - Configurable via `testfox.autoRunOnCommit` setting
+  - Integrated commit hash tracking for test reports
+
+- **Background Test Runner** ⚡
+  - Non-blocking test execution in the background
+  - Automatic application startup detection and management
+  - Comprehensive HTML report generation with test statistics
+  - Report saved to `.testfox/reports/` with commit hash and timestamp
+  - Completion notifications with "View Report" action
+
+- **Enhanced Port Detection** 🔌
+  - Improved application port detection from startup output
+  - Support for Vite (5173), Next.js, Create React App, and other frameworks
+  - Multiple regex patterns for robust port extraction
+
+### 🎯 AI Button Fix
+
+- **Test Control Center AI Button** 🤖
+  - Fixed "Enhance with AI" button clickability
+  - Now properly opens AI configuration dialog
+  - Handler added for `enhanceWithAI` command
+
+---
+
+## [7.0.8] - 2026-03-24
+
+### 🔧 QA Use MCP Server Integration Enhancement
+
+- **QA Use MCP Server Placement** 🎯
+  - Moved QA Use MCP Server inside QA MCP Servers section alongside other 3 MCP servers
+  - Added QA Use MCP button to Test Control Center UI with 🧪 icon
+  - Updated server count from "3" to "4" MCP Servers Available
+  - Integrated command handler for `mcpQAUse` button functionality
+
+- **Button Verification Complete** ✅
+  - Verified all buttons across TestFox UI components are working correctly
+  - Tested button event handlers in Unified AI Setup (Ollama, Custom API)
+  - Confirmed Test Control Center buttons (Analyze, Generate, AI Config, Report, Run, Pause, Resume, Stop)
+  - Verified Dashboard Panel buttons (Analyze, Generate, Run, Export, Refresh, Pass/Fail/Skip)
+  - Checked MCP Control Panel cards (Playwright, Postman, DevTools)
+  - Validated Onboarding Panel buttons (Save, Test, Continue, Skip)
+  - Confirmed Settings Panel buttons (Test Connection, Verify, Save, Reset)
+
+---
+
+## [7.0.7] - 2026-03-02
+
+### 🚀 Major Feature: QA Use MCP Server Integration
+
+- **Comprehensive MCP Server** 🔧
+  - **Added QA Use MCP Server**: Professional-grade browser automation and QA testing
+  - **10+ MCP Tools**: Complete testing and automation capabilities
+  - **Multi-Browser Support**: Chromium, Firefox, WebKit with session management
+  - **Advanced Testing**: Accessibility, performance, security, visual testing
+  - **API Integration**: Full Desplega AI platform connectivity
+  - **CLI System**: 12+ browser automation commands with unified interface
+
+- **Enhanced MCP Capabilities** 🛠️
+  - **Browser Automation**: Full control over browser sessions and interactions
+  - **Accessibility Testing**: WCAG 2.1 AA compliance checking
+  - **Performance Analysis**: Core Web Vitals (FCP, LCP, CLS, FID, TTI)
+  - **Visual Testing**: Screenshot capture and comparison
+  - **Tunneling Support**: Secure public tunnel creation for local development
+  - **Session Management**: Up to 10 concurrent sessions with TTL
+
+- **Professional CLI Tools** 🖥
+  - **Unified Command**: Single `qa-use` command with comprehensive subcommands
+  - **Browser Commands**: click, type, fill, hover, select, screenshot, navigate
+  - **Element References**: Support for CSS selectors and custom test IDs
+  - **Configuration Management**: Setup and environment configuration
+  - **REPL Integration**: Interactive browser control with command sync
+
+- **Enterprise Features** 🏢
+  - **Multi-Transport Support**: stdio, HTTP/SSE, WebSocket tunnel modes
+  - **Professional Testing**: 12+ testing categories with comprehensive coverage
+  - **Advanced Automation**: Element interaction with smart reference parsing
+  - **Performance Optimization**: Lazy loading and connection pooling
+  - **Error Handling**: Robust error recovery and reporting
+
+- **Integration Enhancements** 🔗
+  - **TestFox MCP System**: QA Use server added to available servers
+  - **Claude Desktop Ready**: Configuration examples and setup guides
+  - **Cross-Platform**: Windows, macOS, Linux compatibility
+  - **Documentation**: Comprehensive 500+ line documentation
+
+### 🔍 Technical Improvements
+
+- **TypeScript Implementation**: Full type safety with comprehensive interfaces
+- **Modular Architecture**: Clean separation of concerns and dependency injection
+- **Professional Code Quality**: ESLint, Biome, Prettier integration
+- **Environment Management**: Flexible configuration with validation
+- **Build System**: Automated compilation and packaging with bun
+
+### 📋 New Commands
+
+```bash
+# QA Use MCP Commands
+qa-use setup --api-key YOUR_KEY
+qa-use browser create --browser chromium
+qa-use browser click e31
+qa-use browser screenshot --full-page
+qa-use mcp start
+```
+
+### 🌐 Integration Points
+
+- **MCP Server Manager**: Added QA Use server to TestFox ecosystem
+- **Claude Desktop**: Ready configuration with examples
+- **API Integration**: Desplega AI platform connectivity
+- **Browser Automation**: Professional-grade testing capabilities
+
+---
+
+## [7.0.6] - 2026-03-01
+
+### 🐛 Bug Fixes
+
+- **AI Configuration Button Debugging** 🔧
+  - **Enhanced Event Handling**: Added dual event binding strategy (onclick + addEventListener)
+  - **Improved Visual Feedback**: Better hover, click, and selection animations
+  - **Comprehensive Debugging**: Added test buttons and debug panel for troubleshooting
+  - **Enhanced CSS**: Added transform effects, shadows, and user-select prevention
+  - **Better Error Detection**: Element verification and detailed console logging
+  - **Cross-browser Compatibility**: Added vendor prefixes for user-select property
+
+### 🔍 Technical Improvements
+
+- **Dual Event Strategy**: Primary onclick handlers with backup addEventListener
+- **Debug Tools**: Test buttons for manual verification of button functionality
+- **Enhanced Logging**: Comprehensive console output for troubleshooting
+- **Visual Enhancements**: Improved button interactions and state feedback
+- **Error Handling**: Better detection and reporting of element issues
+
+---
+
 ## [7.0.5] - 2026-03-01
 
 ### 🐛 Bug Fixes

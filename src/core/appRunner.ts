@@ -196,14 +196,31 @@ export class AppRunner {
                     const output = data.toString();
                     this.outputChannel.append(output);
 
-                    // Try to extract actual port from output
-                    const portMatch = output.match(/localhost:(\d+)/) || output.match(/127\.0\.0\.1:(\d+)/) || output.match(/0\.0\.0\.0:(\d+)/);
-                    if (portMatch && !startupDetected) {
-                        const detectedPort = parseInt(portMatch[1], 10);
-                        const detectedUrl = `http://localhost:${detectedPort}`;
-                        if (detectedUrl !== this.baseUrl) {
-                            this.baseUrl = detectedUrl;
-                            this.outputChannel.appendLine(`✓ Detected port ${detectedPort} from application output`);
+                    // Try to extract actual port from output - improved patterns for Vite, Next.js, etc.
+                    const portPatterns = [
+                        /Local:\s+http:\/\/localhost:(\d+)/i,  // Vite format: "Local: http://localhost:5173/"
+                        /➜\s+Local:\s+http:\/\/localhost:(\d+)/i,  // Vite with arrow
+                        /localhost:(\d+)/,
+                        /127\.0\.0\.1:(\d+)/,
+                        /0\.0\.0\.0:(\d+)/,
+                        /:\/(\d+)/,  // Port after colon
+                        /port\s+(\d+)/i,  // "port 3000"
+                        /on\s+(\d+)/i,  // "on 3000"
+                        /\*\s+(\d+)/i  // "* 3000" format
+                    ];
+                    
+                    for (const pattern of portPatterns) {
+                        const portMatch = output.match(pattern);
+                        if (portMatch && !startupDetected) {
+                            const detectedPort = parseInt(portMatch[1], 10);
+                            if (detectedPort > 0 && detectedPort < 65536) {
+                                const detectedUrl = `http://localhost:${detectedPort}`;
+                                if (detectedUrl !== this.baseUrl) {
+                                    this.baseUrl = detectedUrl;
+                                    this.outputChannel.appendLine(`✓ Detected port ${detectedPort} from application output`);
+                                }
+                                break;
+                            }
                         }
                     }
 
@@ -219,6 +236,29 @@ export class AppRunner {
                 this.process.stderr?.on('data', (data: Buffer) => {
                     const output = data.toString();
                     this.outputChannel.append(output);
+
+                    // Check stderr for port info too (some frameworks output there)
+                    const portPatterns = [
+                        /Local:\s+http:\/\/localhost:(\d+)/i,
+                        /➜\s+Local:\s+http:\/\/localhost:(\d+)/i,
+                        /localhost:(\d+)/,
+                        /port\s+(\d+)/i
+                    ];
+                    
+                    for (const pattern of portPatterns) {
+                        const portMatch = output.match(pattern);
+                        if (portMatch && !startupDetected) {
+                            const detectedPort = parseInt(portMatch[1], 10);
+                            if (detectedPort > 0 && detectedPort < 65536) {
+                                const detectedUrl = `http://localhost:${detectedPort}`;
+                                if (detectedUrl !== this.baseUrl) {
+                                    this.baseUrl = detectedUrl;
+                                    this.outputChannel.appendLine(`✓ Detected port ${detectedPort} from stderr output`);
+                                }
+                                break;
+                            }
+                        }
+                    }
 
                     // Some frameworks output to stderr
                     if (!startupDetected && this.isStartupMessage(output, projectInfo)) {

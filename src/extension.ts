@@ -40,6 +40,7 @@ import { registerMCPCommands } from './commands/mcpCommands';
 import { AIConnectionManager } from './core/aiConnectionManager';
 import { PortChecker } from './core/portChecker';
 import { BackendTestGenerator } from './generators/backendTestGenerator';
+import { GitCommitHook } from './core/gitCommitHook';
 
 let projectDetector: ProjectDetector;
 let codeAnalyzer: CodeAnalyzer;
@@ -66,6 +67,7 @@ let mcpServerManager: MCPServerManager;
 let runtimeAppAnalyzer: RuntimeAppAnalyzer;
 let aiConnectionManager: AIConnectionManager;
 let portChecker: PortChecker;
+let gitCommitHook: GitCommitHook;
 
 // Status bar items
 let statusBarMain: vscode.StatusBarItem;
@@ -1448,6 +1450,16 @@ export async function activate(context: vscode.ExtensionContext) {
         console.log('Test scheduler started');
     } catch (error) {
         console.error('Failed to start scheduler:', error);
+    }
+
+    try {
+        // Initialize Git Commit Hook for automatic test runs on commit
+        console.log('Initializing Git Commit Hook...');
+        gitCommitHook = new GitCommitHook(context);
+        gitCommitHook.startWatching();
+        console.log('Git Commit Hook initialized and watching');
+    } catch (error) {
+        console.error('Failed to initialize Git Commit Hook:', error);
     }
 
 }
@@ -3174,6 +3186,9 @@ export function deactivate() {
     }
     if (portChecker) {
         portChecker.dispose();
+    }
+    if (gitCommitHook) {
+        gitCommitHook.dispose();
     }
     isActivated = false;
     console.log('TestFox has been deactivated');

@@ -637,6 +637,8 @@ export class SettingsPanel {
                         <option value="openrouter">OpenRouter (recommended)</option>
                         <option value="google-gemini">Google Gemini</option>
                         <option value="deepseek">DeepSeek</option>
+                        <option value="nvidia-nim">NVIDIA NIM (Kimi)</option>
+                        <option value="amazon-nova">Amazon Nova</option>
                         <option value="ollama">Ollama (Local)</option>
                         <option value="lmstudio">LM Studio (Local)</option>
                         <option value="byo-api">Bring Your Own API</option>
@@ -663,6 +665,14 @@ export class SettingsPanel {
                     <button class="btn btn-secondary" id="refreshOllama" onclick="refreshOllamaModels()">Refresh</button>
                 </div>
                 <p class="description" style="margin-top:6px;">Refresh will query the local Ollama server for available models. If Ollama isn't installed, TestFox will attempt to run the installer script.</p>
+            </div>
+
+            <div id="byoConfig" class="form-group" style="display:none; margin-top:8px;">
+                <label for="aiBaseUrlInput">API Base URL</label>
+                <input type="text" id="aiBaseUrlInput" placeholder="https://api.example.com/v1" style="width:100%; margin-top:6px;" />
+                <label for="aiModelInput" style="margin-top:8px; display:block;">Model Name</label>
+                <input type="text" id="aiModelInput" placeholder="e.g. moonshotai/kimi-k2.5" style="width:100%; margin-top:6px;" />
+                <p class="description" style="margin-top:6px;">Use this when selecting "Bring Your Own API" to provide a custom base URL and model name.</p>
             </div>
 
             <div id="connectionStatus" style="margin-top: 10px; margin-bottom: 20px;"></div>
@@ -785,7 +795,7 @@ export class SettingsPanel {
                 const provider = providerSelect.value;
                 const apiGroup = document.getElementById('apiKeyGroup');
                 const ollamaGroup = document.getElementById('ollamaConfig');
-                if (provider === 'openrouter' || provider === 'google-gemini' || provider === 'deepseek' || provider === 'byo-api') {
+                if (provider === 'openrouter' || provider === 'google-gemini' || provider === 'deepseek' || provider === 'byo-api' || provider === 'nvidia-nim' || provider === 'amazon-nova') {
                     apiGroup.style.display = 'block';
                 } else {
                     apiGroup.style.display = 'none';
@@ -794,6 +804,13 @@ export class SettingsPanel {
                     ollamaGroup.style.display = 'block';
                 } else {
                     ollamaGroup.style.display = 'none';
+                }
+                // BYO config visibility
+                const byo = document.getElementById('byoConfig');
+                if (provider === 'byo-api') {
+                    byo.style.display = 'block';
+                } else {
+                    byo.style.display = 'none';
                 }
             });
 
@@ -895,17 +912,23 @@ export class SettingsPanel {
             if (provider === 'ollama') {
                 document.getElementById('ollamaConfig').style.display = 'block';
                 document.getElementById('apiKeyGroup').style.display = 'none';
-            } else if (provider === 'openrouter' || provider === 'google-gemini' || provider === 'deepseek' || provider === 'byo-api') {
+            } else if (provider === 'openrouter' || provider === 'google-gemini' || provider === 'deepseek' || provider === 'byo-api' || provider === 'nvidia-nim' || provider === 'amazon-nova') {
                 document.getElementById('apiKeyGroup').style.display = 'block';
                 document.getElementById('ollamaConfig').style.display = 'none';
             }
             if (settings.aiBaseUrl) {
                 const baseEl = document.getElementById('ollamaBaseUrl');
                 if (baseEl) baseEl.value = settings.aiBaseUrl;
+                const byoEl = document.getElementById('aiBaseUrlInput');
+                if (byoEl) byoEl.value = settings.aiBaseUrl;
             }
             document.getElementById('aiModel').value = settings.aiModel;
             if (settings.aiApiKey) {
                 document.getElementById('aiApiKey').value = settings.aiApiKey;
+            }
+            const modelInput = document.getElementById('aiModelInput');
+            if (modelInput && settings.aiModel) {
+                (modelInput as HTMLInputElement).value = settings.aiModel;
             }
 
             document.getElementById('autoDetectProject').checked = settings.autoDetectProject;
@@ -942,8 +965,8 @@ export class SettingsPanel {
                 aiEnabled: document.getElementById('aiEnabled').checked,
                 aiProvider: document.getElementById('aiProvider').value,
                 aiApiKey: document.getElementById('aiApiKey').value,
-                aiBaseUrl: document.getElementById('ollamaBaseUrl') ? document.getElementById('ollamaBaseUrl').value : document.getElementById('aiApiKey').value,
-                aiModel: document.getElementById('aiModel').value,
+                aiBaseUrl: (document.getElementById('aiBaseUrlInput') && document.getElementById('aiBaseUrlInput').value) ? document.getElementById('aiBaseUrlInput').value : (document.getElementById('ollamaBaseUrl') ? document.getElementById('ollamaBaseUrl').value : ''),
+                aiModel: (document.getElementById('aiModelInput') && document.getElementById('aiModelInput').value) ? document.getElementById('aiModelInput').value : document.getElementById('aiModel').value,
                 autoDetectProject: document.getElementById('autoDetectProject').checked,
                 autoAnalyze: document.getElementById('autoAnalyze').checked,
                 browserHeadless: document.getElementById('browserHeadless').checked,

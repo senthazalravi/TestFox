@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing for JavaScript, Python, Java, C, C++, Rust, Go & more. 18+ test categories including security (OWASP), performance, accessibility. FREE AI models available via OpenRouter.",
-  "version": "7.0.5",
+  "version": "7.0.9",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -426,16 +426,6 @@
         "testfox.ai.provider": {
           "type": "string",
           "default": "openrouter",
-          "enum": [
-            "openrouter",
-            "google-gemini",
-            "deepseek",
-            "ollama",
-            "lmstudio",
-            "nvidia-nim",
-            "amazon-nova",
-            "byo-api"
-          ],
           "description": "AI provider (managed through TestFox onboarding)"
         },
         "testfox.ai.apiKey": {
@@ -446,7 +436,7 @@
         "testfox.ai.baseUrl": {
           "type": "string",
           "default": "https://openrouter.ai/api/v1",
-          "markdownDescription": "Base URL for the AI provider (e.g. https://openrouter.ai/api/v1, https://api.nova.amazon.com/v1 for Amazon Nova)"
+          "description": "Base URL for the AI provider (e.g. https://openrouter.ai/api/v1)"
         },
         "testfox.ai.model": {
           "type": "string",
@@ -462,11 +452,11 @@
             "qwen/qwen-2.5-coder-32b-instruct:free",
             "z-ai/glm-4-9b-chat:free",
             "mistralai/mistral-nemo:free",
+            "moonshotai/kimi-k2.5",
             "anthropic/claude-3.5-sonnet",
             "openai/gpt-4o",
             "x-ai/grok-2-1212",
-            "mistralai/mistral-large-2411",
-            "nova-2-lite-v1"
+            "mistralai/mistral-large-2411"
           ],
           "enumDescriptions": [
             "OpenRouter Auto (Free) - Automatically selects the best available free model",
@@ -478,11 +468,11 @@
             "Qwen 2.5 Coder (Free) - Specialized for code from Alibaba",
             "GLM 4 9B (Free) - General-purpose model from Zhipu AI",
             "Mistral Nemo (Free) - Efficient model from Mistral",
+            "NVIDIA NIM Kimi K2.5 - NVIDIA NIM hosted Kimi model (moonshotai/kimi-k2.5)",
             "Claude 3.5 Sonnet (Paid) - Best for complex analysis",
             "GPT-4o (Paid) - OpenAI's flagship model",
             "Grok 2 (Paid) - xAI's latest model",
-            "Mistral Large 2 (Paid) - Mistral's flagship model",
-            "Nova 2 Lite (Amazon) - Fast and efficient model from AWS"
+            "Mistral Large 2 (Paid) - Mistral's flagship model"
           ],
           "description": "AI model to use for test generation (FREE models recommended)"
         },

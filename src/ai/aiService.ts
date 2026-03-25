@@ -12,9 +12,10 @@ export enum AIProvider {
     DEEPSEEK = 'deepseek',
     OLLAMA = 'ollama',
     LMSTUDIO = 'lmstudio',
-    NVIDIA_NIM = 'nvidia-nim',
-    AMAZON_NOVA = 'amazon-nova',
-    BYO_API = 'byo-api'
+    BYO_API = 'byo-api',
+    NVIDIA_NIM = 'nvidia-nim'
+    ,
+    AMAZON_NOVA = 'amazon-nova'
 }
 
 /**
@@ -117,13 +118,8 @@ export class AIService {
                 break;
 
             case AIProvider.NVIDIA_NIM:
-                // Initialize Nvidia NIM client
-                console.log('🧠 AI Service: Initializing Nvidia NIM client');
-                break;
-
-            case AIProvider.AMAZON_NOVA:
-                // Initialize Amazon Nova client
-                console.log('🧠 AI Service: Initializing Amazon Nova client');
+                // Initialize NVIDIA NIM (NIM/Kimi) client
+                console.log('🧠 AI Service: Initializing NVIDIA NIM client');
                 break;
 
             case AIProvider.BYO_API:
@@ -166,10 +162,10 @@ export class AIService {
                     return await this.checkLMStudioAvailability();
 
                 case AIProvider.NVIDIA_NIM:
-                    return await this.checkNvidiaNimAvailability();
+                    return await this.checkNvidiaNIMAvailability();
 
-                case AIProvider.AMAZON_NOVA:
-                    return await this.checkAmazonNovaAvailability();
+                    case AIProvider.AMAZON_NOVA:
+                        return await this.checkAmazonNovaAvailability();
 
                 case AIProvider.BYO_API:
                     return await this.checkBYOApiAvailability();
@@ -217,7 +213,7 @@ export class AIService {
                     return await this.generateWithLMStudio(request);
 
                 case AIProvider.NVIDIA_NIM:
-                    return await this.generateWithNvidiaNim(request);
+                    return await this.generateWithNvidiaNIM(request);
 
                 case AIProvider.AMAZON_NOVA:
                     return await this.generateWithAmazonNova(request);
@@ -394,6 +390,12 @@ ${contextData.coreLogic.substring(0, 2000)}...`;
 
                 case AIProvider.LMSTUDIO:
                     return await this.getLMStudioModels();
+
+                case AIProvider.NVIDIA_NIM:
+                    return await this.getNvidiaNIMModels();
+
+                case AIProvider.AMAZON_NOVA:
+                    return await this.getAmazonNovaModels();
 
                 case AIProvider.BYO_API:
                     return await this.getBYOApiModels();
@@ -674,18 +676,6 @@ ${contextData.coreLogic.substring(0, 2000)}...`;
         }
     }
 
-    // ===== NVIDIA NIM IMPLEMENTATION =====
-
-    private async checkNvidiaNimAvailability(): Promise<boolean> {
-        try {
-            // Nvidia NIM typically runs on localhost:8000 or configured URL
-            const response = await fetch(`${this.config.baseUrl || 'http://localhost:8000'}/v1/models`);
-            return response.ok;
-        } catch {
-            return false;
-        }
-    }
-
     private async generateWithLMStudio(request: AIGenerationRequest): Promise<AIServiceResponse> {
         try {
             const response = await fetch(`${this.config.baseUrl || 'http://localhost:1234'}/v1/chat/completions`, {
@@ -732,70 +722,22 @@ ${contextData.coreLogic.substring(0, 2000)}...`;
         }
     }
 
-    private async generateWithNvidiaNim(request: AIGenerationRequest): Promise<AIServiceResponse> {
-        try {
-            const response = await fetch(`${this.config.baseUrl || 'http://localhost:8000'}/v1/chat/completions`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.config.apiKey}`
-                },
-                body: JSON.stringify({
-                    model: this.config.model || 'nvidia/llama-3.1-nemotron-70b-instruct',
-                    messages: [{ role: 'user', content: request.prompt }],
-                    temperature: request.options?.temperature || this.config.temperature || 0.7,
-                    max_tokens: request.options?.maxTokens || this.config.maxTokens || 2048
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`Nvidia NIM request failed: ${response.statusText}`);
-            }
-
-            const result: any = await response.json();
-            return { success: true, data: result.choices[0]?.message?.content };
-        } catch (error) {
-            console.error('❌ Nvidia NIM: Generation failed:', error);
-            return { success: false, error: 'Nvidia NIM generation failed' };
-        }
-    }
-
-    private async getNvidiaNimModels(): Promise<AIModel[]> {
-        try {
-            const response = await fetch(`${this.config.baseUrl || 'http://localhost:8000'}/v1/models`);
-            if (!response.ok) return [];
-
-            const data: any = await response.json();
-            if (this.isValidDataWithModels(data)) {
-                return data.models.map((model: any) => ({
-                    id: model.id,
-                    name: model.id,
-                    provider: AIProvider.NVIDIA_NIM,
-                    contextLength: 4096, // Default assumption
-                    capabilities: ['text-generation', 'test-generation']
-                }));
-            }
-            throw new Error('Invalid data format for models');
-        } catch {
-            return [];
-        }
-    }
-
     // ===== AMAZON NOVA IMPLEMENTATION =====
 
     private async checkAmazonNovaAvailability(): Promise<boolean> {
         try {
-            // Check for NOVA_API_KEY environment variable or config
-            const apiKey = this.config.apiKey || process.env.NOVA_API_KEY;
-            if (!apiKey) return false;
-
-            const response = await fetch(`${this.config.baseUrl || 'https://api.nova.amazon.com/v1'}/models`, {
+            if (!this.config.apiKey || !this.config.baseUrl) return false;
+            const url = `${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`;
+            const res = await fetch(url, {
+                method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json'
-                }
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.config.apiKey}`
+                },
+                body: JSON.stringify({ model: this.config.model || 'amazon/nova', messages: [{ role: 'user', content: 'Connection test' }], max_tokens: 1 })
             });
-            return response.ok;
+
+            return res.ok;
         } catch {
             return false;
         }
@@ -803,31 +745,33 @@ ${contextData.coreLogic.substring(0, 2000)}...`;
 
     private async generateWithAmazonNova(request: AIGenerationRequest): Promise<AIServiceResponse> {
         try {
-            const apiKey = this.config.apiKey || process.env.NOVA_API_KEY;
-            if (!apiKey) {
-                return { success: false, error: 'Amazon Nova API key not configured' };
-            }
+            const url = `${(this.config.baseUrl || '').replace(/\/$/, '')}/chat/completions`;
 
-            const response = await fetch(`${this.config.baseUrl || 'https://api.nova.amazon.com/v1'}/chat/completions`, {
+            const body: any = {
+                model: this.config.model || request.options?.model || 'amazon/nova',
+                messages: [{ role: 'user', content: request.prompt }],
+                temperature: request.options?.temperature ?? this.config.temperature ?? 0.7,
+                max_tokens: request.options?.maxTokens ?? this.config.maxTokens ?? 4096,
+                stream: false
+            };
+
+            const res = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
+                    'Authorization': `Bearer ${this.config.apiKey}`,
+                    'Accept': 'application/json'
                 },
-                body: JSON.stringify({
-                    model: this.config.model || 'nova-2-lite-v1',
-                    messages: [{ role: 'user', content: request.prompt }],
-                    temperature: request.options?.temperature || this.config.temperature || 0.7,
-                    max_tokens: request.options?.maxTokens || this.config.maxTokens || 2048
-                })
+                body: JSON.stringify(body)
             });
 
-            if (!response.ok) {
-                throw new Error(`Amazon Nova request failed: ${response.statusText}`);
+            if (!res.ok) {
+                throw new Error(`Amazon Nova API error: ${res.status}`);
             }
 
-            const result: any = await response.json();
-            return { success: true, data: result.choices[0]?.message?.content };
+            const data: any = await res.json();
+            const content = data?.choices?.[0]?.message?.content || data?.output?.[0]?.content || data?.result || JSON.stringify(data);
+            return { success: true, data: content };
         } catch (error) {
             console.error('❌ Amazon Nova: Generation failed:', error);
             return { success: false, error: 'Amazon Nova generation failed' };
@@ -835,27 +779,91 @@ ${contextData.coreLogic.substring(0, 2000)}...`;
     }
 
     private async getAmazonNovaModels(): Promise<AIModel[]> {
-        try {
-            const apiKey = this.config.apiKey || process.env.NOVA_API_KEY;
-            if (!apiKey) return [];
-
-            const response = await fetch(`${this.config.baseUrl || 'https://api.nova.amazon.com/v1'}/models`);
-            if (!response.ok) return [];
-
-            const data: any = await response.json();
-            if (this.isValidDataWithModels(data)) {
-                return data.models.map((model: any) => ({
-                    id: model.id,
-                    name: model.id,
-                    provider: AIProvider.AMAZON_NOVA,
-                    contextLength: 4096, // Default assumption
-                    capabilities: ['text-generation', 'test-generation']
-                }));
+        return [
+            {
+                id: 'amazon/nova-1',
+                name: 'Amazon Nova 1',
+                provider: AIProvider.AMAZON_NOVA,
+                contextLength: 8192,
+                capabilities: ['text-generation', 'test-generation']
             }
-            throw new Error('Invalid data format for models');
+        ];
+    }
+
+    // ===== NVIDIA NIM (Kimi) IMPLEMENTATION =====
+
+    private async checkNvidiaNIMAvailability(): Promise<boolean> {
+        try {
+            if (!this.config.apiKey || !this.config.baseUrl) return false;
+            const url = `${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.config.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: this.config.model || 'moonshotai/kimi-k2.5',
+                    messages: [{ role: 'user', content: 'Connection test' }],
+                    max_tokens: 1
+                }),
+                timeout: 15000 as any
+            });
+
+            return res.ok;
         } catch {
-            return [];
+            return false;
         }
+    }
+
+    private async generateWithNvidiaNIM(request: AIGenerationRequest): Promise<AIServiceResponse> {
+        try {
+            const url = `${(this.config.baseUrl || 'https://integrate.api.nvidia.com/v1').replace(/\/$/, '')}/chat/completions`;
+
+            const body: any = {
+                model: this.config.model || 'moonshotai/kimi-k2.5',
+                messages: [{ role: 'user', content: request.prompt }],
+                temperature: request.options?.temperature ?? this.config.temperature ?? 0.7,
+                max_tokens: request.options?.maxTokens ?? this.config.maxTokens ?? 4096,
+                stream: false
+            };
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.config.apiKey}`,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!res.ok) {
+                throw new Error(`NVIDIA NIM API error: ${res.status}`);
+            }
+
+            const data: any = await res.json();
+
+            // Try common response shapes
+            const content = data?.choices?.[0]?.message?.content || data?.output?.[0]?.content || data?.result || JSON.stringify(data);
+            return { success: true, data: content };
+        } catch (error) {
+            console.error('❌ NVIDIA NIM: Generation failed:', error);
+            return { success: false, error: 'NVIDIA NIM generation failed' };
+        }
+    }
+
+    private async getNvidiaNIMModels(): Promise<AIModel[]> {
+        // Provide the Kimi model as a known option
+        return [
+            {
+                id: 'moonshotai/kimi-k2.5',
+                name: 'Kimi K2.5 (moonshotai)',
+                provider: AIProvider.NVIDIA_NIM,
+                contextLength: 16384,
+                capabilities: ['text-generation', 'test-generation']
+            }
+        ];
     }
 
     // ===== BYO API IMPLEMENTATION =====
@@ -1010,6 +1018,24 @@ export function getDefaultAIConfig(provider: AIProvider): AIServiceConfig {
                 model: 'local-model',
                 temperature: 0.7,
                 maxTokens: 2048
+            };
+
+        case AIProvider.NVIDIA_NIM:
+            return {
+                provider: AIProvider.NVIDIA_NIM,
+                baseUrl: 'https://integrate.api.nvidia.com/v1',
+                model: 'moonshotai/kimi-k2.5',
+                temperature: 1.0,
+                maxTokens: 16384
+            };
+
+        case AIProvider.AMAZON_NOVA:
+            return {
+                provider: AIProvider.AMAZON_NOVA,
+                baseUrl: '',
+                model: 'amazon/nova-1',
+                temperature: 0.7,
+                maxTokens: 8192
             };
 
         case AIProvider.BYO_API:
