@@ -13,6 +13,7 @@ import { IssueCreator } from './core/issueCreator';
 import { TestCoverageTracker } from './core/testCoverageTracker';
 import { OnboardingPanel } from './views/onboardingPanel';
 import { UnifiedAISetup } from './views/unifiedAISetup';
+import { MCPTestTreeProvider } from './views/mcpTestTreeProvider';
 import { MCPControlPanel } from './views/mcpControlPanel';
 import * as path from 'path';
 import { DashboardPanel } from './views/dashboard/dashboardPanel';
@@ -40,7 +41,9 @@ import { registerMCPCommands } from './commands/mcpCommands';
 import { AIConnectionManager } from './core/aiConnectionManager';
 import { PortChecker } from './core/portChecker';
 import { BackendTestGenerator } from './generators/backendTestGenerator';
+import { PaymentTestGenerator } from './generators/paymentTestGenerator';
 import { GitCommitHook } from './core/gitCommitHook';
+import { MCPIntegrationManager } from './core/mcpIntegrationManager';
 
 let projectDetector: ProjectDetector;
 let codeAnalyzer: CodeAnalyzer;
@@ -64,10 +67,12 @@ let defectTracker: DefectTracker;
 let webServer: WebServer;
 let scheduler: TestScheduler;
 let mcpServerManager: MCPServerManager;
-let runtimeAppAnalyzer: RuntimeAppAnalyzer;
+let runtimeAppAnalyzer: any;
 let aiConnectionManager: AIConnectionManager;
 let portChecker: PortChecker;
 let gitCommitHook: GitCommitHook;
+let mcpTestTreeProvider: MCPTestTreeProvider;
+let mcpIntegrationManager: MCPIntegrationManager;
 
 // Status bar items
 let statusBarMain: vscode.StatusBarItem;
@@ -86,7 +91,7 @@ let outputChannel: vscode.OutputChannel;
  */
 function logDiagnostic(message: string, type: 'info' | 'warn' | 'error' = 'info'): void {
     if (!outputChannel) {
-        outputChannel = vscode.window.createOutputChannel('TestFox Diagnostics');
+        return; // outputChannel should already be initialized
     }
     const timestamp = new Date().toISOString();
     const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : 'ℹ️';
@@ -146,6 +151,11 @@ export async function activate(context: vscode.ExtensionContext) {
     }
     isActivated = true;
 
+    // Initialize output channel early
+    outputChannel = vscode.window.createOutputChannel('TestFox Diagnostics');
+
+    // Performance tracking
+    const activationStartTime = performance.now();
     console.log('🦊 TestFox: Starting activation...');
     console.log('🦊 TestFox: Extension version:', context.extension.packageJSON.version);
     console.log('🦊 TestFox: VS Code version:', vscode.version);
@@ -284,28 +294,29 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.showErrorMessage('TestFox: Failed to initialize core components. Extension may not work properly.');
     }
 
-    try {
-        // Initialize AI Connection Manager
-        console.log('TestFox: Creating AI Connection Manager...');
-        aiConnectionManager = new AIConnectionManager(outputChannel, statusBarAI);
-        await aiConnectionManager.initialize();
-        console.log('TestFox: AI Connection Manager created and initialized');
-    } catch (error) {
-        console.error('Failed to initialize AI Connection Manager:', error);
-        logDiagnostic(`Failed to initialize AI Connection Manager: ${error}`, 'error');
-    }
+    // Initialize AI Connection Manager - NON-BLOCKING
+    console.log('TestFox: Starting AI Connection Manager initialization (async)...');
+    aiConnectionManager = new AIConnectionManager(outputChannel, statusBarAI);
+    // Don't await - let it initialize in background
+    aiConnectionManager.initialize().catch(err => {
+        console.error('TestFox: AI Connection Manager initialization failed:', err);
+    });
+    console.log('TestFox: AI Connection Manager created (initializing async)');
 
-    try {
-        // Initialize Port Checker
-        console.log('TestFox: Creating Port Checker...');
-        portChecker = new PortChecker(appRunner, outputChannel);
-        await portChecker.promptToStartApplications();
-        portChecker.startPeriodicChecks();
-        console.log('TestFox: Port Checker created and initialized');
-    } catch (error) {
-        console.error('Failed to initialize Port Checker:', error);
-        logDiagnostic(`Failed to initialize Port Checker: ${error}`, 'error');
-    }
+    // Initialize Port Checker - NON-BLOCKING with lazy prompt
+    console.log('TestFox: Creating Port Checker...');
+    portChecker = new PortChecker(appRunner, outputChannel);
+    portChecker.startPeriodicChecks();
+    console.log('TestFox: Port Checker created and periodic checks started');
+    
+    // Defer the application prompt to not block activation
+    setTimeout(async () => {
+        try {
+            await portChecker.promptToStartApplications();
+        } catch (err) {
+            console.error('TestFox: Port checker prompt failed:', err);
+        }
+    }, 2000);
 
     try {
         // Set up web server callbacks
@@ -472,6 +483,14 @@ export async function activate(context: vscode.ExtensionContext) {
         testControlCenter = new TestControlCenterProvider(context.extensionUri, testStore);
         testExecutionManager = new TestExecutionManager(testControlCenter);
 
+        // Initialize MCP Test Tree Provider
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders && workspaceFolders.length > 0) {
+            mcpTestTreeProvider = new MCPTestTreeProvider(workspaceFolders[0].uri.fsPath);
+        } else {
+            mcpTestTreeProvider = new MCPTestTreeProvider('');
+        }
+
         // Register tree views
         console.log('Registering tree views...');
         const testExplorerView = vscode.window.createTreeView('testfox-explorer', {
@@ -484,13 +503,19 @@ export async function activate(context: vscode.ExtensionContext) {
             showCollapseAll: true
         });
 
+        // Register MCP Test Explorer view
+        const mcpTestExplorerView = vscode.window.createTreeView('testfox-mcp-tests', {
+            treeDataProvider: mcpTestTreeProvider,
+            showCollapseAll: true
+        });
+
         // Register Test Control Center webview
         const controlCenterRegistration = vscode.window.registerWebviewViewProvider(
             TestControlCenterProvider.viewType,
             testControlCenter
         );
 
-        context.subscriptions.push(testExplorerView, testResultsView, controlCenterRegistration);
+        context.subscriptions.push(testExplorerView, testResultsView, mcpTestExplorerView, controlCenterRegistration);
         console.log('Views registered successfully');
         
         // Focus the TestFox view container after a short delay
@@ -1019,6 +1044,14 @@ export async function activate(context: vscode.ExtensionContext) {
         }),
 
         // Payment Test Commands
+        vscode.commands.registerCommand('testfox.refreshMCPTests', async () => {
+            if (mcpIntegrationManager) {
+                // MCP Integration Manager doesn't have a refresh method
+                // Just show confirmation message
+                vscode.window.showInformationMessage('TestFox: MCP Tests refreshed');
+            }
+        }),
+
         vscode.commands.registerCommand('testfox.runPaymentTests', async () => {
             try {
                 vscode.window.showInformationMessage('TestFox: Running payment form tests...');
@@ -1221,7 +1254,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 const testStore = require('./store/testStore').TestStore;
                 const store = new testStore();
                 const allTests = store.getAllTests();
-                const paymentTests = allTests.filter(test =>
+                const paymentTests = allTests.filter((test: any) =>
                     test.category.includes('payment') ||
                     test.category.includes('card')
                 );
@@ -1310,20 +1343,20 @@ export async function activate(context: vscode.ExtensionContext) {
                 <div class="label">Payment Tests</div>
             </div>
             <div class="stat-card">
-                <div class="value">${paymentTests.filter(t => t.category.includes('validation')).length}</div>
+                <div class="value">${paymentTests.filter((t: any) => t.category.includes('validation')).length}</div>
                 <div class="label">Validation Tests</div>
             </div>
             <div class="stat-card">
-                <div class="value">${paymentTests.filter(t => t.category.includes('security')).length}</div>
+                <div class="value">${paymentTests.filter((t: any) => t.category.includes('security')).length}</div>
                 <div class="label">Security Tests</div>
             </div>
             <div class="stat-card">
-                <div class="value">${paymentTests.filter(t => t.category.includes('edge')).length}</div>
+                <div class="value">${paymentTests.filter((t: any) => t.category.includes('edge')).length}</div>
                 <div class="label">Edge Cases</div>
             </div>
         </div>
 
-        ${paymentTests.map(test => `
+        ${paymentTests.map((test: any) => `
             <div class="test-section">
                 <div class="test-header">
                     <span class="test-name">💳 ${test.name}</span>
@@ -1461,6 +1494,28 @@ export async function activate(context: vscode.ExtensionContext) {
     } catch (error) {
         console.error('Failed to initialize Git Commit Hook:', error);
     }
+
+    try {
+        // Initialize MCP Integration Manager - NON-BLOCKING
+        console.log('TestFox: Starting MCP Integration Manager initialization (async)...');
+        // Defer MCP initialization to not block extension activation
+        setTimeout(async () => {
+            try {
+                mcpIntegrationManager = new MCPIntegrationManager(context);
+                mcpIntegrationManager.registerTreeView(context);
+                console.log('TestFox: MCP Integration Manager initialized (deferred)');
+            } catch (error) {
+                console.error('TestFox: Failed to initialize MCP Integration Manager:', error);
+                logDiagnostic(`Failed to initialize MCP Integration Manager: ${error}`, 'error');
+            }
+        }, 100);
+    } catch (error) {
+        console.error('Failed to initialize MCP Integration Manager:', error);
+    }
+
+    // Log activation completion time
+    const activationEndTime = performance.now();
+    console.log(`🦊 TestFox: Activation completed in ${(activationEndTime - activationStartTime).toFixed(2)}ms`);
 
 }
 
@@ -1681,10 +1736,137 @@ async function autoInitialize(context: vscode.ExtensionContext): Promise<void> {
                     vscode.commands.executeCommand('testfox.openDashboard');
                 }
             });
+
+            // Proactive testing prompt with Skip button
+            await promptForAutoTesting(context);
         }
     } catch (error) {
         console.error('Auto-initialize failed:', error);
         updateStatus('error', 'Init failed');
+    }
+}
+
+/**
+ * Proactive testing prompt - asks developer to start automatic testing
+ */
+async function promptForAutoTesting(context: vscode.ExtensionContext): Promise<void> {
+    const projectInfo = testStore.getProjectInfo();
+    if (!projectInfo) {
+        console.log('TestFox: No project info available for auto-testing prompt');
+        return;
+    }
+
+    // Check if already running
+    const existingUrl = await checkApplicationAvailability();
+    if (existingUrl) {
+        console.log(`TestFox: App already running at ${existingUrl}, skipping proactive prompt`);
+        return;
+    }
+
+    // Show proactive prompt with Skip button
+    const result = await vscode.window.showInformationMessage(
+        `🚀 TestFox: Start automatic testing for ${projectInfo.framework || projectInfo.type} project?`,
+        { modal: false },
+        'Start Auto Testing',
+        'Skip'
+    );
+
+    if (result === 'Skip') {
+        console.log('TestFox: User skipped auto-testing');
+        vscode.window.showInformationMessage(
+            'TestFox: You can start testing anytime using the Test Control Center or command palette.',
+            'Open Control Center'
+        ).then(selection => {
+            if (selection === 'Open Control Center') {
+                vscode.commands.executeCommand('testfox.openTestControlCenter');
+            }
+        });
+        return;
+    }
+
+    if (result === 'Start Auto Testing') {
+        console.log('TestFox: User accepted auto-testing, starting npm run dev...');
+        
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: 'TestFox: Starting application and running tests...',
+            cancellable: false
+        }, async (progress) => {
+            try {
+                // Start the application with npm run dev
+                progress.report({ message: 'Starting npm run dev...' });
+                updateStatus('running', 'Starting app...');
+                
+                // Override dev command to use npm run dev
+                const projectWithDev = {
+                    ...projectInfo,
+                    devCommand: 'npm run dev',
+                    runCommand: 'npm run dev'
+                };
+                
+                // Start app and detect actual port
+                const appUrl = await appRunner.start(projectWithDev);
+                console.log(`TestFox: App started at detected URL: ${appUrl}`);
+                
+                progress.report({ message: `App running at ${appUrl}, analyzing...` });
+                
+                // Extract port from URL
+                const portMatch = appUrl.match(/:(\d+)/);
+                const detectedPort = portMatch ? portMatch[1] : 'unknown';
+                
+                vscode.window.showInformationMessage(
+                    `TestFox: Application detected on port ${detectedPort}. Starting automatic tests...`
+                );
+                
+                // Update project info with detected port
+                projectInfo.port = parseInt(detectedPort) || 3000;
+                testStore.setProjectInfo(projectInfo);
+                
+                // Wait for app to be fully ready
+                progress.report({ message: 'Waiting for app to be ready...' });
+                const readyUrl = await appRunner.waitForReady(30000);
+                
+                if (!readyUrl) {
+                    vscode.window.showWarningMessage(
+                        'TestFox: App may not be fully ready, but proceeding with tests...'
+                    );
+                }
+                
+                progress.report({ message: 'Generating tests against running app...' });
+                
+                // Generate tests against the running app
+                await generateTests();
+                
+                progress.report({ message: 'Tests generated, ready to run!' });
+                updateStatus('ready', 'Tests ready');
+                
+                // Ask if they want to run the tests now
+                const runResult = await vscode.window.showInformationMessage(
+                    `✅ TestFox: Tests generated for port ${detectedPort}. Run them now?`,
+                    'Run Tests',
+                    'View Tests',
+                    'Later'
+                );
+                
+                if (runResult === 'Run Tests') {
+                    await runAllTests();
+                } else if (runResult === 'View Tests') {
+                    await vscode.commands.executeCommand('testfox.openDashboard');
+                }
+                
+            } catch (error: any) {
+                console.error('TestFox: Auto-testing failed:', error);
+                vscode.window.showErrorMessage(
+                    `TestFox: Failed to start auto-testing - ${error.message}`,
+                    'View Logs'
+                ).then(selection => {
+                    if (selection === 'View Logs') {
+                        outputChannel.show();
+                    }
+                });
+                updateStatus('error', 'Auto-test failed');
+            }
+        });
     }
 }
 
@@ -1818,6 +2000,9 @@ export async function generateTests(): Promise<void> {
     }
 
     updateStatus('running', 'Generating comprehensive test suite...');
+
+    // Get analysis result from store
+    const analysisResult = testStore.getAnalysisResult();
 
     await vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
@@ -1967,11 +2152,42 @@ export async function generateTests(): Promise<void> {
                 testStore.addTest(test);
             }
 
+            // Payment Tests - detect and generate based on payment flows
+            progress.report({ message: 'Generating payment tests...' });
+            const paymentGenerator = new PaymentTestGenerator();
+            const analysisResultWithPayments = testStore.getAnalysisResult() as any;
+            const paymentFlows = analysisResultWithPayments?.paymentFlows || [];
+            
+            if (paymentFlows.length > 0) {
+                console.log(`TestFox: Detected ${paymentFlows.length} payment flows, generating payment tests...`);
+            }
+            
+            const paymentTests = paymentGenerator.generatePaymentTests(
+                analysisResultWithPayments || {
+                    routes: [],
+                    forms: [],
+                    endpoints: [],
+                    authFlows: [],
+                    databaseQueries: [],
+                    externalApis: [],
+                    components: []
+                },
+                paymentFlows
+            );
+            
+            for (const test of paymentTests) {
+                testStore.addTest(test);
+            }
+            
+            if (paymentTests.length > 0) {
+                console.log(`TestFox: Generated ${paymentTests.length} payment tests`);
+            }
+
             // Refresh views
             testExplorerProvider.refresh();
             testResultsProvider.refresh();
             updateStatus('ready');
-            if (testControlCenter) testControlCenter.updateState({ status: 'ready', progress: 100, currentTest: 'Generation complete' });
+            if (testControlCenter) testControlCenter.updateState({ status: 'idle', progress: 100, currentTest: 'Generation complete' });
 
             const tests = testStore.getAllTests();
             const testCount = Array.isArray(tests) ? tests.length : 0;
@@ -2193,6 +2409,52 @@ export async function generateTestCategory(categoryOrItem?: string | { category?
                     for (const test of accountTests) {
                         testStore.addTest(test);
                         testsGenerated++;
+                    }
+                    break;
+                case 'payment':
+                    progress.report({ message: 'Generating payment tests...' });
+                    const paymentGen = new PaymentTestGenerator();
+                    const analysisWithPayments = testStore.getAnalysisResult() as any;
+                    const flows = analysisWithPayments?.paymentFlows || [];
+                    const paymentTestCases = paymentGen.generatePaymentTests(
+                        analysisWithPayments || {
+                            routes: [],
+                            forms: [],
+                            endpoints: [],
+                            authFlows: [],
+                            databaseQueries: [],
+                            externalApis: [],
+                            components: []
+                        },
+                        flows
+                    );
+                    for (const test of paymentTestCases) {
+                        testStore.addTest(test);
+                        testsGenerated++;
+                    }
+                    break;
+                // Backend Testing Categories
+                case 'backend_idempotency':
+                case 'backend_webhooks':
+                case 'backend_concurrency':
+                case 'backend_state_integrity':
+                case 'backend_reliability':
+                case 'backend_failure_recovery':
+                case 'backend_api_contract':
+                case 'backend_stability':
+                case 'backend_compliance':
+                case 'backend_observability':
+                    progress.report({ message: `Generating ${category} tests...` });
+                    const backendGen = new BackendTestGenerator();
+                    const allBackendTests = backendGen.generateAllBackendTests();
+                    // Filter tests for the specific category
+                    const categoryBackendTests = allBackendTests.filter(t => t.category === category);
+                    for (const test of categoryBackendTests) {
+                        testStore.addTest(test);
+                        testsGenerated++;
+                    }
+                    if (categoryBackendTests.length === 0) {
+                        vscode.window.showWarningMessage(`TestFox: No tests available for ${category}`);
                     }
                     break;
                 default:

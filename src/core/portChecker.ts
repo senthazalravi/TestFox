@@ -161,28 +161,36 @@ export class PortChecker {
         const ports = this.getDefaultPorts();
         const statuses: ApplicationStatus[] = [];
 
-        this.outputChannel.appendLine('🔍 Checking application ports...');
+        try {
+            this.outputChannel?.appendLine('🔍 Checking application ports...');
+        } catch (e) {
+            console.log('PortChecker: outputChannel not available');
+        }
 
         for (const portInfo of ports) {
-            const isRunning = await this.isServiceRunning(portInfo.port);
-            
-            const status: ApplicationStatus = {
-                name: portInfo.service,
-                port: portInfo.port,
-                isRunning,
-                url: portInfo.defaultUrl,
-                readyForTesting: isRunning
-            };
+            try {
+                const isRunning = await this.isServiceRunning(portInfo.port);
+                
+                const status: ApplicationStatus = {
+                    name: portInfo.service,
+                    port: portInfo.port,
+                    isRunning,
+                    url: portInfo.defaultUrl,
+                    readyForTesting: isRunning
+                };
 
-            statuses.push(status);
+                statuses.push(status);
 
-            if (isRunning) {
-                this.outputChannel.appendLine(`✅ ${portInfo.service} running on port ${portInfo.port}`);
-            } else {
-                this.outputChannel.appendLine(`❌ ${portInfo.service} not running on port ${portInfo.port}`);
+                if (isRunning) {
+                    this.outputChannel?.appendLine(`✅ ${portInfo.service} running on port ${portInfo.port}`);
+                } else {
+                    this.outputChannel?.appendLine(`❌ ${portInfo.service} not running on port ${portInfo.port}`);
+                }
+
+                this.checkedPorts.add(portInfo.port);
+            } catch (err) {
+                console.error(`PortChecker: Error checking port ${portInfo.port}:`, err);
             }
-
-            this.checkedPorts.add(portInfo.port);
         }
 
         return statuses;
@@ -193,11 +201,11 @@ export class PortChecker {
      */
     async startApplication(portInfo: PortInfo): Promise<boolean> {
         if (await this.isServiceRunning(portInfo.port)) {
-            this.outputChannel.appendLine(`✅ ${portInfo.service} is already running on port ${portInfo.port}`);
+            this.outputChannel?.appendLine(`✅ ${portInfo.service} is already running on port ${portInfo.port}`);
             return true;
         }
 
-        this.outputChannel.appendLine(`🚀 Starting ${portInfo.service}...`);
+        this.outputChannel?.appendLine(`🚀 Starting ${portInfo.service}...`);
 
         try {
             // Try to start the application using AppRunner
@@ -222,7 +230,7 @@ export class PortChecker {
             const isRunning = await this.isServiceRunning(portInfo.port);
             
             if (isRunning) {
-                this.outputChannel.appendLine(`✅ ${portInfo.service} started successfully on port ${portInfo.port}`);
+                this.outputChannel?.appendLine(`✅ ${portInfo.service} started successfully on port ${portInfo.port}`);
                 vscode.window.showInformationMessage(
                     `${portInfo.service} started successfully!`,
                     'Open Application'
@@ -233,12 +241,12 @@ export class PortChecker {
                 });
                 return true;
             } else {
-                this.outputChannel.appendLine(`❌ Failed to start ${portInfo.service} on port ${portInfo.port}`);
+                this.outputChannel?.appendLine(`❌ Failed to start ${portInfo.service} on port ${portInfo.port}`);
                 return false;
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            this.outputChannel.appendLine(`❌ Error starting ${portInfo.service}: ${errorMessage}`);
+            this.outputChannel?.appendLine(`❌ Error starting ${portInfo.service}: ${errorMessage}`);
             vscode.window.showErrorMessage(
                 `Failed to start ${portInfo.service}: ${errorMessage}`,
                 'View Diagnostics'
@@ -275,7 +283,7 @@ export class PortChecker {
         const notRunning = statuses.filter(status => !status.isRunning);
 
         if (notRunning.length === 0) {
-            this.outputChannel.appendLine('✅ All detected applications are running');
+            this.outputChannel?.appendLine('✅ All detected applications are running');
             return;
         }
 
@@ -302,7 +310,7 @@ export class PortChecker {
                 await this.startApplication(portInfo);
             }
         } else if (choice && choice.status === null) {
-            this.outputChannel.appendLine('ℹ️ User chose to skip application startup');
+            this.outputChannel?.appendLine('ℹ️ User chose to skip application startup');
             vscode.window.showInformationMessage(
                 'You can start applications later using the TestFox commands.',
                 'View Commands'
@@ -352,7 +360,11 @@ export class PortChecker {
     startPeriodicChecks(): void {
         // Check every 2 minutes
         this.checkInterval = setInterval(async () => {
-            await this.checkApplicationPorts();
+            try {
+                await this.checkApplicationPorts();
+            } catch (err) {
+                console.error('PortChecker: Periodic check failed:', err);
+            }
         }, 2 * 60 * 1000);
     }
 

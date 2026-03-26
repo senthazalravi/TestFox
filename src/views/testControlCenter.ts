@@ -138,7 +138,7 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
                     await vscode.commands.executeCommand('testfox.mcpGenerateReport');
                     break;
                 case 'enhanceWithAI':
-                    await vscode.commands.executeCommand('testfox.configureAI');
+                    await vscode.commands.executeCommand('testfox.mcp.generatePlaywright');
                     break;
             }
         });
@@ -148,10 +148,8 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             this._updateWebview(state);
         });
 
-        // Initial update after a short delay to ensure webview is ready
-        setTimeout(() => {
+        // Immediate initial state update for instant rendering
         this._updateWebview(this._currentState);
-        }, 100);
         
         console.log('TestFox: Test Control Center fully initialized');
     }
@@ -368,27 +366,27 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
         
         .header {
             text-align: center;
-            padding: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 8px;
-            margin-bottom: 16px;
+            padding: 12px;
+            background: var(--vscode-button-background, #0e639c);
+            border-radius: 6px;
+            margin-bottom: 12px;
         }
 
         .header-logo {
-            font-size: 32px;
-            margin-bottom: 4px;
+            font-size: 24px;
+            margin-bottom: 2px;
         }
         
         .header-title {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             color: white;
         }
         
         .header-subtitle {
-            font-size: 11px;
-            color: rgba(255,255,255,0.8);
-            margin-top: 4px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.9);
+            margin-top: 2px;
         }
         
         .section {
@@ -754,32 +752,32 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             </div>
         </div>
 
-    <div class="section" style="background: linear-gradient(135deg, rgba(147,51,234,0.1) 0%, rgba(79,70,229,0.1) 100%); border: 1px solid rgba(147,51,234,0.3);">
+    <div class="section" id="mcpSection" style="border-color: rgba(147,51,234,0.5);">
         <div class="section-title" style="color: #a78bfa;">🔌 QA MCP Servers</div>
         <p style="font-size: 11px; color: var(--vscode-descriptionForeground); margin-bottom: 10px;">
             AI-powered testing with Model Context Protocol servers
         </p>
         <div class="button-grid">
-            <button class="btn" onclick="sendCommand('mcpPlaywright')" style="border-color: rgba(147,51,234,0.5);">
+            <button class="btn" onclick="sendCommand('mcpPlaywright')" style="border-color: rgba(147,51,234,0.3);">
                 <span class="btn-icon">🎭</span>
                 <span>Playwright</span>
             </button>
-            <button class="btn" onclick="sendCommand('mcpFetch')" style="border-color: rgba(147,51,234,0.5);">
+            <button class="btn" onclick="sendCommand('mcpFetch')" style="border-color: rgba(147,51,234,0.3);">
                 <span class="btn-icon">📮</span>
                 <span>Postman</span>
             </button>
-            <button class="btn" onclick="sendCommand('mcpChromeDevTools')" style="border-color: rgba(147,51,234,0.5);">
+            <button class="btn" onclick="sendCommand('mcpChromeDevTools')" style="border-color: rgba(147,51,234,0.3);">
                 <span class="btn-icon">🔧</span>
                 <span>DevTools</span>
             </button>
-            <button class="btn" onclick="sendCommand('mcpQAUse')" style="border-color: rgba(147,51,234,0.5);">
+            <button class="btn" onclick="sendCommand('mcpQAUse')" style="border-color: rgba(147,51,234,0.3);">
                 <span class="btn-icon">🧪</span>
                 <span>QA Use</span>
             </button>
-            <button class="btn btn-primary" onclick="sendCommand('mcpRunAll')" style="background: linear-gradient(135deg, #9333ea 0%, #4f46e5 100%);">
+            <button class="btn btn-primary" onclick="sendCommand('mcpRunAll')">
                 <span>🚀 Run All MCP Tests</span>
             </button>
-            <button class="btn" onclick="sendCommand('mcpReport')" style="border-color: rgba(147,51,234,0.5);">
+            <button class="btn" onclick="sendCommand('mcpReport')" style="border-color: rgba(147,51,234,0.3);">
                 <span class="btn-icon">📋</span>
                 <span>MCP Report</span>
             </button>
@@ -1016,10 +1014,18 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             sendCommand('checkAppStatus');
         }
 
-        // Signal that webview is ready
+        // Signal that webview is ready immediately
         console.log('TestFox UI: Webview initialized, signaling ready');
         vscode.postMessage({ command: 'ready' });
-        setTimeout(initializeStatuses, 500);
+        
+        // Defer status checks until browser is idle or after a short delay
+        if (typeof requestIdleCallback !== 'undefined') {
+            requestIdleCallback(() => {
+                initializeStatuses();
+            }, { timeout: 1000 });
+        } else {
+            setTimeout(initializeStatuses, 500);
+        }
     </script>
 </body>
 </html>`;

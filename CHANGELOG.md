@@ -1,5 +1,197 @@
 # Change Log
 
+## [7.1.8] - 2026-03-26
+
+### 🐛 Bug Fixes
+
+- **Fixed TypeError: Cannot read properties of undefined (reading 'appendLine')** ✅
+  - Fixed undefined `outputChannel` in `PortChecker.checkApplicationPorts`
+  - Fixed undefined `outputChannel` in `AIConnectionManager.silentConnectionTest`
+  - Moved output channel initialization to the beginning of the activate function
+
+---
+
+## [7.1.7] - 2026-03-26
+
+### 🐛 MCP Test Explorer Fixes
+
+- **Fixed "command 'testfox.mcp.generatePlaywright' not found" error** ✅
+  - Added missing `testfox.mcp.generatePlaywright` command registration in `mcpCommands.ts`
+  - Added missing `testfox.mcp.runPlaywright` command for running Playwright tests via MCP
+  - Added `runTests()` method to `MCPOrchestrator` class
+
+- **Fixed MCP Test Explorer not loading** ✅
+  - Registered `MCPTestTreeProvider` as a tree view in `extension.ts`
+  - Added `mcpTestTreeProvider` instance creation and view registration
+
+---
+
+## [7.1.6] - 2026-03-26
+
+### 🔧 TypeScript Error Fixes
+
+- **Fixed compilation errors in extension.ts** ✅
+  - Fixed `MCPIntegrationManager.refresh()` method call (method doesn't exist)
+  - Fixed missing type annotations for callback parameters
+  - Fixed `analysisResult` undefined error in `generateTests()` function
+  - Fixed `TestRunState` status type - changed 'ready' to 'idle'
+
+---
+
+## [7.1.5] - 2026-03-26
+
+### 📚 Documentation Updates
+
+- **Removed Co-founder Information** 📝
+  - Removed co-founder email from author section
+  - Removed "Looking for Co-founders & Investors" section
+
+- **Updated Feature Documentation** 📖
+  - Added Backend Testing Suite documentation (10 test categories)
+  - Added Payment Testing Suite documentation (4 categories)
+  - Added MCP Servers section with all 4 available servers
+  - Updated test categories from 18+ to 20+
+  - Added new commands: `Generate Test Category`, `MCP Control`, `Open Test Control Center`
+  - Updated SDLC diagram with Backend, Payment, MCP features
+  - Added performance optimization highlights
+
+---
+
+## [7.1.4] - 2026-03-26
+
+### ⚡ Performance Optimizations - Super Fast Loading
+
+- **Non-Blocking Extension Activation** 🚀
+  - AI Connection Manager now initializes asynchronously (no blocking)
+  - Port Checker deferred prompt to prevent activation delays
+  - MCP Integration Manager initialization deferred by 100ms
+
+- **Test Control Center Instant Rendering** ⚡
+  - Removed CSS gradients for faster rendering
+  - Simplified header and MCP section styles
+  - Removed setTimeout delay from resolveWebviewView
+  - Status checks now use requestIdleCallback for deferred execution
+
+- **MCP Control Panel Optimizations** 🎯
+  - Removed CSS transitions and transforms
+  - Simplified card and button hover effects
+  - Reduced padding and font sizes for lighter DOM
+
+- **Performance Monitoring** 📊
+  - Added activation time tracking to console logs
+  - Track and report extension startup performance
+
+---
+
+## [7.1.3] - 2026-03-26
+
+### 🔧 Backend Testing Suite - State Integrity, Concurrency & Reliability
+
+- **10 Backend Test Categories** ⚙️
+  - `backend_idempotency` - Duplicate request handling
+  - `backend_concurrency` - Race condition detection
+  - `backend_state_integrity` - Data consistency validation
+  - `backend_reliability` - Resilience & duplicate webhook handling
+  - `backend_webhooks` - Async event ordering
+  - `backend_failure_recovery` - Partial failure & self-healing
+  - `backend_api_contract` - Schema validation
+  - `backend_stability` - Retry storm protection
+  - `backend_compliance` - GDPR deletion propagation
+  - `backend_observability` - PII leak detection in logs
+
+- **Individual Category Generation** 🎯
+  - Generate specific backend test categories via Test Explorer
+  - Quick access to state integrity, concurrency, or reliability tests
+
+---
+
+## [7.1.2] - 2026-03-26
+
+### 💳 Payment Testing Suite
+
+- **Comprehensive Payment Test Generator** 💰
+  - Auto-detects Stripe, PayPal, Braintree, and generic checkout flows
+  - Generates provider-specific tests (Stripe 3D Secure, PayPal webhooks, Braintree hosted fields)
+  - Card validation tests (Luhn algorithm, expiry, CVC)
+  - Fraud detection tests (velocity checks, AVS, geolocation)
+  - Webhook verification and security tests
+  - Idempotency and duplicate prevention tests
+  - PCI compliance and GDPR data retention tests
+  - Subscription lifecycle tests (create, cancel, proration)
+
+- **Payment Flow Detection** 🔍
+  - Code analyzer detects payment-related patterns in your codebase
+  - Recognizes checkout pages, cart flows, and subscription logic
+  - Identifies webhook endpoints and idempotency key usage
+
+- **New Command**: `Generate Payment Tests` 🎯
+  - Quick access to generate only payment tests
+  - Available in Test Explorer category menu
+
+---
+
+## [7.1.1] - 2026-03-26
+
+### 🚀 Proactive Automatic Testing
+
+- **Smart Testing Prompt** 💡
+  - Extension now proactively asks to start automatic testing on activation
+  - "Start Auto Testing" and "Skip" buttons for user control
+  - Skip option with helpful message to open Test Control Center later
+
+- **Auto-Run npm run dev** ⚡
+  - Automatically executes `npm run dev` when user accepts testing
+  - No manual port configuration needed
+  - Works with Vite, Next.js, React, and all npm-based projects
+
+- **Automatic Port Detection** 🔍
+  - Detects actual port from application output (stdout/stderr)
+  - Supports all common ports: 3000, 5173, 8080, 4200, etc.
+  - Updates project configuration with detected port automatically
+
+- **Seamless Test Generation** 🎯
+  - After app starts, automatically generates tests against running application
+  - Shows progress notifications throughout the process
+  - Prompts to run tests immediately after generation
+
+---
+
+## [7.1.0] - 2026-03-25
+
+### 🎭 MCP Integration & Playwright Test Generation
+
+- **MCP Test Explorer** 🔌
+  - New MCP Test Explorer panel with 4 server sections
+  - Playwright, QA Use MCP, Puppeteer, and DevTools test sections
+  - Real-time test results tracking per server
+  - Generate and run tests directly from the tree view
+
+- **AI-Powered Playwright Test Generator** 🤖
+  - One-click Playwright test folder creation (`tests/playwright/`)
+  - AI-generated test files using OpenRouter API (free models)
+  - Includes: smoke tests, auth tests, form validation, accessibility, API integration
+  - Page Object Model pattern with fixtures and utilities
+  - Automatic Playwright installation if not present
+
+- **OpenRouter Service** 🌐
+  - New fetch-based OpenRouter API service
+  - Loads API key from `.env` file automatically
+  - Supports streaming responses for real-time test generation
+  - Model selection with free tier options (Gemini, DeepSeek, Llama)
+
+- **MCP Test Runner** ⚡
+  - Execute Playwright tests with live progress
+  - HTML report generation with test statistics
+  - JSON output parsing for detailed results
+  - Integration with Test Control Center for unified reporting
+
+### 🔧 Improvements
+
+- Enhanced Test Control Center MCP button handlers
+- New commands: `testfox.mcp.generatePlaywright`, `testfox.mcp.runPlaywright`, `testfox.mcp.generateAll`
+
+---
+
 ## [7.0.9] - 2026-03-24
 
 ### 🔄 Automated Testing Workflows

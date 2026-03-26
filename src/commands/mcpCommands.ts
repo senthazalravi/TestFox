@@ -73,6 +73,31 @@ export function registerMCPCommands(context: vscode.ExtensionContext): vscode.Di
             if (choice) {
                 await mcpOrchestrator.generateTests(choice.value as 'playwright' | 'postman' | 'devtools');
             }
+        }),
+
+        // Generate Playwright Tests Command (for MCP Test Explorer)
+        vscode.commands.registerCommand('testfox.mcp.generatePlaywright', async () => {
+            try {
+                vscode.window.showInformationMessage('🦊 TestFox: Generating Playwright tests via MCP...');
+                await mcpOrchestrator.generateTests('playwright');
+                vscode.window.showInformationMessage('✅ Playwright tests generated successfully');
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`❌ Failed to generate Playwright tests: ${error.message}`);
+            }
+        }),
+
+        // Run Playwright Tests Command (for MCP Test Explorer)
+        vscode.commands.registerCommand('testfox.mcp.runPlaywright', async () => {
+            try {
+                vscode.window.showInformationMessage('🦊 TestFox: Running Playwright tests via MCP...');
+                // Use the orchestrator to run tests
+                const result = await mcpOrchestrator.runTests('playwright');
+                if (result) {
+                    vscode.window.showInformationMessage(`✅ Playwright tests completed: ${result.summary.passed}/${result.summary.total} passed`);
+                }
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`❌ Failed to run Playwright tests: ${error.message}`);
+            }
         })
     ];
 

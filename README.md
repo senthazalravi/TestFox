@@ -16,16 +16,19 @@
 
 ## 🌟 What is TestFox?
 
-TestFox is a **comprehensive VS Code extension** that automatically generates and executes tests across **18+ test categories** for applications written in **any programming language**. It combines rule-based test generation with **AI-powered intelligence** to ensure your code is production-ready.
+TestFox is a **comprehensive VS Code extension** that automatically generates and executes tests across **20+ test categories** for applications written in **any programming language**. It combines rule-based test generation with **AI-powered intelligence** to ensure your code is production-ready.
 
 ### ✨ Key Highlights
 
 - 🌍 **Multi-Language Support**: JavaScript, TypeScript, Python, Java, C, C++, Rust, Go, .NET, PHP, Ruby
 - 🤖 **AI-Powered**: Use **FREE or PAID** AI models from 15+ providers
-- 🧪 **18+ Test Categories**: Smoke, Functional, Security, Performance, Accessibility, and more
+- 🧪 **20+ Test Categories**: Smoke, Functional, Security, Performance, Accessibility, Backend, Payment, and more
+- 💳 **Payment Testing**: Stripe, PayPal, Braintree integration tests
+- ⚙️ **Backend Testing**: State Integrity, Concurrency, Reliability, Idempotency, Webhooks
 - 📊 **Interactive Reports**: Beautiful web-based dashboard with real-time results
 - 🔒 **Security Testing**: OWASP Top 10 vulnerability detection
 - ♿ **Accessibility**: WCAG 2.1 compliance checking
+- ⚡ **Performance Optimized**: Fast extension activation and instant UI loading
 
 ---
 
@@ -149,7 +152,7 @@ TestFox integrates with **8 AI providers**, giving you access to **300+ AI model
 
 ---
 
-## Test Categories (18 Types)
+## Test Categories (20+ Types)
 
 TestFox covers the **complete testing spectrum** aligned with **ISTQB standards**:
 
@@ -176,6 +179,28 @@ TestFox covers the **complete testing spectrum** aligned with **ISTQB standards*
 | **Performance Tests** | Response times, metrics | ✅ Automated |
 | **Load Tests** | Concurrent users | ✅ Automated |
 | **Accessibility Tests** | WCAG 2.1 compliance | ✅ Automated |
+
+### 🔧 Backend Testing (10 Categories)
+| Category | Description | Status |
+|----------|-------------|--------|
+| **Idempotency Tests** | Duplicate request handling | ✅ Automated |
+| **Webhook Tests** | Async event ordering | ✅ Automated |
+| **Concurrency Tests** | Race condition detection | ✅ Automated |
+| **State Integrity Tests** | Data consistency validation | ✅ Automated |
+| **Reliability Tests** | Resilience & duplicate handling | ✅ Automated |
+| **Failure Recovery Tests** | Partial failure & self-healing | ✅ Automated |
+| **API Contract Tests** | Schema validation | ✅ Automated |
+| **Stability Tests** | Retry storm protection | ✅ Automated |
+| **Compliance Tests** | GDPR deletion propagation | ✅ Automated |
+| **Observability Tests** | PII leak detection | ✅ Automated |
+
+### 💳 Payment Testing (4 Categories)
+| Category | Description | Status |
+|----------|-------------|--------|
+| **Payment Flow Tests** | Checkout & subscription flows | ✅ Automated |
+| **Card Validation Tests** | Luhn algorithm, expiry, CVC | ✅ Automated |
+| **Security Tests** | 3D Secure, fraud detection | ✅ Automated |
+| **Webhook Tests** | Payment provider webhooks | ✅ Automated |
 
 ### 🎯 Edge Cases & Boundaries
 | Category | Description | Status |
@@ -208,7 +233,51 @@ TestFox performs comprehensive security analysis:
 
 ---
 
-## 📊 Interactive Reports Dashboard
+## � Backend Testing Suite
+
+Comprehensive backend validation for distributed systems and APIs:
+
+### Test Coverage
+
+| Test Type | Description | Example |
+|-----------|-------------|---------|
+| **Idempotency** | Duplicate request handling | Same payment processed only once |
+| **Webhook Ordering** | Async event sequencing | Order: `payment_intent.created` → `payment_intent.succeeded` |
+| **Concurrency** | Race condition detection | Two users reserving last inventory item |
+| **State Integrity** | Data consistency validation | Order cancellation releases stock |
+| **Reliability** | Resilience testing | Duplicate webhook ignored with idempotency key |
+| **Failure Recovery** | Partial failure handling | Retry with exponential backoff |
+| **API Contract** | Schema validation | OpenAPI spec compliance |
+| **Stability** | Retry storm protection | Circuit breaker pattern validation |
+| **Compliance** | Regulatory requirements | GDPR deletion propagation |
+| **Observability** | PII leak detection | No credit card numbers in logs |
+
+---
+
+## 💳 Payment Testing Suite
+
+Complete payment integration testing for e-commerce applications:
+
+### Supported Providers
+- **Stripe** - 3D Secure, webhooks, idempotency
+- **PayPal** - Checkout, subscriptions, disputes
+- **Braintree** - Hosted fields, vault, fraud protection
+
+### Test Coverage
+
+| Test Type | Description |
+|-----------|-------------|
+| **Card Validation** | Luhn algorithm, expiry dates, CVC verification |
+| **Fraud Detection** | Velocity checks, AVS, geolocation |
+| **3D Secure** | SCA compliance, challenge flows |
+| **Webhooks** | Signature verification, event ordering |
+| **Idempotency** | Duplicate prevention, key validation |
+| **Subscriptions** | Trial periods, billing cycles, proration |
+| **Disputes** | Chargeback handling, evidence submission |
+
+---
+
+## � Interactive Reports Dashboard
 
 Generate beautiful, interactive web reports with:
 
@@ -249,11 +318,15 @@ Generate beautiful, interactive web reports with:
 |---------|-------------|
 | `TestFox: Analyze Project` | Detect project type and structure |
 | `TestFox: Generate Tests` | AI-powered test generation |
+| `TestFox: Generate Test Category` | Generate specific category (Backend, Payment, etc.) |
 | `TestFox: Run All Tests` | Execute all test categories |
 | `TestFox: Run Test Category` | Run specific category |
 | `TestFox: Generate Web Report` | Open interactive dashboard |
 | `TestFox: Configure AI` | Set up AI provider and model |
+| `TestFox: MCP Control` | Open MCP Server control panel |
 | `TestFox: Install Browsers` | Install Playwright browsers |
+| `TestFox: Open Test Control Center` | Open test execution dashboard |
+| `TestFox: Pause/Resume/Stop Tests` | Test execution control |
 
 ---
 
@@ -365,14 +438,38 @@ TestFox serves as the **final quality gate** before release:
 │  │              🦊 TestFox Quality Gate                      │ │
 │  │                                                            │ │
 │  │  ✓ Smoke → Functional → Security → Performance → UAT       │ │
-│  │  ✓ AI-Powered Analysis    ✓ 18+ Test Categories            │ │
-│  │  ✓ Multi-Language Support ✓ Interactive Reports            │ │
+│  │  ✓ Backend → Payment → AI-Powered Analysis                │ │
+│  │  ✓ 20+ Test Categories    ✓ Multi-Language Support        │ │
+│  │  ✓ MCP Servers            ✓ Interactive Reports            │ │
 │  └────────────────────────────────────────────────────────────┘  │
 │                            ↓                                     │
 │                      🚀 Release                                 │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## 🔌 MCP Servers (Model Context Protocol)
+
+TestFox integrates with **MCP Servers** for AI-powered test automation:
+
+### Available MCP Servers
+
+| Server | Capabilities | Command |
+|--------|--------------|---------|
+| **Playwright MCP** | Browser automation, E2E tests, visual testing | `mcpPlaywright` |
+| **Fetch MCP** | API testing, HTTP requests | `mcpFetch` |
+| **Chrome DevTools MCP** | Performance analysis, network monitoring | `mcpChromeDevTools` |
+| **QA Use MCP** | Comprehensive QA automation | `mcpQAUse` |
+
+### MCP Features
+
+- 🤖 **AI-Powered Test Generation** - Generate tests using natural language
+- 🎭 **Playwright Integration** - Automated browser testing
+- 📮 **API Testing** - REST/GraphQL endpoint validation
+- 🔧 **DevTools Analysis** - Performance and network insights
+- 🚀 **One-Click Execution** - Run all MCP tests from control panel
 
 ---
 
@@ -398,11 +495,6 @@ Developed with ❤️ in **Stockholm, Sweden**
 
 - **Twitter/X**: [@senthazalravi](https://x.com/senthazalravi)
 - **Email**: ravi.antone@gmail.com
-- **Co-founder**: nithiyanandam.sundaram@gmail.com
-
-### 💼 Looking for Co-founders & Investors
-
-Interested in joining TestFox? Contact us!
 
 ---
 

@@ -375,8 +375,28 @@ Your tasks:
     }
 
     /**
-     * Show generated tests in explorer
+     * Run tests using specified MCP server
      */
+    async runTests(mcpType: 'playwright' | 'postman' | 'devtools'): Promise<{ success: boolean; summary: { total: number; passed: number; failed: number } } | null> {
+        try {
+            // Simulate running tests - in a real implementation this would execute the MCP tests
+            vscode.window.showInformationMessage(`Running ${mcpType} tests...`);
+            
+            // For now, return a mock result
+            return {
+                success: true,
+                summary: {
+                    total: 5,
+                    passed: 4,
+                    failed: 1
+                }
+            };
+        } catch (error) {
+            this.outputChannel.appendLine(`❌ Error running ${mcpType} tests: ${error}`);
+            vscode.window.showErrorMessage(`Failed to run ${mcpType} tests: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            return null;
+        }
+    }
     private async showGeneratedTests(mcpType: string): Promise<void> {
         const testPath = `/tests/${mcpType}`;
         

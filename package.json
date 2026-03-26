@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing for JavaScript, Python, Java, C, C++, Rust, Go & more. 18+ test categories including security (OWASP), performance, accessibility. FREE AI models available via OpenRouter.",
-  "version": "7.0.9",
+  "version": "7.1.8",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -267,6 +267,21 @@
         "icon": "$(debug-alt)"
       },
       {
+        "command": "testfox.mcp.generatePlaywright",
+        "title": "TestFox: Generate Playwright Tests with AI",
+        "icon": "$(add)"
+      },
+      {
+        "command": "testfox.mcp.runPlaywright",
+        "title": "TestFox: Run Playwright Tests",
+        "icon": "$(play)"
+      },
+      {
+        "command": "testfox.refreshMCPTests",
+        "title": "TestFox: Refresh MCP Tests",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "testfox.exportPlaywright",
         "title": "TestFox: Export Playwright Test",
         "icon": "$(save)"
@@ -301,6 +316,12 @@
           "name": "Test Results",
           "icon": "$(checklist)",
           "contextualTitle": "TestFox Results"
+        },
+        {
+          "id": "testfox-mcp-tests",
+          "name": "MCP Test Explorer",
+          "icon": "$(server-environment)",
+          "contextualTitle": "MCP Tests"
         }
       ]
     },
@@ -329,6 +350,21 @@
         {
           "command": "testfox.runCrossBrowser",
           "when": "view == testfox-explorer",
+          "group": "navigation"
+        },
+        {
+          "command": "testfox.mcp.generatePlaywright",
+          "when": "view == testfox-mcp-tests",
+          "group": "navigation"
+        },
+        {
+          "command": "testfox.mcp.runPlaywright",
+          "when": "view == testfox-mcp-tests",
+          "group": "navigation"
+        },
+        {
+          "command": "testfox.refreshMCPTests",
+          "when": "view == testfox-mcp-tests",
           "group": "navigation"
         }
       ],
@@ -468,13 +504,12 @@
             "Qwen 2.5 Coder (Free) - Specialized for code from Alibaba",
             "GLM 4 9B (Free) - General-purpose model from Zhipu AI",
             "Mistral Nemo (Free) - Efficient model from Mistral",
-            "NVIDIA NIM Kimi K2.5 - NVIDIA NIM hosted Kimi model (moonshotai/kimi-k2.5)",
+            "NVIDIA NIM Kimi K2.5 - NVIDIA NIM hosted Kimi model",
             "Claude 3.5 Sonnet (Paid) - Best for complex analysis",
             "GPT-4o (Paid) - OpenAI's flagship model",
             "Grok 2 (Paid) - xAI's latest model",
             "Mistral Large 2 (Paid) - Mistral's flagship model"
-          ],
-          "description": "AI model to use for test generation (FREE models recommended)"
+          ]
         },
         "testfox.ai.fallbackModel": {
           "type": "string",
@@ -574,6 +609,7 @@
   "scripts": {
     "vscode:prepublish": "npm run package-extension",
     "compile": "node esbuild.js",
+    "dev": "npm run watch",
     "compile:tsc": "tsc -p ./",
     "watch": "node esbuild.js --watch",
     "package-extension": "node esbuild.js --production",

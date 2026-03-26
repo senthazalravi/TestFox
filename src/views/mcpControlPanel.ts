@@ -124,51 +124,43 @@ export class MCPControlPanel {
             background: var(--vscode-editor-background);
             border: 1px solid var(--vscode-panel-border);
             border-radius: 8px;
-            padding: 25px;
+            padding: 20px;
             text-align: center;
-            transition: all 0.3s ease;
             cursor: pointer;
         }
         .mcp-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
             border-color: var(--vscode-button-background);
         }
         .mcp-icon {
-            font-size: 3rem;
-            margin-bottom: 15px;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
             display: block;
         }
         .mcp-title {
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             font-weight: bold;
             color: var(--vscode-foreground);
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         .mcp-description {
             color: var(--vscode-descriptionForeground);
-            font-size: 0.9rem;
-            line-height: 1.4;
-            margin-bottom: 20px;
+            font-size: 0.85rem;
+            line-height: 1.3;
+            margin-bottom: 15px;
         }
         .mcp-button {
             background: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
             border: none;
-            padding: 12px 24px;
+            padding: 10px 20px;
             border-radius: 6px;
-            font-size: 1rem;
+            font-size: 0.9rem;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
             width: 100%;
         }
         .mcp-button:hover {
             background: var(--vscode-button-hoverBackground);
-            transform: scale(1.05);
-        }
-        .mcp-button:active {
-            transform: scale(0.95);
         }
         .quick-actions {
             background: var(--vscode-editor-background);
@@ -190,11 +182,10 @@ export class MCPControlPanel {
             background: var(--vscode-button-secondaryBackground);
             color: var(--vscode-button-foreground);
             border: 1px solid var(--vscode-button-border);
-            padding: 10px 16px;
+            padding: 8px 14px;
             border-radius: 6px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             cursor: pointer;
-            transition: all 0.2s ease;
         }
         .quick-button:hover {
             background: var(--vscode-button-background);

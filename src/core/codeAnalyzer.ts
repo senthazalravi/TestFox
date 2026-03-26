@@ -13,6 +13,7 @@ import {
     HttpMethod,
     FormFieldInfo
 } from '../types';
+import { PaymentFlowInfo } from '../generators/paymentTestGenerator';
 
 /**
  * Analyzes code to identify routes, forms, endpoints, auth flows, etc.
@@ -21,14 +22,15 @@ export class CodeAnalyzer {
     private ignoreDirs = ['node_modules', '.git', 'dist', 'build', 'out', '__pycache__', 'venv', '.venv'];
 
     async analyze(workspacePath: string, projectInfo: ProjectInfo): Promise<AnalysisResult> {
-        const result: AnalysisResult = {
+        const result: AnalysisResult & { paymentFlows?: PaymentFlowInfo[] } = {
             routes: [],
             forms: [],
             endpoints: [],
             authFlows: [],
             databaseQueries: [],
             externalApis: [],
-            components: []
+            components: [],
+            paymentFlows: []
         };
 
         // Get all relevant source files
@@ -47,6 +49,7 @@ export class CodeAnalyzer {
                 this.analyzeDatabaseQueries(content, relativePath, result);
                 this.analyzeExternalApis(content, relativePath, result);
                 this.analyzeComponents(content, relativePath, projectInfo, result);
+                this.analyzePaymentFlows(content, relativePath, result);
             } catch (error) {
                 // Skip files that can't be read
             }
@@ -569,6 +572,154 @@ export class CodeAnalyzer {
         const context = content.substring(contextStart, contextEnd);
         
         return /auth|jwt|bearer|session|protect|guard|authenticate|isLoggedIn|requireAuth/i.test(context);
+    }
+
+    /**
+     * Analyze code for payment-related patterns
+     */
+    private analyzePaymentFlows(content: string, file: string, result: AnalysisResult & { paymentFlows?: PaymentFlowInfo[] }): void {
+        const lines = content.split('\n');
+        const paymentFlows: PaymentFlowInfo[] = [];
+
+        // Stripe patterns
+        const stripePatterns = [
+            /stripe/i,
+            /createPaymentIntent/i,
+            /confirmCardPayment/i,
+            /Stripe\s*\(/i,
+            /loadStripe/i,
+            /Elements.*stripe/i,
+            /CardElement/i,
+            /PaymentElement/i,
+            /stripe\.charges/i,
+            /stripe\.paymentIntents/i
+        ];
+
+        for (let i = 0; i < lines.length; i++) {
+            for (const pattern of stripePatterns) {
+                if (pattern.test(lines[i])) {
+                    paymentFlows.push({
+                        type: 'stripe',
+                        provider: 'Stripe',
+                        file,
+                        line: i + 1,
+                        hasWebhook: /webhook/i.test(content),
+                        hasIdempotency: /idempotency/i.test(content)
+                    });
+                    break;
+                }
+            }
+        }
+
+        // PayPal patterns
+        const paypalPatterns = [
+            /paypal/i,
+            /createOrder.*paypal/i,
+            /paypal\.Buttons/i,
+            /paypal-checkout/i,
+            /@paypal\/checkout-server-sdk/i
+        ];
+
+        for (let i = 0; i < lines.length; i++) {
+            for (const pattern of paypalPatterns) {
+                if (pattern.test(lines[i])) {
+                    paymentFlows.push({
+                        type: 'paypal',
+                        provider: 'PayPal',
+                        file,
+                        line: i + 1
+                    });
+                    break;
+                }
+            }
+        }
+
+        // Braintree patterns
+        const braintreePatterns = [
+            /braintree/i,
+            /dropin.*create/i,
+            /braintree\.client/i,
+            /hostedFields/i
+        ];
+
+        for (let i = 0; i < lines.length; i++) {
+            for (const pattern of braintreePatterns) {
+                if (pattern.test(lines[i])) {
+                    paymentFlows.push({
+                        type: 'braintree',
+                        provider: 'Braintree',
+                        file,
+                        line: i + 1
+                    });
+                    break;
+                }
+            }
+        }
+
+        // Checkout/Cart patterns
+        const checkoutPatterns = [
+            /\/checkout/i,
+            /\/cart/i,
+            /checkout.*form/i,
+            /payment.*form/i,
+            /billing.*address/i,
+            /shipping.*address/i,
+            /order.*summary/i,
+            /place.*order/i
+        ];
+
+        for (let i = 0; i < lines.length; i++) {
+            for (const pattern of checkoutPatterns) {
+                if (pattern.test(lines[i])) {
+                    const routeMatch = lines[i].match(/['"`](\/[^'"`]*checkout[^'"`]*)['"`]/i) ||
+                                      lines[i].match(/['"`](\/[^'"`]*cart[^'"`]*)['"`]/i) ||
+                                      lines[i].match(/['"`](\/[^'"`]*payment[^'"`]*)['"`]/i);
+                    if (routeMatch) {
+                        paymentFlows.push({
+                            type: 'checkout',
+                            endpoint: routeMatch[1],
+                            file,
+                            line: i + 1
+                        });
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Subscription patterns
+        const subscriptionPatterns = [
+            /subscription/i,
+            /recurring.*payment/i,
+            /billing.*cycle/i,
+            /subscribe/i,
+            /membership/i,
+            /plan.*id/i
+        ];
+
+        for (let i = 0; i < lines.length; i++) {
+            for (const pattern of subscriptionPatterns) {
+                if (pattern.test(lines[i])) {
+                    paymentFlows.push({
+                        type: 'subscription',
+                        file,
+                        line: i + 1
+                    });
+                    break;
+                }
+            }
+        }
+
+        // Remove duplicates based on file and line
+        const uniqueFlows = paymentFlows.filter((flow, index, self) =>
+            index === self.findIndex(f => f.file === flow.file && f.line === flow.line)
+        );
+
+        if (result.paymentFlows) {
+            result.paymentFlows.push(...uniqueFlows);
+        } else {
+            result.paymentFlows = uniqueFlows;
+        }
     }
 }
 

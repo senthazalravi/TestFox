@@ -90,7 +90,7 @@ export class AIConnectionManager {
 
         const errors = validateProviderConfig(providerConfig);
         if (errors.length > 0) {
-            this.outputChannel.appendLine(`❌ AI configuration validation failed: ${errors.join(', ')}`);
+            this.outputChannel?.appendLine(`❌ AI configuration validation failed: ${errors.join(', ')}`);
             this.connectionStatus.isConfigured = false;
             this.connectionStatus.isConnected = false;
             this.updateStatusBar();
@@ -139,7 +139,7 @@ export class AIConnectionManager {
 
             if (result.success) {
                 console.log('✅ AI connection test successful');
-                this.outputChannel.appendLine(`✅ AI connection successful (${provider} - ${model})`);
+                this.outputChannel?.appendLine(`✅ AI connection successful (${provider} - ${model})`);
                 
                 // Show success notification if this is the first successful connection
                 if (!this.connectionStatus.lastChecked || this.connectionStatus.lastChecked.getTime() < Date.now() - 60000) {
@@ -154,7 +154,7 @@ export class AIConnectionManager {
                 }
             } else {
                 console.log(`❌ AI connection test failed: ${result.message}`);
-                this.outputChannel.appendLine(`❌ AI connection failed: ${result.message}`);
+                this.outputChannel?.appendLine(`❌ AI connection failed: ${result.message}`);
             }
 
             this.updateStatusBar();
@@ -163,7 +163,7 @@ export class AIConnectionManager {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.log(`❌ AI connection test error: ${errorMessage}`);
-            this.outputChannel.appendLine(`❌ AI connection error: ${errorMessage}`);
+            this.outputChannel?.appendLine(`❌ AI connection error: ${errorMessage}`);
             
             this.connectionStatus.isConnected = false;
             this.connectionStatus.error = errorMessage;
@@ -229,8 +229,12 @@ export class AIConnectionManager {
     private startPeriodicChecks(): void {
         // Check every 5 minutes
         this.checkInterval = setInterval(async () => {
-            if (this.connectionStatus.isConfigured) {
-                await this.silentConnectionTest();
+            try {
+                if (this.connectionStatus.isConfigured) {
+                    await this.silentConnectionTest();
+                }
+            } catch (err) {
+                console.error('AIConnectionManager: Periodic check failed:', err);
             }
         }, 5 * 60 * 1000);
     }
