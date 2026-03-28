@@ -291,11 +291,27 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
         }
     }
 
+    // Cache for AI status to avoid repeated slow checks
+    private _aiStatusCache: { status: string; timestamp: number } | null = null;
+    private readonly _aiStatusCacheTTL = 60000; // 60 seconds
+
     private async _checkAIStatus(): Promise<void> {
+        // Return cached status if valid
+        if (this._aiStatusCache && (Date.now() - this._aiStatusCache.timestamp) < this._aiStatusCacheTTL) {
+            this._view?.webview.postMessage({
+                command: 'updateAIStatus',
+                status: this._aiStatusCache.status
+            });
+            return;
+        }
+
         try {
             const { getOpenRouterClient } = require('../ai/openRouterClient');
             const openRouter = getOpenRouterClient();
             const status = openRouter.getState();
+
+            // Update cache
+            this._aiStatusCache = { status, timestamp: Date.now() };
 
             this._view?.webview.postMessage({
                 command: 'updateAIStatus',
@@ -310,26 +326,54 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
         }
     }
 
+    // Cache for app status to avoid repeated port checks
+    private _appStatusCache: { status: string; timestamp: number } | null = null;
+    private readonly _appStatusCacheTTL = 30000; // 30 seconds
+
     private async _checkAppStatus(): Promise<void> {
+        // Return cached status if valid
+        if (this._appStatusCache && (Date.now() - this._appStatusCache.timestamp) < this._appStatusCacheTTL) {
+            this._view?.webview.postMessage({
+                command: 'updateAppStatus',
+                status: this._appStatusCache.status
+            });
+            return;
+        }
+
+        // Send 'checking' status immediately
+        this._view?.webview.postMessage({
+            command: 'updateAppStatus',
+            status: 'checking'
+        });
+
         try {
-            // Check if application is running
+            // Check ports in parallel with shorter timeout
             const axios = require('axios').default;
             const portsToCheck = [3000, 8080, 4200, 5000, 8000, 4000, 5173];
-
-            let appRunning = false;
-            for (const port of portsToCheck) {
+            
+            // Create parallel requests with shorter timeout (1 second)
+            const checkPromises = portsToCheck.map(async (port) => {
                 try {
-                    await axios.get(`http://localhost:${port}`, { timeout: 2000 });
-                    appRunning = true;
-                    break;
+                    await axios.get(`http://localhost:${port}`, { timeout: 1000 });
+                    return port; // Return the port that responded
                 } catch (e) {
-                    // Continue checking other ports
+                    return null; // Port not available
                 }
-            }
+            });
+
+            // Wait for all checks to complete
+            const results = await Promise.all(checkPromises);
+            const runningPort = results.find(p => p !== null);
+            const appRunning = runningPort !== undefined;
+
+            const status = appRunning ? 'running' : 'not_found';
+            
+            // Update cache
+            this._appStatusCache = { status, timestamp: Date.now() };
 
             this._view?.webview.postMessage({
                 command: 'updateAppStatus',
-                status: appRunning ? 'running' : 'not_found'
+                status: status
             });
         } catch (error) {
             console.error('TestFox: Error checking app status:', error);
@@ -752,41 +796,6 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
             </div>
         </div>
 
-    <div class="section" id="mcpSection" style="border-color: rgba(147,51,234,0.5);">
-        <div class="section-title" style="color: #a78bfa;">🔌 QA MCP Servers</div>
-        <p style="font-size: 11px; color: var(--vscode-descriptionForeground); margin-bottom: 10px;">
-            AI-powered testing with Model Context Protocol servers
-        </p>
-        <div class="button-grid">
-            <button class="btn" onclick="sendCommand('mcpPlaywright')" style="border-color: rgba(147,51,234,0.3);">
-                <span class="btn-icon">🎭</span>
-                <span>Playwright</span>
-            </button>
-            <button class="btn" onclick="sendCommand('mcpFetch')" style="border-color: rgba(147,51,234,0.3);">
-                <span class="btn-icon">📮</span>
-                <span>Postman</span>
-            </button>
-            <button class="btn" onclick="sendCommand('mcpChromeDevTools')" style="border-color: rgba(147,51,234,0.3);">
-                <span class="btn-icon">🔧</span>
-                <span>DevTools</span>
-            </button>
-            <button class="btn" onclick="sendCommand('mcpQAUse')" style="border-color: rgba(147,51,234,0.3);">
-                <span class="btn-icon">🧪</span>
-                <span>QA Use</span>
-            </button>
-            <button class="btn btn-primary" onclick="sendCommand('mcpRunAll')">
-                <span>🚀 Run All MCP Tests</span>
-            </button>
-            <button class="btn" onclick="sendCommand('mcpReport')" style="border-color: rgba(147,51,234,0.3);">
-                <span class="btn-icon">📋</span>
-                <span>MCP Report</span>
-            </button>
-        </div>
-        <div id="mcpStatus" style="margin-top: 10px; font-size: 11px; color: #a78bfa;">
-            4 MCP Servers Available
-            </div>
-        </div>
-
     <div class="section" id="postmanResultsSection" style="display: none;">
         <div class="section-title">Postman Run Results</div>
         <div id="postmanSummary" style="font-size:12px; margin-bottom:8px; color:var(--vscode-descriptionForeground);"></div>
@@ -1018,13 +1027,14 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
         console.log('TestFox UI: Webview initialized, signaling ready');
         vscode.postMessage({ command: 'ready' });
         
-        // Defer status checks until browser is idle or after a short delay
+        // Defer status checks until UI is fully rendered (2 second delay)
+        // This prevents blocking the initial UI load
         if (typeof requestIdleCallback !== 'undefined') {
             requestIdleCallback(() => {
                 initializeStatuses();
-            }, { timeout: 1000 });
+            }, { timeout: 2000 });
         } else {
-            setTimeout(initializeStatuses, 500);
+            setTimeout(initializeStatuses, 2000);
         }
     </script>
 </body>

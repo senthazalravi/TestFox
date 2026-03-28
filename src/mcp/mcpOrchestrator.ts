@@ -8,6 +8,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { MCPTestRunner } from '../runners/mcpTestRunner';
 
 export interface MCPRequest {
     type: 'playwright' | 'postman' | 'devtools';
@@ -189,13 +190,68 @@ export class MCPOrchestrator {
         const prompt = this.getMCPrompt(mcpType, projectAnalysis);
         
         try {
-            // For now, use predefined templates as fallback
-            // TODO: Integrate with actual AI service
+            // Try to use AI service first
+            const { getOpenRouterClient } = await import('../ai/openRouterClient');
+            const openRouter = getOpenRouterClient();
+            
+            if (openRouter.isBYOKReady()) {
+                const aiResponse = await openRouter.generate(prompt);
+                
+                // Parse AI response and generate files
+                return this.parseAIResponseToFiles(mcpType, aiResponse, projectAnalysis);
+            }
+            
+            // Fallback to templates if AI not available
             return this.generateFallbackTests(mcpType);
             
         } catch (error) {
-            throw new Error(`AI generation failed: ${error}`);
+            console.log('AI generation failed, using fallback:', error);
+            return this.generateFallbackTests(mcpType);
         }
+    }
+
+    /**
+     * Parse AI response into file structure
+     */
+    private parseAIResponseToFiles(mcpType: string, aiResponse: string, projectAnalysis: ProjectAnalysis): MCPResponse {
+        const files: MCPFile[] = [];
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        const projectPath = workspaceFolders?.[0]?.uri.fsPath || '';
+        
+        // Extract file blocks from AI response
+        const fileBlockRegex = /```(?:typescript|javascript|json)?\s*\n?\/\/?\s*File:\s*([^\n]+)\n([\s\S]*?)```/g;
+        let match;
+        
+        while ((match = fileBlockRegex.exec(aiResponse)) !== null) {
+            const filePath = match[1].trim();
+            const content = match[2].trim();
+            
+            files.push({
+                path: path.join(projectPath, filePath),
+                content,
+                type: this.getFileType(filePath)
+            });
+        }
+        
+        // If no files parsed from AI response, use fallback
+        if (files.length === 0) {
+            return this.generateFallbackTests(mcpType);
+        }
+        
+        return {
+            success: true,
+            files
+        };
+    }
+
+    /**
+     * Get file type from path
+     */
+    private getFileType(filePath: string): MCPFile['type'] {
+        if (filePath.includes('config')) return 'config';
+        if (filePath.includes('fixture')) return 'fixture';
+        if (filePath.endsWith('.json')) return 'collection';
+        return 'test';
     }
 
     /**
@@ -379,17 +435,40 @@ Your tasks:
      */
     async runTests(mcpType: 'playwright' | 'postman' | 'devtools'): Promise<{ success: boolean; summary: { total: number; passed: number; failed: number } } | null> {
         try {
-            // Simulate running tests - in a real implementation this would execute the MCP tests
             vscode.window.showInformationMessage(`Running ${mcpType} tests...`);
             
-            // For now, return a mock result
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders) {
+                throw new Error('No workspace folder found');
+            }
+            
+            const projectPath = workspaceFolders[0].uri.fsPath;
+            const testRunner = new MCPTestRunner();
+            
+            let result;
+            switch (mcpType) {
+                case 'playwright':
+                    result = await testRunner.runPlaywrightTests({
+                        serverId: 'playwright-mcp',
+                        projectPath,
+                        targetUrl: 'http://localhost:3000'
+                    });
+                    break;
+                case 'postman':
+                    // Postman tests would run through Newman
+                    vscode.window.showInformationMessage('📮 Postman tests would run via Newman. Feature coming soon!');
+                    return { success: true, summary: { total: 0, passed: 0, failed: 0 } };
+                case 'devtools':
+                    // DevTools tests run via Chrome DevTools Protocol
+                    vscode.window.showInformationMessage('🔧 DevTools tests would run via CDP. Feature coming soon!');
+                    return { success: true, summary: { total: 0, passed: 0, failed: 0 } };
+                default:
+                    throw new Error(`Unknown MCP type: ${mcpType}`);
+            }
+            
             return {
-                success: true,
-                summary: {
-                    total: 5,
-                    passed: 4,
-                    failed: 1
-                }
+                success: result.status === 'passed',
+                summary: result.summary
             };
         } catch (error) {
             this.outputChannel.appendLine(`❌ Error running ${mcpType} tests: ${error}`);

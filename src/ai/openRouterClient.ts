@@ -819,6 +819,13 @@ Consider configuring AI API keys for more comprehensive and context-aware test c
     }
 
     /**
+     * Check if AI is configured (alias for isEnabled)
+     */
+    isConfigured(): boolean {
+        return this.isEnabled();
+    }
+
+    /**
      * Check if BYOK (Bring Your Own Key) is satisfied - user must provide their own key
      */
     isBYOKReady(): boolean {

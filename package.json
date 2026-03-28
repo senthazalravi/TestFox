@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing for JavaScript, Python, Java, C, C++, Rust, Go & more. 18+ test categories including security (OWASP), performance, accessibility. FREE AI models available via OpenRouter.",
-  "version": "7.1.8",
+  "version": "7.1.9",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -277,6 +277,56 @@
         "icon": "$(play)"
       },
       {
+        "command": "testfox.qaUse.setup",
+        "title": "TestFox: QA Use Setup",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "testfox.qaUse.testInit",
+        "title": "TestFox: QA Use Initialize Tests",
+        "icon": "$(new-folder)"
+      },
+      {
+        "command": "testfox.qaUse.testRunAll",
+        "title": "TestFox: QA Use Run All Tests",
+        "icon": "$(play)"
+      },
+      {
+        "command": "testfox.qaUse.browserCreate",
+        "title": "TestFox: QA Use Create Browser Session",
+        "icon": "$(browser)"
+      },
+      {
+        "command": "testfox.puppeteer.connectActiveTab",
+        "title": "TestFox: Puppeteer Connect to Active Chrome Tab",
+        "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "testfox.puppeteer.launchNew",
+        "title": "TestFox: Puppeteer Launch New Browser",
+        "icon": "$(play)"
+      },
+      {
+        "command": "testfox.devtools.launch",
+        "title": "TestFox: Chrome DevTools Launch",
+        "icon": "$(debug-start)"
+      },
+      {
+        "command": "testfox.devtools.connectExisting",
+        "title": "TestFox: Chrome DevTools Connect to Chrome",
+        "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "testfox.devtools.analyzePerformance",
+        "title": "TestFox: Chrome DevTools Analyze Performance",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "testfox.mcp.configurePlaywright",
+        "title": "TestFox: Configure Playwright MCP",
+        "icon": "$(gear)"
+      },
+      {
         "command": "testfox.refreshMCPTests",
         "title": "TestFox: Refresh MCP Tests",
         "icon": "$(refresh)"
@@ -361,6 +411,51 @@
           "command": "testfox.mcp.runPlaywright",
           "when": "view == testfox-mcp-tests",
           "group": "navigation"
+        },
+        {
+          "command": "testfox.mcp.configurePlaywright",
+          "when": "view == testfox-mcp-tests",
+          "group": "navigation"
+        },
+        {
+          "command": "testfox.qaUse.setup",
+          "when": "view == testfox-mcp-tests",
+          "group": "navigation@1"
+        },
+        {
+          "command": "testfox.qaUse.testInit",
+          "when": "view == testfox-mcp-tests",
+          "group": "navigation@1"
+        },
+        {
+          "command": "testfox.qaUse.testRunAll",
+          "when": "view == testfox-mcp-tests",
+          "group": "navigation@1"
+        },
+        {
+          "command": "testfox.puppeteer.connectActiveTab",
+          "when": "view == testfox-mcp-tests",
+          "group": "navigation@2"
+        },
+        {
+          "command": "testfox.puppeteer.launchNew",
+          "when": "view == testfox-mcp-tests",
+          "group": "navigation@2"
+        },
+        {
+          "command": "testfox.devtools.launch",
+          "when": "view == testfox-mcp-tests",
+          "group": "navigation@3"
+        },
+        {
+          "command": "testfox.devtools.connectExisting",
+          "when": "view == testfox-mcp-tests",
+          "group": "navigation@3"
+        },
+        {
+          "command": "testfox.devtools.analyzePerformance",
+          "when": "view == testfox-mcp-tests",
+          "group": "navigation@3"
         },
         {
           "command": "testfox.refreshMCPTests",
@@ -602,6 +697,17 @@
           "type": "string",
           "default": "",
           "description": "Default assignees for created issues"
+        },
+        "testfox.qaUse.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "desplega.ai QA Use API key (required for QA Use MCP)"
+        },
+        "testfox.qaUse.region": {
+          "type": "string",
+          "enum": ["us", "auto"],
+          "default": "us",
+          "description": "QA Use region - 'us' or 'auto'"
         }
       }
     }

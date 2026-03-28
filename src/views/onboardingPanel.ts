@@ -19,15 +19,22 @@ export class OnboardingPanel {
 
     // Setup requirement flags
     private get needsProjectAnalysis(): boolean {
-        // For now, assume project analysis is needed if onboarding is shown
-        // This can be made smarter later
-        return false;
+        // Check if project has been analyzed
+        const { getTestStore } = require('../store/testStore');
+        const testStore = getTestStore();
+        const projectInfo = testStore.getProjectInfo();
+        return !projectInfo; // Need analysis if no project info exists
     }
 
     private get needsAISetup(): boolean {
-        // AI setup is now optional - users can use rule-based testing without it
-        // Only show onboarding if explicitly requested
-        return false;
+        // Check if AI is properly configured
+        const config = vscode.workspace.getConfiguration('testfox');
+        const apiKey = config.get<string>('ai.apiKey');
+        const provider = config.get<string>('ai.provider');
+        const aiEnabled = config.get<boolean>('ai.enabled', true);
+        
+        // AI setup is needed if AI is enabled but no API key or provider is configured
+        return aiEnabled && (!apiKey || !provider);
     }
 
     private get needsGitHubAuth(): boolean {

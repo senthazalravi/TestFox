@@ -6,6 +6,7 @@
 
 import * as vscode from 'vscode';
 import { MCPOrchestrator } from '../mcp/mcpOrchestrator';
+import { MCPServerManager } from '../mcp/mcpServerManager';
 
 /**
  * Register all MCP commands
@@ -97,6 +98,220 @@ export function registerMCPCommands(context: vscode.ExtensionContext): vscode.Di
                 }
             } catch (error: any) {
                 vscode.window.showErrorMessage(`❌ Failed to run Playwright tests: ${error.message}`);
+            }
+        }),
+
+        // Configure Playwright MCP Command
+        vscode.commands.registerCommand('testfox.mcp.configurePlaywright', async () => {
+            try {
+                const mcpManager = new MCPServerManager(context);
+                
+                // Show quick picks for configuration
+                const browser = await vscode.window.showQuickPick(
+                    ['chromium', 'firefox', 'webkit', 'chrome', 'msedge'],
+                    { placeHolder: 'Select browser (default: chromium)' }
+                );
+                
+                const headless = await vscode.window.showQuickPick(
+                    ['Yes', 'No'],
+                    { placeHolder: 'Run in headless mode? (default: Yes)' }
+                );
+                
+                const viewportSize = await vscode.window.showInputBox({
+                    prompt: 'Viewport size (e.g., 1280x720)',
+                    value: '1280x720'
+                });
+                
+                const timeoutAction = await vscode.window.showInputBox({
+                    prompt: 'Action timeout in ms (default: 5000)',
+                    value: '5000'
+                });
+                
+                const timeoutNavigation = await vscode.window.showInputBox({
+                    prompt: 'Navigation timeout in ms (default: 60000)',
+                    value: '60000'
+                });
+
+                if (browser && headless && viewportSize && timeoutAction && timeoutNavigation) {
+                    await mcpManager.configurePlaywrightMCP({
+                        browser: browser as any,
+                        headless: headless === 'Yes',
+                        viewportSize,
+                        timeoutAction: parseInt(timeoutAction),
+                        timeoutNavigation: parseInt(timeoutNavigation)
+                    });
+                    
+                    vscode.window.showInformationMessage(
+                        `✅ Playwright MCP configured: ${browser} | ${headless === 'Yes' ? 'headless' : 'headed'} | ${viewportSize}`
+                    );
+                }
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`❌ Failed to configure Playwright MCP: ${error.message}`);
+            }
+        }),
+
+        // QA Use Commands
+        vscode.commands.registerCommand('testfox.qaUse.setup', async () => {
+            try {
+                const terminal = vscode.window.createTerminal('QA Use Setup');
+                terminal.show();
+                terminal.sendText('npx @desplega.ai/qa-use setup');
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`❌ Failed to setup QA Use: ${error.message}`);
+            }
+        }),
+
+        vscode.commands.registerCommand('testfox.qaUse.testInit', async () => {
+            try {
+                const terminal = vscode.window.createTerminal('QA Use Test Init');
+                terminal.show();
+                terminal.sendText('npx @desplega.ai/qa-use test init');
+                vscode.window.showInformationMessage('🧪 QA Use: Initializing test directory...');
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`❌ Failed to init QA Use tests: ${error.message}`);
+            }
+        }),
+
+        vscode.commands.registerCommand('testfox.qaUse.testRunAll', async () => {
+            try {
+                const terminal = vscode.window.createTerminal('QA Use Run All Tests');
+                terminal.show();
+                terminal.sendText('npx @desplega.ai/qa-use test run --all');
+                vscode.window.showInformationMessage('🧪 QA Use: Running all tests...');
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`❌ Failed to run QA Use tests: ${error.message}`);
+            }
+        }),
+
+        vscode.commands.registerCommand('testfox.qaUse.browserCreate', async () => {
+            try {
+                const terminal = vscode.window.createTerminal('QA Use Browser');
+                terminal.show();
+                terminal.sendText('npx @desplega.ai/qa-use browser create');
+                vscode.window.showInformationMessage('🌐 QA Use: Starting browser session...');
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`❌ Failed to create QA Use browser: ${error.message}`);
+            }
+        }),
+
+        // Puppeteer MCP Commands
+        vscode.commands.registerCommand('testfox.puppeteer.connectActiveTab', async () => {
+            try {
+                const debugPort = await vscode.window.showInputBox({
+                    prompt: 'Chrome debugging port (default: 9222)',
+                    value: '9222'
+                });
+                
+                const targetUrl = await vscode.window.showInputBox({
+                    prompt: 'Target URL (optional - leave empty to connect to any tab)',
+                    value: ''
+                });
+                
+                if (debugPort) {
+                    const terminal = vscode.window.createTerminal('Puppeteer Connect');
+                    terminal.show();
+                    
+                    // Show instructions for connecting to Chrome
+                    vscode.window.showInformationMessage(
+                        '🎪 To connect to Chrome: 1) Close all Chrome windows, 2) Launch Chrome with --remote-debugging-port=' + debugPort,
+                        'Copy Chrome Command'
+                    ).then(selection => {
+                        if (selection === 'Copy Chrome Command') {
+                            vscode.env.clipboard.writeText(`"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --remote-debugging-port=${debugPort}`);
+                            vscode.window.showInformationMessage('Chrome launch command copied to clipboard');
+                        }
+                    });
+                }
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`❌ Failed to connect Puppeteer: ${error.message}`);
+            }
+        }),
+
+        vscode.commands.registerCommand('testfox.puppeteer.launchNew', async () => {
+            try {
+                const terminal = vscode.window.createTerminal('Puppeteer Launch');
+                terminal.show();
+                terminal.sendText('npx -y puppeteer-mcp-server');
+                vscode.window.showInformationMessage('🎪 Puppeteer MCP: Starting new browser instance...');
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`❌ Failed to launch Puppeteer: ${error.message}`);
+            }
+        }),
+
+        // Chrome DevTools MCP Commands
+        vscode.commands.registerCommand('testfox.devtools.launch', async () => {
+            try {
+                const headless = await vscode.window.showQuickPick(
+                    ['No (headed)', 'Yes (headless)'],
+                    { placeHolder: 'Run in headless mode?' }
+                );
+                
+                const slim = await vscode.window.showQuickPick(
+                    ['Full tools', 'Slim (basic only)'],
+                    { placeHolder: 'Tool set mode?' }
+                );
+                
+                if (headless && slim) {
+                    const args = ['-y', 'chrome-devtools-mcp@latest'];
+                    if (headless === 'Yes (headless)') {
+                        args.push('--headless');
+                    }
+                    if (slim === 'Slim (basic only)') {
+                        args.push('--slim');
+                    }
+                    
+                    const terminal = vscode.window.createTerminal('Chrome DevTools MCP');
+                    terminal.show();
+                    terminal.sendText(`npx ${args.join(' ')}`);
+                    vscode.window.showInformationMessage(`🔧 Chrome DevTools MCP: Starting (${headless}, ${slim})...`);
+                }
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`❌ Failed to launch Chrome DevTools MCP: ${error.message}`);
+            }
+        }),
+
+        vscode.commands.registerCommand('testfox.devtools.connectExisting', async () => {
+            try {
+                const browserUrl = await vscode.window.showInputBox({
+                    prompt: 'Chrome debugging URL (e.g., http://127.0.0.1:9222)',
+                    value: 'http://127.0.0.1:9222'
+                });
+                
+                if (browserUrl) {
+                    vscode.window.showInformationMessage(
+                        `🔧 Chrome DevTools MCP: To connect to existing Chrome, launch Chrome with --remote-debugging-port=9222 first`,
+                        'Copy Chrome Command'
+                    ).then(selection => {
+                        if (selection === 'Copy Chrome Command') {
+                            vscode.env.clipboard.writeText(`"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --remote-debugging-port=9222 --user-data-dir=%TEMP%\\chrome-devtools-profile`);
+                            vscode.window.showInformationMessage('Chrome launch command copied to clipboard');
+                        }
+                    });
+                }
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`❌ Failed to connect Chrome DevTools MCP: ${error.message}`);
+            }
+        }),
+
+        vscode.commands.registerCommand('testfox.devtools.analyzePerformance', async () => {
+            try {
+                const url = await vscode.window.showInputBox({
+                    prompt: 'URL to analyze performance',
+                    value: 'https://developers.chrome.com'
+                });
+                
+                if (url) {
+                    vscode.window.showInformationMessage(
+                        `🔧 Chrome DevTools MCP: Use this prompt with your AI assistant:\n\n"Check the performance of ${url}"`,
+                        'Copy Prompt'
+                    ).then(selection => {
+                        if (selection === 'Copy Prompt') {
+                            vscode.env.clipboard.writeText(`Check the performance of ${url}`);
+                        }
+                    });
+                }
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`❌ Failed: ${error.message}`);
             }
         })
     ];

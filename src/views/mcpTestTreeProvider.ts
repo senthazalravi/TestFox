@@ -44,6 +44,13 @@ export class MCPTestTreeProvider implements vscode.TreeDataProvider<MCPTreeItem>
             return Promise.resolve(this.getServerChildren(element.serverId!));
         }
 
+        if (element.contextValue === 'testFolder') {
+            // Show test files in this folder
+            const result = element.serverId ? this.results.get(element.serverId) : undefined;
+            const files = element.testFiles || [];
+            return Promise.resolve(files.map(file => this.createTestFileItem(file, result)));
+        }
+
         if (element.contextValue === 'testFile') {
             // Show individual tests in file
             return Promise.resolve(this.getTestChildren(element.filePath!));
@@ -53,64 +60,88 @@ export class MCPTestTreeProvider implements vscode.TreeDataProvider<MCPTreeItem>
     }
 
     /**
-     * Get main MCP server sections
+     * Get main MCP server sections with documentation
      */
     private getMCPSections(): MCPTreeItem[] {
         const sections: MCPTreeItem[] = [];
 
         // Playwright MCP Section
         const playwrightItem = new MCPTreeItem(
-            '🎭 Playwright Tests',
+            '🎭 Playwright MCP (Official)',
             vscode.TreeItemCollapsibleState.Expanded,
             'mcpServer'
         );
         playwrightItem.serverId = 'playwright-mcp';
         playwrightItem.iconPath = new vscode.ThemeIcon('play', new vscode.ThemeColor('charts.blue'));
         playwrightItem.description = this.getServerStatus('playwright-mcp');
-        playwrightItem.tooltip = 'Playwright E2E Tests';
+        playwrightItem.tooltip = 'Official Microsoft Playwright MCP - Fast, lightweight browser automation using accessibility tree (no vision models needed)';
+        playwrightItem.documentationUrl = 'https://github.com/microsoft/playwright-mcp';
+        playwrightItem.command = {
+            command: 'vscode.open',
+            title: 'Open Playwright MCP Documentation',
+            arguments: [vscode.Uri.parse('https://github.com/microsoft/playwright-mcp')]
+        };
         sections.push(playwrightItem);
 
         // QA Use MCP Section
         const qaUseItem = new MCPTreeItem(
-            '🧪 QA Use MCP',
+            '🧪 QA Use MCP (desplega.ai)',
             vscode.TreeItemCollapsibleState.Collapsed,
             'mcpServer'
         );
         qaUseItem.serverId = 'qa-use-mcp';
         qaUseItem.iconPath = new vscode.ThemeIcon('beaker', new vscode.ThemeColor('charts.green'));
         qaUseItem.description = this.getServerStatus('qa-use-mcp');
-        qaUseItem.tooltip = 'QA Use MCP Browser Automation';
+        qaUseItem.tooltip = 'desplega.ai QA Use - CLI E2E testing with YAML definitions and AI-assisted browser automation';
+        qaUseItem.documentationUrl = 'https://github.com/desplega-ai/qa-use';
+        qaUseItem.command = {
+            command: 'vscode.open',
+            title: 'Open QA Use Documentation',
+            arguments: [vscode.Uri.parse('https://github.com/desplega-ai/qa-use')]
+        };
         sections.push(qaUseItem);
 
         // Puppeteer MCP Section
         const puppeteerItem = new MCPTreeItem(
-            '🎪 Puppeteer Tests',
+            '🎪 Puppeteer MCP (CDP)',
             vscode.TreeItemCollapsibleState.Collapsed,
             'mcpServer'
         );
         puppeteerItem.serverId = 'puppeteer-mcp';
         puppeteerItem.iconPath = new vscode.ThemeIcon('browser', new vscode.ThemeColor('charts.orange'));
         puppeteerItem.description = this.getServerStatus('puppeteer-mcp');
-        puppeteerItem.tooltip = 'Puppeteer Chrome DevTools Tests';
+        puppeteerItem.tooltip = 'puppeteer-mcp-server - Chrome DevTools automation with smart tab management. Features: navigate, screenshot, click, fill forms, execute JavaScript';
+        puppeteerItem.documentationUrl = 'https://github.com/puppeteer-mcp-server/puppeteer-mcp-server';
+        puppeteerItem.command = {
+            command: 'vscode.open',
+            title: 'Open Puppeteer MCP Documentation',
+            arguments: [vscode.Uri.parse('https://github.com/puppeteer-mcp-server/puppeteer-mcp-server')]
+        };
         sections.push(puppeteerItem);
 
         // Chrome DevTools MCP Section
         const devtoolsItem = new MCPTreeItem(
-            '🔧 DevTools Tests',
+            '🔧 Chrome DevTools MCP (Official)',
             vscode.TreeItemCollapsibleState.Collapsed,
             'mcpServer'
         );
         devtoolsItem.serverId = 'chrome-devtools-mcp';
         devtoolsItem.iconPath = new vscode.ThemeIcon('tools', new vscode.ThemeColor('charts.purple'));
         devtoolsItem.description = this.getServerStatus('chrome-devtools-mcp');
-        devtoolsItem.tooltip = 'Chrome DevTools Performance Tests';
+        devtoolsItem.tooltip = 'chrome-devtools-mcp - Official Google Chrome DevTools MCP. Features: performance analysis, network debugging, console logs, screenshots, Lighthouse audits';
+        devtoolsItem.documentationUrl = 'https://github.com/ChromeDevTools/chrome-devtools-mcp';
+        devtoolsItem.command = {
+            command: 'vscode.open',
+            title: 'Open Chrome DevTools MCP Documentation',
+            arguments: [vscode.Uri.parse('https://github.com/ChromeDevTools/chrome-devtools-mcp')]
+        };
         sections.push(devtoolsItem);
 
         return sections;
     }
 
     /**
-     * Get children for a specific MCP server
+     * Get children for a specific MCP server with subfolder support
      */
     private getServerChildren(serverId: string): MCPTreeItem[] {
         const items: MCPTreeItem[] = [];
@@ -120,49 +151,11 @@ export class MCPTestTreeProvider implements vscode.TreeDataProvider<MCPTreeItem>
 
         // Check for test files in the filesystem
         const playwrightDir = path.join(this.workspacePath, 'tests', 'playwright');
+        const hasTests = fs.existsSync(playwrightDir);
         
-        if (serverId === 'playwright-mcp' && fs.existsSync(playwrightDir)) {
-            // Add test categories
-            const e2eDir = path.join(playwrightDir, 'e2e');
-            if (fs.existsSync(e2eDir)) {
-                const testFiles = this.findTestFiles(e2eDir);
-                
-                for (const file of testFiles) {
-                    const fileName = path.basename(file);
-                    const testItem = new MCPTreeItem(
-                        fileName,
-                        vscode.TreeItemCollapsibleState.Collapsed,
-                        'testFile'
-                    );
-                    testItem.filePath = file;
-                    testItem.iconPath = new vscode.ThemeIcon('file-code');
-                    testItem.tooltip = file;
-                    
-                    // Check if we have results for this file
-                    if (result) {
-                        const fileTests = result.tests.filter(t => t.file === file || t.name.includes(fileName.replace('.spec.ts', '')));
-                        const passed = fileTests.filter(t => t.status === 'passed').length;
-                        const total = fileTests.length;
-                        testItem.description = total > 0 ? `${passed}/${total}` : '';
-                    }
-                    
-                    items.push(testItem);
-                }
-            }
-
-            // Add action buttons
-            const runAllItem = new MCPTreeItem(
-                '▶️ Run All Playwright Tests',
-                vscode.TreeItemCollapsibleState.None,
-                'action'
-            );
-            runAllItem.iconPath = new vscode.ThemeIcon('debug-start', new vscode.ThemeColor('charts.green'));
-            runAllItem.command = {
-                command: 'testfox.mcp.runPlaywright',
-                title: 'Run Playwright Tests'
-            };
-            items.unshift(runAllItem);
-
+        // Add action buttons first - always show generate button
+        if (serverId === 'playwright-mcp') {
+            // Generate button - always available
             const generateItem = new MCPTreeItem(
                 '🤖 Generate AI Tests',
                 vscode.TreeItemCollapsibleState.None,
@@ -173,7 +166,83 @@ export class MCPTestTreeProvider implements vscode.TreeDataProvider<MCPTreeItem>
                 command: 'testfox.mcp.generatePlaywright',
                 title: 'Generate Playwright Tests'
             };
-            items.unshift(generateItem);
+            items.push(generateItem);
+
+            // Run button - only if tests exist
+            if (hasTests) {
+                const runAllItem = new MCPTreeItem(
+                    '▶️ Run All Playwright Tests',
+                    vscode.TreeItemCollapsibleState.None,
+                    'action'
+                );
+                runAllItem.iconPath = new vscode.ThemeIcon('debug-start', new vscode.ThemeColor('charts.green'));
+                runAllItem.command = {
+                    command: 'testfox.mcp.runPlaywright',
+                    title: 'Run Playwright Tests'
+                };
+                items.push(runAllItem);
+            }
+        }
+        
+        // Show test files if they exist
+        if (serverId === 'playwright-mcp' && hasTests) {
+            // Get all test files with their subfolder info
+            const testFiles = this.findTestFilesWithSubfolders(playwrightDir);
+            
+            if (testFiles.length > 0) {
+                // Group files by subfolder
+                const filesByFolder = new Map<string, string[]>();
+                for (const { file, relativeDir } of testFiles) {
+                    const key = relativeDir || '(root)';
+                    if (!filesByFolder.has(key)) {
+                        filesByFolder.set(key, []);
+                    }
+                    filesByFolder.get(key)!.push(file);
+                }
+
+                // Create folder items
+                for (const [folderName, files] of filesByFolder) {
+                    if (folderName === '(root)') {
+                        // Add root-level files directly
+                        for (const file of files) {
+                            items.push(this.createTestFileItem(file, result));
+                        }
+                    } else {
+                        // Create folder item with files as children
+                        const folderItem = new MCPTreeItem(
+                            `📁 ${folderName}`,
+                            vscode.TreeItemCollapsibleState.Collapsed,
+                            'testFolder'
+                        );
+                        folderItem.folderPath = path.join(playwrightDir, folderName);
+                        folderItem.iconPath = new vscode.ThemeIcon('folder', new vscode.ThemeColor('charts.blue'));
+                        folderItem.testFiles = files;
+                        
+                        if (result) {
+                            let totalPassed = 0;
+                            let totalTests = 0;
+                            for (const file of files) {
+                                const fileName = path.basename(file);
+                                const fileTests = result.tests.filter(t => t.file === file || t.name.includes(fileName.replace('.spec.ts', '')));
+                                totalPassed += fileTests.filter(t => t.status === 'passed').length;
+                                totalTests += fileTests.length;
+                            }
+                            folderItem.description = totalTests > 0 ? `${totalPassed}/${totalTests}` : '';
+                        }
+                        
+                        items.push(folderItem);
+                    }
+                }
+            } else {
+                // No test files yet
+                const noTestsItem = new MCPTreeItem(
+                    '📝 No tests yet - click Generate to create',
+                    vscode.TreeItemCollapsibleState.None,
+                    'info'
+                );
+                noTestsItem.iconPath = new vscode.ThemeIcon('info');
+                items.push(noTestsItem);
+            }
 
             // Add report link if available
             if (result?.reportPath) {
@@ -190,6 +259,15 @@ export class MCPTestTreeProvider implements vscode.TreeDataProvider<MCPTreeItem>
                 };
                 items.push(reportItem);
             }
+        } else if (serverId === 'playwright-mcp' && !hasTests) {
+            // Show placeholder when no tests directory
+            const noTestsItem = new MCPTreeItem(
+                '📝 No tests yet - click Generate to create',
+                vscode.TreeItemCollapsibleState.None,
+                'info'
+            );
+            noTestsItem.iconPath = new vscode.ThemeIcon('info');
+            items.push(noTestsItem);
         }
 
         // Show result summary if tests have been run
@@ -207,6 +285,57 @@ export class MCPTestTreeProvider implements vscode.TreeDataProvider<MCPTreeItem>
         }
 
         return items;
+    }
+
+    /**
+     * Create a test file tree item
+     */
+    private createTestFileItem(file: string, result?: MCPRunResult): MCPTreeItem {
+        const fileName = path.basename(file);
+        const testItem = new MCPTreeItem(
+            fileName,
+            vscode.TreeItemCollapsibleState.Collapsed,
+            'testFile'
+        );
+        testItem.filePath = file;
+        testItem.iconPath = new vscode.ThemeIcon('file-code');
+        testItem.tooltip = file;
+        
+        // Check if we have results for this file
+        if (result) {
+            const fileTests = result.tests.filter(t => t.file === file || t.name.includes(fileName.replace('.spec.ts', '')));
+            const passed = fileTests.filter(t => t.status === 'passed').length;
+            const total = fileTests.length;
+            testItem.description = total > 0 ? `${passed}/${total}` : '';
+        }
+        
+        return testItem;
+    }
+
+    /**
+     * Find all test files with their subfolder information
+     */
+    private findTestFilesWithSubfolders(dir: string, baseDir: string = dir): Array<{file: string, relativeDir: string}> {
+        const files: Array<{file: string, relativeDir: string}> = [];
+        
+        try {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            
+            for (const entry of entries) {
+                const fullPath = path.join(dir, entry.name);
+                
+                if (entry.isDirectory()) {
+                    files.push(...this.findTestFilesWithSubfolders(fullPath, baseDir));
+                } else if (entry.name.endsWith('.spec.ts') || entry.name.endsWith('.test.ts')) {
+                    const relativeDir = path.relative(baseDir, path.dirname(fullPath));
+                    files.push({ file: fullPath, relativeDir });
+                }
+            }
+        } catch (error) {
+            // Directory doesn't exist
+        }
+        
+        return files;
     }
 
     /**
@@ -308,6 +437,9 @@ export class MCPTreeItem extends vscode.TreeItem {
     serverId?: string;
     filePath?: string;
     testId?: string;
+    folderPath?: string;
+    testFiles?: string[];
+    documentationUrl?: string;
 
     constructor(
         label: string,
