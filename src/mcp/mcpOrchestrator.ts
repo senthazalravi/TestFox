@@ -459,9 +459,12 @@ Your tasks:
                     vscode.window.showInformationMessage('📮 Postman tests would run via Newman. Feature coming soon!');
                     return { success: true, summary: { total: 0, passed: 0, failed: 0 } };
                 case 'devtools':
-                    // DevTools tests run via Chrome DevTools Protocol
-                    vscode.window.showInformationMessage('🔧 DevTools tests would run via CDP. Feature coming soon!');
-                    return { success: true, summary: { total: 0, passed: 0, failed: 0 } };
+                    result = await testRunner.runChromeDevToolsTests({
+                        serverId: 'chrome-devtools-mcp',
+                        projectPath,
+                        targetUrl: 'http://localhost:3000'
+                    });
+                    break;
                 default:
                     throw new Error(`Unknown MCP type: ${mcpType}`);
             }

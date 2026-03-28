@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { PlaywrightTestGenerator } from '../generators/playwrightTestGenerator';
+import { ChromeDevToolsTestGenerator } from '../generators/chromeDevToolsTestGenerator';
 import { MCPTestRunner } from '../runners/mcpTestRunner';
 import { MCPServerManager } from '../mcp/mcpServerManager';
 import { MCPTestTreeProvider } from '../views/mcpTestTreeProvider';
@@ -166,6 +167,128 @@ export class MCPIntegrationManager {
     }
 
     /**
+     * Generate Chrome DevTools tests with AI
+     */
+    async generateChromeDevToolsTests(): Promise<void> {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            vscode.window.showErrorMessage('No workspace folder open');
+            return;
+        }
+
+        const projectPath = workspaceFolders[0].uri.fsPath;
+        const generator = new ChromeDevToolsTestGenerator();
+
+        try {
+            // Show progress
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Generating Chrome DevTools tests...',
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ message: 'Analyzing project structure...' });
+
+                // Get project info
+                const { ProjectDetector } = require('../core/projectDetector');
+                const projectDetector = new ProjectDetector();
+                const projectInfo = await projectDetector.detect(projectPath);
+
+                progress.report({ message: 'Generating AI-powered tests...' });
+
+                // Generate test suite
+                const devtoolsDir = await generator.generateChromeDevToolsSuite(projectPath, projectInfo);
+
+                progress.report({ message: 'Installing dependencies...' });
+
+                // Check if dependencies are installed, if not offer to install
+                const hasDependencies = await generator.checkDependencies(projectPath);
+                if (!hasDependencies) {
+                    const install = await vscode.window.showInformationMessage(
+                        'Chrome DevTools dependencies not detected. Install now?',
+                        'Yes', 'No'
+                    );
+                    if (install === 'Yes') {
+                        await generator.installDependencies(projectPath);
+                    }
+                }
+
+                // Refresh tree view
+                this.testTreeProvider?.refresh();
+
+                // Show success message
+                const openFolder = await vscode.window.showInformationMessage(
+                    `✅ Chrome DevTools tests generated at: ${devtoolsDir}`,
+                    'Open Folder', 'Run Tests'
+                );
+
+                if (openFolder === 'Open Folder') {
+                    const uri = vscode.Uri.file(devtoolsDir);
+                    await vscode.commands.executeCommand('vscode.openFolder', uri);
+                } else if (openFolder === 'Run Tests') {
+                    await this.runChromeDevToolsTests();
+                }
+            });
+
+        } catch (error: any) {
+            vscode.window.showErrorMessage(`Failed to generate Chrome DevTools tests: ${error.message}`);
+            this.outputChannel.appendLine(`❌ Error: ${error.message}`);
+        }
+    }
+
+    /**
+     * Run Chrome DevTools tests
+     */
+    async runChromeDevToolsTests(): Promise<void> {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            vscode.window.showErrorMessage('No workspace folder open');
+            return;
+        }
+
+        const projectPath = workspaceFolders[0].uri.fsPath;
+
+        try {
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Running Chrome DevTools tests...',
+                cancellable: true
+            }, async (progress, token) => {
+                const result = await this.testRunner.runChromeDevToolsTests({
+                    serverId: 'chrome-devtools-mcp',
+                    projectPath,
+                    targetUrl: 'http://localhost:3000'
+                });
+
+                // Update tree provider with results
+                this.testTreeProvider?.updateResults(result);
+
+                // Show results
+                if (result.status === 'passed') {
+                    vscode.window.showInformationMessage(
+                        `✅ Chrome DevTools tests passed: ${result.summary.passed}/${result.summary.total}`,
+                        'View Report'
+                    ).then(selection => {
+                        if (selection === 'View Report' && result.reportPath) {
+                            vscode.env.openExternal(vscode.Uri.file(result.reportPath));
+                        }
+                    });
+                } else {
+                    vscode.window.showWarningMessage(
+                        `⚠️ Chrome DevTools tests: ${result.summary.passed}/${result.summary.total} passed (${result.summary.failed} failed)`,
+                        'View Report', 'View Failed Tests'
+                    ).then(selection => {
+                        if (selection === 'View Report' && result.reportPath) {
+                            vscode.env.openExternal(vscode.Uri.file(result.reportPath));
+                        }
+                    });
+                }
+            });
+        } catch (error: any) {
+            vscode.window.showErrorMessage(`Failed to run Chrome DevTools tests: ${error.message}`);
+        }
+    }
+
+    /**
      * Run QA Use MCP tests
      */
     async runQAUseTests(): Promise<void> {
@@ -323,41 +446,11 @@ export class MCPIntegrationManager {
     }
 
     /**
-     * Generate DevTools tests
+     * Generate DevTools tests - using the comprehensive generator
      */
     private async generateDevToolsTests(projectPath: string, projectInfo: any): Promise<void> {
-        const devtoolsDir = path.join(projectPath, 'tests', 'devtools');
-        if (!require('fs').existsSync(devtoolsDir)) {
-            require('fs').mkdirSync(devtoolsDir, { recursive: true });
-        }
-
-        const performanceTests = `/**
- * Performance Tests - Generated by TestFox
- */
-
-describe('Performance Tests', () => {
-    test('should have acceptable load time', async () => {
-        const startTime = Date.now();
-        await page.goto('http://localhost:3000');
-        const loadTime = Date.now() - startTime;
-        expect(loadTime).toBeLessThan(3000); // 3 seconds
-    });
-
-    test('should pass Core Web Vitals', async () => {
-        const metrics = await page.evaluate(() => {
-            return {
-                lcp: performance.getEntriesByType('largest-contentful-paint')[0],
-                fid: performance.getEntriesByType('first-input')[0],
-                cls: performance.getEntriesByType('layout-shift')
-            };
-        });
-        
-        expect(metrics).toBeDefined();
-    });
-});
-`;
-
-        require('fs').writeFileSync(path.join(devtoolsDir, 'performance.spec.ts'), performanceTests);
+        const generator = new ChromeDevToolsTestGenerator();
+        await generator.generateChromeDevToolsSuite(projectPath, projectInfo);
     }
 
     /**

@@ -239,6 +239,184 @@ export class MCPTestRunner {
     }
 
     /**
+     * Run Chrome DevTools tests
+     */
+    async runChromeDevToolsTests(options: MCPRunOptions): Promise<MCPRunResult> {
+        this.outputChannel.appendLine(`🔧 Starting Chrome DevTools tests for ${options.projectPath}`);
+        
+        const result: MCPRunResult = {
+            serverId: 'chrome-devtools-mcp',
+            serverName: 'Chrome DevTools MCP',
+            status: 'running',
+            startTime: new Date(),
+            tests: [],
+            summary: {
+                total: 0,
+                passed: 0,
+                failed: 0,
+                skipped: 0,
+                duration: 0
+            }
+        };
+
+        this.runningTests.set('chrome-devtools-mcp', result);
+        this.onTestRunUpdate.fire(result);
+
+        try {
+            const { exec } = require('child_process');
+            const util = require('util');
+            const execAsync = util.promisify(exec);
+
+            // Check if Chrome DevTools tests exist
+            const devtoolsDir = `${options.projectPath}/tests/chrome-devtools`;
+            if (!require('fs').existsSync(devtoolsDir)) {
+                throw new Error('Chrome DevTools tests not found. Please generate tests first.');
+            }
+
+            // Run Chrome DevTools tests using Jest
+            const cmd = `cd "${devtoolsDir}" && npm test`;
+            
+            this.outputChannel.appendLine(`▶️ Running: ${cmd}`);
+            
+            let stdout = '';
+            let stderr = '';
+            
+            try {
+                const { stdout: out, stderr: err } = await execAsync(cmd, { 
+                    timeout: 300000,
+                    env: { ...process.env, CI: 'true' }
+                });
+                stdout = out;
+                stderr = err;
+            } catch (execError: any) {
+                // Jest returns non-zero on test failures, but we still get output
+                stdout = execError.stdout || '';
+                stderr = execError.stderr || '';
+            }
+
+            // Parse Jest results
+            let testResults: TestResult[] = [];
+            try {
+                // Try to parse JSON output if available
+                const jsonMatch = stdout.match(/\{[\s\S]*"testResults"[\s\S]*\}/);
+                if (jsonMatch) {
+                    const jsonResult = JSON.parse(jsonMatch[0]);
+                    testResults = jsonResult.testResults?.flatMap((suite: any) => 
+                        suite.assertionResults?.map((assertion: any) => ({
+                            id: `${suite.name} - ${assertion.title}`,
+                            name: assertion.title,
+                            file: suite.name,
+                            status: this.mapJestStatus(assertion.status),
+                            duration: assertion.duration || 0,
+                            message: assertion.failureMessages?.[0]
+                        }))
+                    ) || [];
+                }
+            } catch (parseError: any) {
+                this.outputChannel.appendLine(`⚠️ Could not parse JSON results: ${parseError.message}`);
+            }
+
+            // If no JSON results, parse text output
+            if (testResults.length === 0) {
+                testResults = this.parseJestTextOutput(stdout + stderr);
+            }
+
+            // Calculate summary
+            result.tests = testResults;
+            result.summary = {
+                total: testResults.length,
+                passed: testResults.filter(t => t.status === 'passed').length,
+                failed: testResults.filter(t => t.status === 'failed').length,
+                skipped: testResults.filter(t => t.status === 'skipped').length,
+                duration: Date.now() - result.startTime.getTime()
+            };
+
+            // Determine overall status
+            if (result.summary.failed > 0) {
+                result.status = 'failed';
+            } else if (result.summary.passed > 0) {
+                result.status = 'passed';
+            } else {
+                result.status = 'error';
+            }
+
+            result.endTime = new Date();
+
+            // Generate HTML report
+            const reportPath = await this.generateHTMLReport(result, options.projectPath);
+            result.reportPath = reportPath;
+
+            this.outputChannel.appendLine(`✅ Chrome DevTools tests complete: ${result.summary.passed}/${result.summary.total} passed`);
+
+        } catch (error: any) {
+            result.status = 'error';
+            result.endTime = new Date();
+            result.summary.duration = Date.now() - result.startTime.getTime();
+            result.tests.push({
+                id: 'error',
+                name: 'Test Execution Error',
+                status: 'error',
+                duration: 0,
+                error: error.message
+            });
+            this.outputChannel.appendLine(`❌ Chrome DevTools tests failed: ${error.message}`);
+        }
+
+        this.runningTests.set('chrome-devtools-mcp', result);
+        this.onTestRunUpdate.fire(result);
+
+        return result;
+    }
+
+    /**
+     * Map Jest status to our status
+     */
+    private mapJestStatus(status: string): 'passed' | 'failed' | 'skipped' | 'error' {
+        switch (status) {
+            case 'passed':
+                return 'passed';
+            case 'failed':
+                return 'failed';
+            case 'pending':
+                return 'skipped';
+            default:
+                return 'error';
+        }
+    }
+
+    /**
+     * Parse Jest text output
+     */
+    private parseJestTextOutput(output: string): TestResult[] {
+        const tests: TestResult[] = [];
+        const lines = output.split('\n');
+        
+        for (const line of lines) {
+            // Match lines like: "✓ test name (1.2s)" or "✕ test name (1.2s)"
+            const passMatch = line.match(/[✓✔]\s+(.+?)\s*\(([\d.]+)(ms|s)\)/);
+            const failMatch = line.match(/[✗✕×]\s+(.+?)\s*\(([\d.]+)(ms|s)\)/);
+            
+            if (passMatch) {
+                tests.push({
+                    id: passMatch[1],
+                    name: passMatch[1],
+                    status: 'passed',
+                    duration: parseFloat(passMatch[2]) * (passMatch[3] === 's' ? 1000 : 1)
+                });
+            } else if (failMatch) {
+                tests.push({
+                    id: failMatch[1],
+                    name: failMatch[1],
+                    status: 'failed',
+                    duration: parseFloat(failMatch[2]) * (failMatch[3] === 's' ? 1000 : 1)
+                });
+            }
+        }
+        
+        return tests;
+    }
+
+    /**
      * Run all MCP tests
      */
     async runAllMCPTests(projectPath: string, targetUrl?: string): Promise<MCPRunResult[]> {
@@ -246,6 +424,7 @@ export class MCPTestRunner {
 
         const servers = [
             { id: 'playwright-mcp', name: 'Playwright MCP', runner: this.runPlaywrightTests.bind(this) },
+            { id: 'chrome-devtools-mcp', name: 'Chrome DevTools MCP', runner: this.runChromeDevToolsTests.bind(this) },
             { id: 'qa-use-mcp', name: 'QA Use MCP', runner: this.runQAUseTests.bind(this) }
         ];
 

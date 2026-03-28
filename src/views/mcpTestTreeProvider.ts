@@ -182,6 +182,114 @@ export class MCPTestTreeProvider implements vscode.TreeDataProvider<MCPTreeItem>
                 };
                 items.push(runAllItem);
             }
+        } else if (serverId === 'chrome-devtools-mcp') {
+            // Chrome DevTools MCP action buttons
+            const devtoolsDir = path.join(this.workspacePath, 'tests', 'chrome-devtools');
+            const hasDevToolsTests = fs.existsSync(devtoolsDir);
+
+            // Generate button - always available
+            const generateItem = new MCPTreeItem(
+                '🤖 Generate Chrome DevTools Tests',
+                vscode.TreeItemCollapsibleState.None,
+                'action'
+            );
+            generateItem.iconPath = new vscode.ThemeIcon('sparkle', new vscode.ThemeColor('charts.yellow'));
+            generateItem.command = {
+                command: 'testfox.mcp.generateChromeDevTools',
+                title: 'Generate Chrome DevTools Tests'
+            };
+            items.push(generateItem);
+
+            // Run button - only if tests exist
+            if (hasDevToolsTests) {
+                const runAllItem = new MCPTreeItem(
+                    '▶️ Run Chrome DevTools Tests',
+                    vscode.TreeItemCollapsibleState.None,
+                    'action'
+                );
+                runAllItem.iconPath = new vscode.ThemeIcon('debug-start', new vscode.ThemeColor('charts.green'));
+                runAllItem.command = {
+                    command: 'testfox.mcp.runChromeDevTools',
+                    title: 'Run Chrome DevTools Tests'
+                };
+                items.push(runAllItem);
+            }
+
+            // Show test files if they exist
+            if (hasDevToolsTests) {
+                const testFiles = this.findDevToolsTestFiles(devtoolsDir);
+                
+                if (testFiles.length > 0) {
+                    // Group files by category
+                    const filesByCategory = new Map<string, string[]>();
+                    for (const { file, category } of testFiles) {
+                        if (!filesByCategory.has(category)) {
+                            filesByCategory.set(category, []);
+                        }
+                        filesByCategory.get(category)!.push(file);
+                    }
+
+                    // Create category items
+                    for (const [category, files] of filesByCategory) {
+                        const categoryItem = new MCPTreeItem(
+                            `📁 ${category}`,
+                            vscode.TreeItemCollapsibleState.Collapsed,
+                            'testFolder'
+                        );
+                        categoryItem.folderPath = path.join(devtoolsDir, category);
+                        categoryItem.iconPath = new vscode.ThemeIcon('folder', new vscode.ThemeColor('charts.purple'));
+                        categoryItem.testFiles = files;
+                        categoryItem.serverId = serverId;
+                        
+                        if (result) {
+                            let totalPassed = 0;
+                            let totalTests = 0;
+                            for (const file of files) {
+                                const fileName = path.basename(file);
+                                const fileTests = result.tests.filter(t => t.file === file || t.name.includes(fileName.replace('.spec.js', '')));
+                                totalPassed += fileTests.filter(t => t.status === 'passed').length;
+                                totalTests += fileTests.length;
+                            }
+                            categoryItem.description = totalTests > 0 ? `${totalPassed}/${totalTests}` : '';
+                        }
+                        
+                        items.push(categoryItem);
+                    }
+                } else {
+                    const noTestsItem = new MCPTreeItem(
+                        '📝 No tests yet - click Generate to create',
+                        vscode.TreeItemCollapsibleState.None,
+                        'info'
+                    );
+                    noTestsItem.iconPath = new vscode.ThemeIcon('info');
+                    items.push(noTestsItem);
+                }
+
+                // Add report link if available
+                if (result?.reportPath) {
+                    const reportItem = new MCPTreeItem(
+                        '📊 View Latest Report',
+                        vscode.TreeItemCollapsibleState.None,
+                        'action'
+                    );
+                    reportItem.iconPath = new vscode.ThemeIcon('report');
+                    reportItem.command = {
+                        command: 'vscode.open',
+                        title: 'Open Report',
+                        arguments: [vscode.Uri.file(result.reportPath)]
+                    };
+                    items.push(reportItem);
+                }
+            } else {
+                // Show placeholder when no tests directory
+                const noTestsItem = new MCPTreeItem(
+                    '📝 No tests yet - click Generate to create',
+                    vscode.TreeItemCollapsibleState.None,
+                    'info'
+                );
+                noTestsItem.iconPath = new vscode.ThemeIcon('info');
+                items.push(noTestsItem);
+            }
         }
         
         // Show test files if they exist
@@ -378,21 +486,26 @@ export class MCPTestTreeProvider implements vscode.TreeDataProvider<MCPTreeItem>
     }
 
     /**
-     * Find all test files in directory
+     * Find all Chrome DevTools test files with their category
      */
-    private findTestFiles(dir: string): string[] {
-        const files: string[] = [];
+    private findDevToolsTestFiles(dir: string): Array<{file: string, category: string}> {
+        const files: Array<{file: string, category: string}> = [];
         
         try {
-            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            const categories = ['performance', 'network', 'console', 'security'];
             
-            for (const entry of entries) {
-                const fullPath = path.join(dir, entry.name);
-                
-                if (entry.isDirectory()) {
-                    files.push(...this.findTestFiles(fullPath));
-                } else if (entry.name.endsWith('.spec.ts') || entry.name.endsWith('.test.ts')) {
-                    files.push(fullPath);
+            for (const category of categories) {
+                const categoryDir = path.join(dir, 'e2e', category);
+                if (fs.existsSync(categoryDir)) {
+                    const entries = fs.readdirSync(categoryDir, { withFileTypes: true });
+                    for (const entry of entries) {
+                        if (entry.isFile() && entry.name.endsWith('.spec.js')) {
+                            files.push({
+                                file: path.join(categoryDir, entry.name),
+                                category: category.charAt(0).toUpperCase() + category.slice(1)
+                            });
+                        }
+                    }
                 }
             }
         } catch (error) {

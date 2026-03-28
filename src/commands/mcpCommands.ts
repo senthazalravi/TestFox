@@ -293,27 +293,29 @@ export function registerMCPCommands(context: vscode.ExtensionContext): vscode.Di
             }
         }),
 
-        vscode.commands.registerCommand('testfox.devtools.analyzePerformance', async () => {
+        // Generate Chrome DevTools Tests Command (for MCP Test Explorer)
+        vscode.commands.registerCommand('testfox.mcp.generateChromeDevTools', async () => {
             try {
-                const url = await vscode.window.showInputBox({
-                    prompt: 'URL to analyze performance',
-                    value: 'https://developers.chrome.com'
-                });
-                
-                if (url) {
-                    vscode.window.showInformationMessage(
-                        `🔧 Chrome DevTools MCP: Use this prompt with your AI assistant:\n\n"Check the performance of ${url}"`,
-                        'Copy Prompt'
-                    ).then(selection => {
-                        if (selection === 'Copy Prompt') {
-                            vscode.env.clipboard.writeText(`Check the performance of ${url}`);
-                        }
-                    });
+                vscode.window.showInformationMessage('🔧 TestFox: Generating Chrome DevTools tests via MCP...');
+                await mcpOrchestrator.generateTests('devtools');
+                vscode.window.showInformationMessage('✅ Chrome DevTools tests generated successfully');
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`❌ Failed to generate Chrome DevTools tests: ${error.message}`);
+            }
+        }),
+
+        // Run Chrome DevTools Tests Command (for MCP Test Explorer)
+        vscode.commands.registerCommand('testfox.mcp.runChromeDevTools', async () => {
+            try {
+                vscode.window.showInformationMessage('🔧 TestFox: Running Chrome DevTools tests via MCP...');
+                const result = await mcpOrchestrator.runTests('devtools');
+                if (result) {
+                    vscode.window.showInformationMessage(`✅ Chrome DevTools tests completed: ${result.summary.passed}/${result.summary.total} passed`);
                 }
             } catch (error: any) {
-                vscode.window.showErrorMessage(`❌ Failed: ${error.message}`);
+                vscode.window.showErrorMessage(`❌ Failed to run Chrome DevTools tests: ${error.message}`);
             }
-        })
+        }),
     ];
 
     return commands;

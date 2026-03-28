@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing for JavaScript, Python, Java, C, C++, Rust, Go & more. 18+ test categories including security (OWASP), performance, accessibility. FREE AI models available via OpenRouter.",
-  "version": "7.1.9",
+  "version": "7.3.0",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -277,6 +277,16 @@
         "icon": "$(play)"
       },
       {
+        "command": "testfox.mcp.generateChromeDevTools",
+        "title": "TestFox: Generate Chrome DevTools Tests with AI",
+        "icon": "$(add)"
+      },
+      {
+        "command": "testfox.mcp.runChromeDevTools",
+        "title": "TestFox: Run Chrome DevTools Tests",
+        "icon": "$(play)"
+      },
+      {
         "command": "testfox.qaUse.setup",
         "title": "TestFox: QA Use Setup",
         "icon": "$(gear)"
@@ -409,6 +419,16 @@
         },
         {
           "command": "testfox.mcp.runPlaywright",
+          "when": "view == testfox-mcp-tests",
+          "group": "navigation"
+        },
+        {
+          "command": "testfox.mcp.generateChromeDevTools",
+          "when": "view == testfox-mcp-tests",
+          "group": "navigation"
+        },
+        {
+          "command": "testfox.mcp.runChromeDevTools",
           "when": "view == testfox-mcp-tests",
           "group": "navigation"
         },
