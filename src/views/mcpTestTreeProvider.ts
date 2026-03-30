@@ -83,23 +83,23 @@ export class MCPTestTreeProvider implements vscode.TreeDataProvider<MCPTreeItem>
         };
         sections.push(playwrightItem);
 
-        // QA Use MCP Section
-        const qaUseItem = new MCPTreeItem(
-            '🧪 QA Use MCP (desplega.ai)',
+        // Postman MCP Section
+        const postmanItem = new MCPTreeItem(
+            '📮 Postman MCP (API Testing)',
             vscode.TreeItemCollapsibleState.Collapsed,
             'mcpServer'
         );
-        qaUseItem.serverId = 'qa-use-mcp';
-        qaUseItem.iconPath = new vscode.ThemeIcon('beaker', new vscode.ThemeColor('charts.green'));
-        qaUseItem.description = this.getServerStatus('qa-use-mcp');
-        qaUseItem.tooltip = 'desplega.ai QA Use - CLI E2E testing with YAML definitions and AI-assisted browser automation';
-        qaUseItem.documentationUrl = 'https://github.com/desplega-ai/qa-use';
-        qaUseItem.command = {
+        postmanItem.serverId = 'postman-mcp';
+        postmanItem.iconPath = new vscode.ThemeIcon('mail', new vscode.ThemeColor('charts.orange'));
+        postmanItem.description = this.getServerStatus('postman-mcp');
+        postmanItem.tooltip = 'Postman MCP - API testing and collection management. Features: API requests, collections, environments, tests, and Newman integration';
+        postmanItem.documentationUrl = 'https://github.com/postmanlabs/postman-mcp';
+        postmanItem.command = {
             command: 'vscode.open',
-            title: 'Open QA Use Documentation',
-            arguments: [vscode.Uri.parse('https://github.com/desplega-ai/qa-use')]
+            title: 'Open Postman MCP Documentation',
+            arguments: [vscode.Uri.parse('https://github.com/postmanlabs/postman-mcp')]
         };
-        sections.push(qaUseItem);
+        sections.push(postmanItem);
 
         // Puppeteer MCP Section
         const puppeteerItem = new MCPTreeItem(

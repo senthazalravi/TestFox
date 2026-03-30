@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing for JavaScript, Python, Java, C, C++, Rust, Go & more. 18+ test categories including security (OWASP), performance, accessibility. FREE AI models available via OpenRouter.",
-  "version": "7.3.0",
+  "version": "7.4.0",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -342,6 +342,11 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "testfox.runMonkeyTesting",
+        "title": "TestFox: Run Monkey Testing",
+        "icon": "$(bug)"
+      },
+      {
         "command": "testfox.exportPlaywright",
         "title": "TestFox: Export Playwright Test",
         "icon": "$(save)"
@@ -671,6 +676,11 @@
           "default": false,
           "description": "Automatically generate and run full cycle tests every day"
         },
+        "testfox.automation.autoRunWithoutPrompts": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically start app, generate tests, and run without waiting for user approval"
+        },
         "testfox.automation.dailyTestTime": {
           "type": "string",
           "default": "09:00",
@@ -722,6 +732,16 @@
           "type": "string",
           "default": "",
           "description": "desplega.ai QA Use API key (required for QA Use MCP)"
+        },
+        "testfox.monkey.clickCount": {
+          "type": "number",
+          "default": 50,
+          "description": "Number of random clicks for monkey testing"
+        },
+        "testfox.monkey.duration": {
+          "type": "number",
+          "default": 60,
+          "description": "Duration of monkey testing in seconds"
         },
         "testfox.qaUse.region": {
           "type": "string",

@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { MonkeyTestResult } from '../runners/monkeyTestingRunner';
 import {
     ProjectInfo,
     AnalysisResult,
@@ -17,11 +18,13 @@ export class TestStore {
     private analysisResult: AnalysisResult | null = null;
     private tests: Map<string, TestCase> = new Map();
     private results: Map<string, TestResult> = new Map();
+    private monkeyTestResult: MonkeyTestResult | null = null;
 
     private readonly TESTS_KEY = 'testfox.tests';
     private readonly RESULTS_KEY = 'testfox.results';
     private readonly PROJECT_KEY = 'testfox.projectInfo';
     private readonly ANALYSIS_KEY = 'testfox.analysisResult';
+    private readonly MONKEY_KEY = 'testfox.monkeyTest';
 
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
@@ -52,6 +55,12 @@ export class TestStore {
         if (storedResults) {
             this.results = new Map(storedResults);
         }
+
+        // Load monkey test result
+        const storedMonkey = this.context.workspaceState.get<MonkeyTestResult>(this.MONKEY_KEY);
+        if (storedMonkey) {
+            this.monkeyTestResult = storedMonkey;
+        }
     }
 
     private saveToStorage(): void {
@@ -59,6 +68,7 @@ export class TestStore {
         this.context.workspaceState.update(this.ANALYSIS_KEY, this.analysisResult);
         this.context.workspaceState.update(this.TESTS_KEY, Array.from(this.tests.entries()));
         this.context.workspaceState.update(this.RESULTS_KEY, Array.from(this.results.entries()));
+        this.context.workspaceState.update(this.MONKEY_KEY, this.monkeyTestResult);
     }
 
     // Project Info
@@ -285,14 +295,26 @@ export class TestStore {
         tests: TestCase[];
         results: TestResult[];
         statistics: ReturnType<TestStore['getStatistics']>;
+        monkeyTestResult: MonkeyTestResult | null;
     } {
         return {
             projectInfo: this.projectInfo,
             analysisResult: this.analysisResult,
             tests: this.getAllTests(),
             results: this.getTestResults(),
-            statistics: this.getStatistics()
+            statistics: this.getStatistics(),
+            monkeyTestResult: this.monkeyTestResult
         };
+    }
+
+    // Monkey Testing
+    setMonkeyTestResult(result: MonkeyTestResult): void {
+        this.monkeyTestResult = result;
+        this.saveToStorage();
+    }
+
+    getMonkeyTestResult(): MonkeyTestResult | null {
+        return this.monkeyTestResult;
     }
 }
 

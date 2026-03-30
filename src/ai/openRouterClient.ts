@@ -75,10 +75,6 @@ export class OpenRouterClient {
     private model: string;
     private state: AIState = 'unconfigured';
     private output = vscode.window.createOutputChannel('TestFox AI');
-    
-    // Fallback API keys removed for security - users must provide their own keys
-    private readonly FALLBACK_KEYS: string[] = [];
-    private currentFallbackIndex: number = 0;
 
     // Top-tier free models on OpenRouter (prioritized order)
     // Top-tier free models on OpenRouter (prioritized order)
@@ -273,12 +269,7 @@ export class OpenRouterClient {
 
     async generate(prompt: string): Promise<string> {
         if (!this.apiKey) {
-            // Try fallback keys if no primary key is configured
-            const fallbackResult = await this.tryFallbackKeys(prompt);
-            if (fallbackResult) {
-                return fallbackResult;
-            }
-            // If all fallbacks fail, generate rule-based test cases
+            // If no API key is configured, generate rule-based test cases
             return this.generateRuleBasedTests(prompt);
         }
 
@@ -323,72 +314,14 @@ export class OpenRouterClient {
             throw new Error('Invalid response from AI service');
 
         } catch (error: any) {
-            this.output.appendLine(`TestFox AI: Primary key failed: ${error.message}`);
-            
-            // Try fallback keys on error
-            const fallbackResult = await this.tryFallbackKeys(prompt);
-            if (fallbackResult) {
-                return fallbackResult;
-            }
-            
-            // If all fallbacks fail, generate rule-based test cases
-            this.output.appendLine('TestFox AI: All API keys failed, falling back to rule-based test generation');
+            this.output.appendLine(`TestFox AI: Request failed: ${error.message}`);
+            // Fall back to rule-based test generation on error
+            this.output.appendLine('TestFox AI: Falling back to rule-based test generation');
             return this.generateRuleBasedTests(prompt);
         }
     }
 
-    private async tryFallbackKeys(prompt: string): Promise<string | null> {
-        const config = vscode.workspace.getConfiguration('testfox');
-        const baseUrl = config.get<string>('ai.baseUrl') || 'https://openrouter.ai/api/v1';
-        const model = this.model || config.get<string>('ai.model') || 'google/gemini-2.0-flash-exp:free';
-
-        for (let i = 0; i < this.FALLBACK_KEYS.length; i++) {
-            const fallbackKey = this.FALLBACK_KEYS[i];
-            this.output.appendLine(`TestFox AI: Trying fallback key ${i + 1}/${this.FALLBACK_KEYS.length}`);
-            
-            try {
-                const response = await axios.post<OpenRouterResponse>(
-                    `${baseUrl}/chat/completions`,
-                    {
-                        model: model,
-                        messages: [
-                            {
-                                role: 'system',
-                                content: 'You are TestFox AI, a professional software testing assistant. Generate comprehensive, accurate test cases based on the provided requirements.'
-                            },
-                            {
-                                role: 'user',
-                                content: prompt
-                            }
-                        ],
-                        max_tokens: 4000,
-                        temperature: 0.7
-                    },
-                    {
-                        baseURL: baseUrl,
-                        timeout: 120000, // Increased to 120 seconds for better reliability
-                        headers: {
-                            'Authorization': `Bearer ${fallbackKey}`,
-                            'HTTP-Referer': 'https://github.com/testfox/testfox-vscode',
-                            'X-Title': 'TestFox VS Code Extension'
-                        }
-                    }
-                );
-
-                if (response.data?.choices?.[0]?.message?.content) {
-                    this.output.appendLine(`TestFox AI: Fallback key ${i + 1} successful - Generated ${response.data.usage?.total_tokens || 0} tokens`);
-                    return response.data.choices[0].message.content;
-                }
-
-            } catch (error: any) {
-                this.output.appendLine(`TestFox AI: Fallback key ${i + 1} failed: ${error.message}`);
-                continue;
-            }
-        }
-
-        this.output.appendLine('TestFox AI: All fallback keys exhausted');
-        return null;
-    }
+    /* ------------------ RULE-BASED FALLBACK ------------------ */
 
     private generateRuleBasedTests(prompt: string): string {
         this.output.appendLine('TestFox AI: Generating rule-based test cases');
@@ -812,10 +745,10 @@ Consider configuring AI API keys for more comprehensive and context-aware test c
     }
 
     /**
-     * Check if enabled (has any API key including fallbacks)
+     * Check if enabled (has API key configured)
      */
     isEnabled(): boolean {
-        return !!this.apiKey && this.apiKey.trim().length > 0 || this.FALLBACK_KEYS.length > 0;
+        return !!this.apiKey && this.apiKey.trim().length > 0;
     }
 
     /**
@@ -830,20 +763,6 @@ Consider configuring AI API keys for more comprehensive and context-aware test c
      */
     isBYOKReady(): boolean {
         return !!this.apiKey && this.apiKey.trim().length > 0 && this.state === 'ready';
-    }
-
-    /**
-     * Get current state
-     */
-    getState(): AIState {
-        return this.state;
-    }
-
-    /**
-     * Check if ready
-     */
-    isReady(): boolean {
-        return this.state === 'ready';
     }
 
     /**

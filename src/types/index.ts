@@ -104,6 +104,7 @@ export interface DatabaseQueryInfo {
 }
 
 export interface ExternalApiInfo {
+    name: string;
     url: string;
     method: HttpMethod;
     file: string;
@@ -163,7 +164,23 @@ export type TestCategory =
     | 'ui_e2e'          // Specialized E2E UI testing
     
     // Account Management
-    | 'account_management'; // User account creation, update, deletion testing
+    | 'account_management' // User account creation, update, deletion testing
+    
+    // Special Categories
+    | 'edge_cases'
+    | 'feature'
+    
+    // Backend Testing
+    | 'backend_idempotency'
+    | 'backend_webhooks'
+    | 'backend_concurrency'
+    | 'backend_state_integrity'
+    | 'backend_reliability'
+    | 'backend_failure_recovery'
+    | 'backend_api_contract'
+    | 'backend_stability'
+    | 'backend_compliance'
+    | 'backend_observability';
 
 // Category groups for UI organization
 export type TestCategoryGroup = 
@@ -172,7 +189,8 @@ export type TestCategoryGroup =
     | 'non_functional'
     | 'edge_cases'
     | 'manual_exploratory'
-    | 'browser_monitoring';
+    | 'browser_monitoring'
+    | 'backend';
 
 export interface TestCategoryInfo {
     id: TestCategory;
@@ -222,14 +240,14 @@ export const TEST_CATEGORIES: TestCategoryInfo[] = [
     { id: 'network_logs', name: 'Network Log Tests', description: 'Network request monitoring', group: 'browser_monitoring', icon: 'radio-tower', automationDefault: 'full' },
 
     // Account Management
-    { id: 'account_management', name: 'Account Management Tests', description: 'User account lifecycle testing', group: 'browser_monitoring', icon: 'person-add', automationDefault: 'full' },
+    { id: 'account_management', name: 'Account Management Tests', description: 'User account lifecycle testing', group: 'browser_monitoring', icon: 'person', automationDefault: 'full' },
 
     // Backend Testing
     { id: 'backend_idempotency', name: 'Idempotency Tests', description: 'Ensure operations are idempotent', group: 'backend', icon: 'sync', automationDefault: 'full' },
-    { id: 'backend_webhooks', name: 'Webhook Tests', description: 'Async webhook handling and ordering', group: 'backend', icon: 'webhook', automationDefault: 'full' },
+    { id: 'backend_webhooks', name: 'Webhook Tests', description: 'Async webhook handling and ordering', group: 'backend', icon: 'plug', automationDefault: 'full' },
     { id: 'backend_concurrency', name: 'Concurrency Tests', description: 'Race conditions and concurrent access', group: 'backend', icon: 'pulse', automationDefault: 'full' },
-    { id: 'backend_state_integrity', name: 'State Integrity Tests', description: 'Data consistency and state transitions', group: 'backend', icon: 'check-circle', automationDefault: 'full' },
-    { id: 'backend_reliability', name: 'Reliability Tests', description: 'Duplicate handling and resilience', group: 'backend', icon: 'shield-check', automationDefault: 'full' },
+    { id: 'backend_state_integrity', name: 'State Integrity Tests', description: 'Data consistency and state transitions', group: 'backend', icon: 'database', automationDefault: 'full' },
+    { id: 'backend_reliability', name: 'Reliability Tests', description: 'Duplicate handling and resilience', group: 'backend', icon: 'shield', automationDefault: 'full' },
     { id: 'backend_failure_recovery', name: 'Failure Recovery Tests', description: 'Partial failures and self-healing', group: 'backend', icon: 'refresh', automationDefault: 'full' },
     { id: 'backend_api_contract', name: 'API Contract Tests', description: 'Schema validation and contracts', group: 'backend', icon: 'file-code', automationDefault: 'full' },
     { id: 'backend_stability', name: 'Stability Tests', description: 'Retry storms and system load', group: 'backend', icon: 'graph-line', automationDefault: 'full' },
@@ -270,7 +288,9 @@ export type SecurityTestType =
     | 'input_validation'
     | 'security_headers'
     | 'sensitive_data'
-    | 'broken_access_control';
+    | 'broken_access_control'
+    | 'injection'
+    | 'access_control';
 
 export interface TestCase {
     id: string;

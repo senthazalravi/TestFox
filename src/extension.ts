@@ -73,6 +73,7 @@ let portChecker: PortChecker;
 let gitCommitHook: GitCommitHook;
 let mcpTestTreeProvider: MCPTestTreeProvider;
 let mcpIntegrationManager: MCPIntegrationManager;
+let unifiedAISetup: UnifiedAISetup | undefined;
 
 // Status bar items
 let statusBarMain: vscode.StatusBarItem;
@@ -573,7 +574,14 @@ export async function activate(context: vscode.ExtensionContext) {
             await runTestCategory(category);
         }),
 
-        vscode.commands.registerCommand('testfox.generateCategory', async (category?: string) => {
+        vscode.commands.registerCommand('testfox.generateCategory', async (item?: string | { category?: string }) => {
+            // Extract category from item (could be string or TestTreeItem with category property)
+            let category: string | undefined;
+            if (typeof item === 'string') {
+                category = item;
+            } else if (item && typeof item === 'object' && 'category' in item) {
+                category = item.category;
+            }
             await generateTestCategory(category);
         }),
 
@@ -679,8 +687,9 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('testfox.configureAI', async () => {
             // Launch the Unified AI Setup webview
             try {
-                const unifiedSetup = new UnifiedAISetup(context.extensionUri);
-                unifiedSetup.show();
+                // Always create a new instance to ensure fresh panel
+                unifiedAISetup = new UnifiedAISetup(context.extensionUri);
+                unifiedAISetup.show();
             } catch (error) {
                 logDiagnostic(`Failed to open AI configuration: ${error}`, 'error');
                 vscode.window.showErrorMessage(
@@ -1246,6 +1255,56 @@ export async function activate(context: vscode.ExtensionContext) {
             }
         }),
 
+        vscode.commands.registerCommand('testfox.runMonkeyTesting', async () => {
+            try {
+                const { MonkeyTestingRunner } = require('./runners/monkeyTestingRunner');
+                const runner = new MonkeyTestingRunner();
+                
+                // Check if app is running
+                const appUrl = await checkApplicationAvailability();
+                if (!appUrl) {
+                    const startApp = await vscode.window.showWarningMessage(
+                        'TestFox: No application detected. Would you like to start it?',
+                        'Start Application',
+                        'Cancel'
+                    );
+                    if (startApp === 'Start Application') {
+                        const projectInfo = testStore.getProjectInfo();
+                        if (projectInfo) {
+                            await appRunner.start(projectInfo);
+                            await new Promise(resolve => setTimeout(resolve, 3000));
+                        } else {
+                            vscode.window.showErrorMessage('TestFox: No project information available.');
+                            return;
+                        }
+                    } else {
+                        return;
+                    }
+                }
+
+                // Get configuration
+                const config = vscode.workspace.getConfiguration('testfox');
+                const clickCount = config.get<number>('monkey.clickCount', 100);
+                const duration = config.get<number>('monkey.duration', 60);
+
+                // Run monkey testing
+                const detectedUrl = await checkApplicationAvailability() || 'http://localhost:3000';
+                const result = await runner.runMonkeyTesting(detectedUrl, clickCount, duration);
+                
+                // Store result in test store
+                testStore.setMonkeyTestResult(result);
+                
+                vscode.window.showInformationMessage(
+                    `🐒 Monkey Testing Complete: ${result.totalClicks} clicks on ${result.uniqueElements} unique elements`
+                );
+                
+                // Refresh report panel
+                reportPanel.updateReport();
+                
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`TestFox: Monkey testing failed - ${error.message}`);
+            }
+        }),
         vscode.commands.registerCommand('testfox.generatePaymentReport', async () => {
             try {
                 vscode.window.showInformationMessage('TestFox: Generating payment report...');
@@ -1756,10 +1815,21 @@ async function promptForAutoTesting(context: vscode.ExtensionContext): Promise<v
         return;
     }
 
+    // Check if auto-run without prompts is enabled
+    const config = vscode.workspace.getConfiguration('testfox');
+    const autoRunWithoutPrompts = config.get<boolean>('automation.autoRunWithoutPrompts', false);
+
     // Check if already running
     const existingUrl = await checkApplicationAvailability();
     if (existingUrl) {
         console.log(`TestFox: App already running at ${existingUrl}, skipping proactive prompt`);
+        return;
+    }
+
+    // If auto-run without prompts is enabled, skip the prompt and start automatically
+    if (autoRunWithoutPrompts) {
+        console.log('TestFox: Auto-run without prompts enabled, starting automatic testing...');
+        await startAutoTestingFlow(projectInfo, true);
         return;
     }
 
@@ -1785,61 +1855,85 @@ async function promptForAutoTesting(context: vscode.ExtensionContext): Promise<v
     }
 
     if (result === 'Start Auto Testing') {
-        console.log('TestFox: User accepted auto-testing, starting npm run dev...');
-        
-        await vscode.window.withProgress({
-            location: vscode.ProgressLocation.Notification,
-            title: 'TestFox: Starting application and running tests...',
-            cancellable: false
-        }, async (progress) => {
-            try {
-                // Start the application with npm run dev
-                progress.report({ message: 'Starting npm run dev...' });
-                updateStatus('running', 'Starting app...');
-                
-                // Override dev command to use npm run dev
-                const projectWithDev = {
-                    ...projectInfo,
-                    devCommand: 'npm run dev',
-                    runCommand: 'npm run dev'
-                };
-                
-                // Start app and detect actual port
-                const appUrl = await appRunner.start(projectWithDev);
-                console.log(`TestFox: App started at detected URL: ${appUrl}`);
-                
-                progress.report({ message: `App running at ${appUrl}, analyzing...` });
-                
-                // Extract port from URL
-                const portMatch = appUrl.match(/:(\d+)/);
-                const detectedPort = portMatch ? portMatch[1] : 'unknown';
-                
+        await startAutoTestingFlow(projectInfo, false);
+    }
+}
+
+/**
+ * Start automatic testing flow - starts app, generates tests, and optionally runs them
+ */
+async function startAutoTestingFlow(projectInfo: any, autoRun: boolean): Promise<void> {
+    console.log(`TestFox: Starting auto-testing flow (autoRun: ${autoRun})...`);
+    
+    await vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: autoRun ? 'TestFox: Auto-starting application and generating tests...' : 'TestFox: Starting application and running tests...',
+        cancellable: false
+    }, async (progress) => {
+        try {
+            // Start the application with npm run dev
+            progress.report({ message: 'Starting npm run dev...' });
+            updateStatus('running', 'Starting app...');
+            
+            // Override dev command to use npm run dev
+            const projectWithDev = {
+                ...projectInfo,
+                devCommand: 'npm run dev',
+                runCommand: 'npm run dev'
+            };
+            
+            // Start app and detect actual port
+            const appUrl = await appRunner.start(projectWithDev);
+            console.log(`TestFox: App started at detected URL: ${appUrl}`);
+            
+            progress.report({ message: `App running at ${appUrl}, analyzing...` });
+            
+            // Extract port from URL
+            const portMatch = appUrl.match(/:(\d+)/);
+            const detectedPort = portMatch ? portMatch[1] : 'unknown';
+            
+            if (!autoRun) {
                 vscode.window.showInformationMessage(
                     `TestFox: Application detected on port ${detectedPort}. Starting automatic tests...`
                 );
+            }
+            
+            // Update project info with detected port
+            projectInfo.port = parseInt(detectedPort) || 3000;
+            testStore.setProjectInfo(projectInfo);
+            
+            // Wait for app to be fully ready
+            progress.report({ message: 'Waiting for app to be ready...' });
+            const readyUrl = await appRunner.waitForReady(30000);
+            
+            if (!readyUrl && !autoRun) {
+                vscode.window.showWarningMessage(
+                    'TestFox: App may not be fully ready, but proceeding with tests...'
+                );
+            }
+            
+            progress.report({ message: 'Generating tests against running app...' });
+            
+            // Generate tests against the running app
+            await generateTests();
+            
+            progress.report({ message: 'Tests generated, ready to run!' });
+            updateStatus('ready', 'Tests ready');
+            
+            // If auto-run is enabled, automatically run tests without asking
+            if (autoRun) {
+                progress.report({ message: 'Auto-running tests...' });
+                console.log('TestFox: Auto-run enabled, running tests without prompt...');
+                await runAllTests();
                 
-                // Update project info with detected port
-                projectInfo.port = parseInt(detectedPort) || 3000;
-                testStore.setProjectInfo(projectInfo);
-                
-                // Wait for app to be fully ready
-                progress.report({ message: 'Waiting for app to be ready...' });
-                const readyUrl = await appRunner.waitForReady(30000);
-                
-                if (!readyUrl) {
-                    vscode.window.showWarningMessage(
-                        'TestFox: App may not be fully ready, but proceeding with tests...'
+                const config = vscode.workspace.getConfiguration('testfox');
+                const notifyOnCompletion = config.get<boolean>('automation.notifyOnCompletion', true);
+                if (notifyOnCompletion) {
+                    vscode.window.showInformationMessage(
+                        `✅ TestFox: Auto-testing complete for port ${detectedPort}. Tests generated and executed.`
                     );
                 }
-                
-                progress.report({ message: 'Generating tests against running app...' });
-                
-                // Generate tests against the running app
-                await generateTests();
-                
-                progress.report({ message: 'Tests generated, ready to run!' });
-                updateStatus('ready', 'Tests ready');
-                
+            } else {
                 // Ask if they want to run the tests now
                 const runResult = await vscode.window.showInformationMessage(
                     `✅ TestFox: Tests generated for port ${detectedPort}. Run them now?`,
@@ -1853,21 +1947,21 @@ async function promptForAutoTesting(context: vscode.ExtensionContext): Promise<v
                 } else if (runResult === 'View Tests') {
                     await vscode.commands.executeCommand('testfox.openDashboard');
                 }
-                
-            } catch (error: any) {
-                console.error('TestFox: Auto-testing failed:', error);
-                vscode.window.showErrorMessage(
-                    `TestFox: Failed to start auto-testing - ${error.message}`,
-                    'View Logs'
-                ).then(selection => {
-                    if (selection === 'View Logs') {
-                        outputChannel.show();
-                    }
-                });
-                updateStatus('error', 'Auto-test failed');
             }
-        });
-    }
+            
+        } catch (error: any) {
+            console.error('TestFox: Auto-testing failed:', error);
+            vscode.window.showErrorMessage(
+                `TestFox: Failed to start auto-testing - ${error.message}`,
+                'View Logs'
+            ).then(selection => {
+                if (selection === 'View Logs') {
+                    outputChannel.show();
+                }
+            });
+            updateStatus('error', 'Auto-test failed');
+        }
+    });
 }
 
 export async function analyzeProject(silent = false): Promise<void> {
@@ -1943,14 +2037,15 @@ export async function generateTests(): Promise<void> {
 
     // Check if application is running
     const appUrl = await checkApplicationAvailability();
+    
+    // Check if auto-run without prompts is enabled
+    const config = vscode.workspace.getConfiguration('testfox');
+    const autoRunWithoutPrompts = config.get<boolean>('automation.autoRunWithoutPrompts', false);
+    
     if (!appUrl) {
-        const startApp = await vscode.window.showWarningMessage(
-            'TestFox: No application detected on common ports (3000, 8080, 4200, 5000, 8000). Would you like to start the application?',
-            'Start Application',
-            'Cancel'
-        );
-
-        if (startApp === 'Start Application') {
+        // If auto-run is enabled, automatically start the application without prompting
+        if (autoRunWithoutPrompts) {
+            console.log('TestFox: Auto-run enabled, automatically starting application...');
             try {
                 const projectInfo = testStore.getProjectInfo();
                 if (projectInfo) {
@@ -1966,15 +2061,39 @@ export async function generateTests(): Promise<void> {
                 return;
             }
         } else {
-            vscode.window.showInformationMessage(
-                'TestFox: Tests cancelled. Please ensure your application is running and try again.',
-                'View Settings'
-            ).then(selection => {
-                if (selection === 'View Settings') {
-                    vscode.commands.executeCommand('workbench.action.openSettings', 'testfox');
+            // Show prompt when auto-run is not enabled
+            const startApp = await vscode.window.showWarningMessage(
+                'TestFox: No application detected on common ports (3000, 8080, 4200, 5000, 8000). Would you like to start the application?',
+                'Start Application',
+                'Cancel'
+            );
+
+            if (startApp === 'Start Application') {
+                try {
+                    const projectInfo = testStore.getProjectInfo();
+                    if (projectInfo) {
+                        await appRunner.start(projectInfo);
+                        // Wait a moment for the app to start
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    } else {
+                        vscode.window.showErrorMessage('TestFox: No project information available. Please analyze the project first.');
+                        return;
+                    }
+                } catch (error) {
+                    vscode.window.showErrorMessage(`TestFox: Failed to start application - ${error}`);
+                    return;
                 }
-            });
-            return;
+            } else {
+                vscode.window.showInformationMessage(
+                    'TestFox: Tests cancelled. Please ensure your application is running and try again.',
+                    'View Settings'
+                ).then(selection => {
+                    if (selection === 'View Settings') {
+                        vscode.commands.executeCommand('workbench.action.openSettings', 'testfox');
+                    }
+                });
+                return;
+            }
         }
     }
 
@@ -2499,26 +2618,49 @@ export async function runAllTests(): Promise<void> {
         return;
     }
 
+    // Check if auto-run without prompts is enabled
+    const config = vscode.workspace.getConfiguration('testfox');
+    const autoRunWithoutPrompts = config.get<boolean>('automation.autoRunWithoutPrompts', false);
+
     // Check if application is running
     const appUrl = await checkApplicationAvailability();
     if (!appUrl) {
-        const startApp = await vscode.window.showWarningMessage(
-            'TestFox: No application detected. Would you like to start it?',
-            'Start Application',
-            'Cancel'
-        );
-
-        if (startApp === 'Start Application') {
+        // If auto-run is enabled, automatically start the application without prompting
+        if (autoRunWithoutPrompts) {
+            console.log('TestFox: Auto-run enabled in runAllTests, automatically starting application...');
             const projectInfo = testStore.getProjectInfo();
             if (projectInfo) {
-                await appRunner.start(projectInfo);
-                await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for startup
+                try {
+                    await appRunner.start(projectInfo);
+                    await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for startup
+                } catch (error) {
+                    vscode.window.showErrorMessage(`TestFox: Failed to start application - ${error}`);
+                    return;
+                }
             } else {
                 vscode.window.showErrorMessage('TestFox: No project information available.');
                 return;
             }
         } else {
-            return;
+            // Show prompt when auto-run is not enabled
+            const startApp = await vscode.window.showWarningMessage(
+                'TestFox: No application detected. Would you like to start it?',
+                'Start Application',
+                'Cancel'
+            );
+
+            if (startApp === 'Start Application') {
+                const projectInfo = testStore.getProjectInfo();
+                if (projectInfo) {
+                    await appRunner.start(projectInfo);
+                    await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for startup
+                } else {
+                    vscode.window.showErrorMessage('TestFox: No project information available.');
+                    return;
+                }
+            } else {
+                return;
+            }
         }
     }
 

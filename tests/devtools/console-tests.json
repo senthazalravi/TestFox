@@ -1,0 +1,22 @@
+{
+  "name": "Console Tests",
+  "description": "Chrome DevTools console monitoring tests",
+  "tests": [
+    {
+      "name": "No JavaScript errors",
+      "type": "console",
+      "config": {
+        "logLevel": "error",
+        "maxErrors": 0
+      }
+    },
+    {
+      "name": "No JavaScript warnings",
+      "type": "console",
+      "config": {
+        "logLevel": "warning",
+        "maxWarnings": 5
+      }
+    }
+  ]
+}

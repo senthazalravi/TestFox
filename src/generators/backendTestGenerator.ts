@@ -102,74 +102,197 @@ export class BackendTestGenerator {
      * BE-PAY-002: PayPal Authorization Webhook - Out-of-Order Delivery
      */
     private generateWebhookTests(): TestCase[] {
-        return [{
-            id: 'BE-PAY-002',
-            name: 'PayPal Authorization Webhook - Out-of-Order Delivery',
-            description: 'Test webhook event ordering and state machine integrity',
-            category: 'backend_webhooks',
-            priority: 'high',
-            automationLevel: 'full',
-            tags: ['webhook', 'paypal', 'async', 'event-ordering', 'node.js'],
-            preconditions: [
-                'PayPal webhook endpoint configured',
-                'Order exists in PENDING state',
-                'Webhook handler is running'
-            ],
-            steps: [
-                {
-                    id: '1',
-                    description: 'Send PAYMENT.CAPTURED webhook event',
-                    action: 'webhook_call',
-                    selector: 'POST /webhooks/paypal',
-                    value: JSON.stringify({
-                        event_type: 'PAYMENT.CAPTURED',
-                        resource: {
-                            id: 'PAY-123456',
-                            state: 'completed',
-                            transactions: [{ amount: { total: '99.99', currency: 'USD' } }]
-                        },
-                        order_id: 'order_789'
-                    }),
-                    expected: 'Webhook processed, order state updated to CAPTURED'
-                },
-                {
-                    id: '2',
-                    description: 'Send PAYMENT.AUTHORIZED webhook event after CAPTURED',
-                    action: 'webhook_call',
-                    selector: 'POST /webhooks/paypal',
-                    value: JSON.stringify({
-                        event_type: 'PAYMENT.AUTHORIZED',
-                        resource: {
-                            id: 'PAY-123456',
-                            state: 'authorized',
-                            transactions: [{ amount: { total: '99.99', currency: 'USD' } }]
-                        },
-                        order_id: 'order_789'
-                    }),
-                    expected: 'Webhook processed but order state remains CAPTURED'
-                },
-                {
-                    id: '3',
-                    description: 'Query order state from database',
-                    action: 'db_query',
-                    selector: 'SELECT status FROM orders WHERE id = ?',
-                    value: 'order_789',
-                    expected: 'Status is CAPTURED, not reverted to AUTHORIZED'
-                },
-                {
-                    id: '4',
-                    description: 'Check webhook processing logs',
-                    action: 'log_check',
-                    selector: 'webhook_processor',
-                    value: 'Event ordering prevented backward transition',
-                    expected: 'Logs show state machine prevented invalid transition'
-                }
-            ],
-            expectedResult: 'System accepts final state only, order is not reverted to "authorized", state machine prevents backward transition. Node.js event handlers maintain proper ordering.',
-            istqbTechnique: 'state_transition_testing',
-            status: 'pending',
-            createdAt: new Date()
-        }];
+        return [
+            {
+                id: 'BE-PAY-002',
+                name: 'PayPal Authorization Webhook - Out-of-Order Delivery',
+                description: 'Test webhook event ordering and state machine integrity',
+                category: 'backend_webhooks',
+                priority: 'high',
+                automationLevel: 'full',
+                tags: ['webhook', 'paypal', 'async', 'event-ordering', 'node.js'],
+                preconditions: [
+                    'PayPal webhook endpoint configured',
+                    'Order exists in PENDING state',
+                    'Webhook handler is running'
+                ],
+                steps: [
+                    {
+                        id: '1',
+                        description: 'Send PAYMENT.CAPTURED webhook event',
+                        action: 'webhook_call',
+                        selector: 'POST /webhooks/paypal',
+                        value: JSON.stringify({
+                            event_type: 'PAYMENT.CAPTURED',
+                            resource: {
+                                id: 'PAY-123456',
+                                state: 'completed',
+                                transactions: [{ amount: { total: '99.99', currency: 'USD' } }]
+                            },
+                            order_id: 'order_789'
+                        }),
+                        expected: 'Webhook processed, order state updated to CAPTURED'
+                    },
+                    {
+                        id: '2',
+                        description: 'Send PAYMENT.AUTHORIZED webhook event after CAPTURED',
+                        action: 'webhook_call',
+                        selector: 'POST /webhooks/paypal',
+                        value: JSON.stringify({
+                            event_type: 'PAYMENT.AUTHORIZED',
+                            resource: {
+                                id: 'PAY-123456',
+                                state: 'authorized',
+                                transactions: [{ amount: { total: '99.99', currency: 'USD' } }]
+                            },
+                            order_id: 'order_789'
+                        }),
+                        expected: 'Webhook processed but order state remains CAPTURED'
+                    },
+                    {
+                        id: '3',
+                        description: 'Query order state from database',
+                        action: 'db_query',
+                        selector: 'SELECT status FROM orders WHERE id = ?',
+                        value: 'order_789',
+                        expected: 'Status is CAPTURED, not reverted to AUTHORIZED'
+                    },
+                    {
+                        id: '4',
+                        description: 'Check webhook processing logs',
+                        action: 'log_check',
+                        selector: 'webhook_processor',
+                        value: 'Event ordering prevented backward transition',
+                        expected: 'Logs show state machine prevented invalid transition'
+                    }
+                ],
+                expectedResult: 'System accepts final state only, order is not reverted to "authorized", state machine prevents backward transition. Node.js event handlers maintain proper ordering.',
+                istqbTechnique: 'state_transition_testing',
+                status: 'pending',
+                createdAt: new Date()
+            },
+            {
+                id: 'BE-WH-010',
+                name: 'Stripe Webhook Signature Verification',
+                description: 'Test webhook signature validation and security',
+                category: 'backend_webhooks',
+                priority: 'critical',
+                automationLevel: 'full',
+                tags: ['webhook', 'stripe', 'security', 'signature', 'node.js'],
+                preconditions: [
+                    'Stripe webhook secret configured',
+                    'Webhook endpoint is secured',
+                    'Stripe account is active'
+                ],
+                steps: [
+                    {
+                        id: '1',
+                        description: 'Send valid Stripe webhook with correct signature',
+                        action: 'webhook_call',
+                        selector: 'POST /webhooks/stripe',
+                        value: JSON.stringify({
+                            id: 'evt_valid_123',
+                            type: 'payment_intent.succeeded',
+                            data: { object: { id: 'pi_123', amount: 5000 } },
+                            signature: 'valid_signature'
+                        }),
+                        expected: 'Webhook accepted with 200 status'
+                    },
+                    {
+                        id: '2',
+                        description: 'Send webhook with invalid signature',
+                        action: 'webhook_call',
+                        selector: 'POST /webhooks/stripe',
+                        value: JSON.stringify({
+                            id: 'evt_invalid_456',
+                            type: 'payment_intent.succeeded',
+                            data: { object: { id: 'pi_456', amount: 5000 } },
+                            signature: 'invalid_signature'
+                        }),
+                        expected: 'Webhook rejected with 401 status'
+                    },
+                    {
+                        id: '3',
+                        description: 'Send webhook with missing signature',
+                        action: 'webhook_call',
+                        selector: 'POST /webhooks/stripe',
+                        value: JSON.stringify({
+                            id: 'evt_nosig_789',
+                            type: 'payment_intent.succeeded',
+                            data: { object: { id: 'pi_789', amount: 5000 } }
+                        }),
+                        expected: 'Webhook rejected with 401 status'
+                    },
+                    {
+                        id: '4',
+                        description: 'Verify security logs for rejected webhooks',
+                        action: 'log_check',
+                        selector: 'security_logs',
+                        value: 'Invalid webhook signature',
+                        expected: 'Security logs show signature verification failures'
+                    }
+                ],
+                expectedResult: 'Only webhooks with valid signatures are processed, invalid signatures are rejected with 401, security logs track all attempts.',
+                istqbTechnique: 'security_testing',
+                status: 'pending',
+                createdAt: new Date()
+            },
+            {
+                id: 'BE-WH-011',
+                name: 'Webhook Timeout and Retry Handling',
+                description: 'Test webhook processing under timeout conditions',
+                category: 'backend_webhooks',
+                priority: 'high',
+                automationLevel: 'full',
+                tags: ['webhook', 'timeout', 'retry', 'resilience', 'node.js'],
+                preconditions: [
+                    'Webhook endpoint configured',
+                    'Slow processing endpoint available',
+                    'Webhook retry mechanism enabled'
+                ],
+                steps: [
+                    {
+                        id: '1',
+                        description: 'Send webhook that will timeout during processing',
+                        action: 'webhook_call',
+                        selector: 'POST /webhooks/slow',
+                        value: JSON.stringify({
+                            id: 'evt_slow_001',
+                            type: 'slow_processing_event',
+                            processing_time: 35000
+                        }),
+                        expected: 'Request times out after 30 seconds'
+                    },
+                    {
+                        id: '2',
+                        description: 'Check webhook status in queue',
+                        action: 'db_query',
+                        selector: 'SELECT status FROM webhook_queue WHERE event_id = ?',
+                        value: 'evt_slow_001',
+                        expected: 'Status is failed or retry_pending'
+                    },
+                    {
+                        id: '3',
+                        description: 'Wait for retry mechanism to trigger',
+                        action: 'wait',
+                        selector: '60000ms',
+                        expected: 'Retry attempts are made with exponential backoff'
+                    },
+                    {
+                        id: '4',
+                        description: 'Verify dead letter queue for failed webhooks',
+                        action: 'db_query',
+                        selector: 'SELECT COUNT(*) FROM webhook_dead_letter WHERE event_id = ?',
+                        value: 'evt_slow_001',
+                        expected: 'Event moved to dead letter queue after max retries'
+                    }
+                ],
+                expectedResult: 'Webhooks that timeout are retried with exponential backoff, eventually moved to dead letter queue, system remains stable.',
+                istqbTechnique: 'reliability_testing',
+                status: 'pending',
+                createdAt: new Date()
+            }
+        ];
     }
 
     /**
@@ -324,6 +447,134 @@ export class BackendTestGenerator {
             istqbTechnique: 'state_transition_testing',
             status: 'pending',
             createdAt: new Date()
+        },
+        {
+            id: 'BE-SI-011',
+            name: 'Payment State Machine - Invalid Transitions',
+            description: 'Test payment state machine prevents invalid transitions',
+            category: 'backend_state_integrity',
+            priority: 'critical',
+            automationLevel: 'full',
+            tags: ['payment', 'state-machine', 'invalid-transitions', 'node.js'],
+            preconditions: [
+                'Payment exists in CAPTURED state',
+                'State machine rules are enforced',
+                'Database constraints are active'
+            ],
+            steps: [
+                {
+                    id: '1',
+                    description: 'Verify payment is in CAPTURED state',
+                    action: 'db_query',
+                    selector: 'SELECT status FROM payments WHERE id = ?',
+                    value: 'pay_456',
+                    expected: 'Status is CAPTURED'
+                },
+                {
+                    id: '2',
+                    description: 'Attempt invalid transition CAPTURED -> AUTHORIZED',
+                    action: 'api_call',
+                    selector: 'POST /payments/pay_456/authorize',
+                    value: JSON.stringify({ reason: 'test_invalid' }),
+                    expected: 'Request rejected (400 status) - invalid state transition'
+                },
+                {
+                    id: '3',
+                    description: 'Attempt invalid transition CAPTURED -> PENDING',
+                    action: 'db_call',
+                    selector: 'UPDATE payments SET status = ? WHERE id = ?',
+                    value: ['PENDING', 'pay_456'],
+                    expected: 'Database constraint violation or transaction rollback'
+                },
+                {
+                    id: '4',
+                    description: 'Verify payment remains in CAPTURED state',
+                    action: 'db_query',
+                    selector: 'SELECT status FROM payments WHERE id = ?',
+                    value: 'pay_456',
+                    expected: 'Status is still CAPTURED, no change occurred'
+                },
+                {
+                    id: '5',
+                    description: 'Check state transition audit logs',
+                    action: 'log_check',
+                    selector: 'state_machine_audit',
+                    value: 'pay_456',
+                    expected: 'Audit log shows rejected transition attempts'
+                }
+            ],
+            expectedResult: 'Payment state remains CAPTURED, invalid transitions blocked at API and DB level, audit trail preserved.',
+            istqbTechnique: 'state_transition_testing',
+            status: 'pending',
+            createdAt: new Date()
+        },
+        {
+            id: 'BE-SI-012',
+            name: 'Cart Abandonment Inventory Cleanup',
+            description: 'Test abandoned carts release inventory after timeout',
+            category: 'backend_state_integrity',
+            priority: 'medium',
+            automationLevel: 'full',
+            tags: ['cart', 'abandonment', 'inventory', 'timeout', 'node.js'],
+            preconditions: [
+                'Cart contains items with reserved inventory',
+                'Cart has been inactive for 30+ minutes',
+                'Background cleanup job is running'
+            ],
+            steps: [
+                {
+                    id: '1',
+                    description: 'Create cart and reserve inventory',
+                    action: 'api_call',
+                    selector: 'POST /carts',
+                    value: JSON.stringify({
+                        items: [{ sku: 'SKU-789', qty: 5 }]
+                    }),
+                    expected: 'Cart created, inventory reserved'
+                },
+                {
+                    id: '2',
+                    description: 'Verify inventory is reserved',
+                    action: 'db_query',
+                    selector: 'SELECT reserved_quantity FROM inventory WHERE sku = ?',
+                    value: 'SKU-789',
+                    expected: 'Reserved quantity equals 5'
+                },
+                {
+                    id: '3',
+                    description: 'Simulate 30 minutes of inactivity',
+                    action: 'time_travel',
+                    selector: '1800000ms',
+                    expected: 'System time advanced by 30 minutes'
+                },
+                {
+                    id: '4',
+                    description: 'Trigger background cleanup job',
+                    action: 'job_trigger',
+                    selector: 'cart_cleanup_worker',
+                    expected: 'Cleanup job executes'
+                },
+                {
+                    id: '5',
+                    description: 'Verify cart is marked as expired',
+                    action: 'db_query',
+                    selector: 'SELECT status FROM carts WHERE id = ?',
+                    value: 'cart_new',
+                    expected: 'Status is EXPIRED'
+                },
+                {
+                    id: '6',
+                    description: 'Verify inventory reservation released',
+                    action: 'db_query',
+                    selector: 'SELECT reserved_quantity FROM inventory WHERE sku = ?',
+                    value: 'SKU-789',
+                    expected: 'Reserved quantity equals 0'
+                }
+            ],
+            expectedResult: 'Expired cart state properly managed, inventory reservations cleaned up, no orphaned reservations.',
+            istqbTechnique: 'state_transition_testing',
+            status: 'pending',
+            createdAt: new Date()
         }];
     }
 
@@ -440,6 +691,142 @@ export class BackendTestGenerator {
             ],
             expectedResult: 'Webhook processed once, duplicates ignored, idempotency key stored and checked. Node.js stateless handlers properly deduplicate events.',
             istqbTechnique: 'reliability_testing',
+            status: 'pending',
+            createdAt: new Date()
+        },
+        {
+            id: 'BE-REL-013',
+            name: 'API Retry with Exponential Backoff',
+            description: 'Test API retry mechanism with exponential backoff strategy',
+            category: 'backend_reliability',
+            priority: 'high',
+            automationLevel: 'full',
+            tags: ['api', 'retry', 'exponential-backoff', 'reliability', 'node.js'],
+            preconditions: [
+                'External API integration is configured',
+                'Retry mechanism is enabled',
+                'Circuit breaker is NOT triggered'
+            ],
+            steps: [
+                {
+                    id: '1',
+                    description: 'Force external API to return 503 errors',
+                    action: 'mock_service',
+                    selector: 'external_payment_api',
+                    value: JSON.stringify({ status: 503, error: 'Service Unavailable' }),
+                    expected: 'Mock service configured to fail'
+                },
+                {
+                    id: '2',
+                    description: 'Initiate API call that will trigger retry',
+                    action: 'api_call',
+                    selector: 'POST /payments/external',
+                    value: JSON.stringify({ amount: 100, currency: 'USD' }),
+                    expected: 'Request initiated, retry loop begins'
+                },
+                {
+                    id: '3',
+                    description: 'Measure retry intervals (should follow exponential backoff)',
+                    action: 'measure_delays',
+                    selector: 'retry_attempts',
+                    value: '4',
+                    expected: 'Delays are approximately 1s, 2s, 4s, 8s'
+                },
+                {
+                    id: '4',
+                    description: 'Verify total request count matches retry attempts',
+                    action: 'metric_check',
+                    selector: 'external_api_calls_total',
+                    value: 'pay_ext_001',
+                    expected: 'Total calls equals initial + 4 retries = 5'
+                },
+                {
+                    id: '5',
+                    description: 'Restore external API to success',
+                    action: 'mock_service',
+                    selector: 'external_payment_api',
+                    value: JSON.stringify({ status: 200, transactionId: 'txn_success' }),
+                    expected: 'Mock service configured to succeed'
+                },
+                {
+                    id: '6',
+                    description: 'Verify successful response after retries',
+                    action: 'db_query',
+                    selector: 'SELECT status FROM payments WHERE id = ?',
+                    value: 'pay_ext_001',
+                    expected: 'Status is COMPLETED'
+                }
+            ],
+            expectedResult: 'Exponential backoff delays observed, final success after retries, circuit breaker not opened for transient failures.',
+            istqbTechnique: 'reliability_testing',
+            status: 'pending',
+            createdAt: new Date()
+        },
+        {
+            id: 'BE-REL-014',
+            name: 'Database Connection Pool Exhaustion',
+            description: 'Test system behavior when DB connection pool is exhausted',
+            category: 'backend_reliability',
+            priority: 'critical',
+            automationLevel: 'full',
+            tags: ['database', 'connection-pool', 'exhaustion', 'reliability', 'node.js'],
+            preconditions: [
+                'Connection pool size is limited (e.g., 5 connections)',
+                'Multiple concurrent requests will be made',
+                'Connection timeout is configured (e.g., 5 seconds)'
+            ],
+            steps: [
+                {
+                    id: '1',
+                    description: 'Check current connection pool status',
+                    action: 'db_monitor',
+                    selector: 'connection_pool',
+                    value: 'active_connections',
+                    expected: 'Less than max pool size connections active'
+                },
+                {
+                    id: '2',
+                    description: 'Spawn 20 concurrent DB-intensive requests',
+                    action: 'concurrent_requests',
+                    selector: 'POST /orders/bulk-create',
+                    value: JSON.stringify({ count: 20, delay: 2000 }),
+                    expected: 'All 20 requests initiated simultaneously'
+                },
+                {
+                    id: '3',
+                    description: 'Monitor connection pool during peak load',
+                    action: 'db_monitor',
+                    selector: 'connection_pool',
+                    value: 'active_connections',
+                    expected: 'Pool reaches max capacity, queue forms'
+                },
+                {
+                    id: '4',
+                    description: 'Verify queued requests wait for available connections',
+                    action: 'metric_check',
+                    selector: 'request_queue_time',
+                    value: 'bulk_requests',
+                    expected: 'Queue times are non-zero, less than timeout'
+                },
+                {
+                    id: '5',
+                    description: 'Verify no connection leaks after requests complete',
+                    action: 'db_monitor',
+                    selector: 'connection_pool',
+                    value: 'active_connections',
+                    expected: 'All connections returned to pool, count back to baseline'
+                },
+                {
+                    id: '6',
+                    description: 'Check for connection timeout errors',
+                    action: 'log_check',
+                    selector: 'error_logs',
+                    value: 'Connection acquisition timeout',
+                    expected: 'No timeout errors if pool size is adequate'
+                }
+            ],
+            expectedResult: 'Connection pool managed properly under load, requests queued gracefully, all connections released after use, no leaks detected.',
+            istqbTechnique: 'stress_testing',
             status: 'pending',
             createdAt: new Date()
         }];

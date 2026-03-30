@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { PlaywrightTestGenerator } from '../generators/playwrightTestGenerator';
 import { getOpenRouterService } from '../ai/openRouterService';
+import { AppRunner } from '../core/appRunner';
+import { ProjectInfo } from '../types';
 
 /**
  * MCP Test Runner - Manages running tests from different MCP servers
@@ -10,6 +12,7 @@ export interface MCPRunOptions {
     projectPath: string;
     targetUrl?: string;
     testPattern?: string;
+    projectInfo?: ProjectInfo;
 }
 
 export interface MCPRunResult {
@@ -28,6 +31,7 @@ export interface MCPRunResult {
     };
     reportPath?: string;
     error?: string;
+    targetUrl?: string;
 }
 
 export interface TestResult {
@@ -46,9 +50,11 @@ export class MCPTestRunner {
     private runningTests: Map<string, MCPRunResult> = new Map();
     private onTestRunUpdate: vscode.EventEmitter<MCPRunResult> = new vscode.EventEmitter();
     public readonly onTestRunUpdated: vscode.Event<MCPRunResult> = this.onTestRunUpdate.event;
+    private appRunner: AppRunner;
 
     constructor() {
         this.outputChannel = vscode.window.createOutputChannel('TestFox MCP Runner');
+        this.appRunner = new AppRunner();
     }
 
     /**
@@ -56,6 +62,32 @@ export class MCPTestRunner {
      */
     async runPlaywrightTests(options: MCPRunOptions): Promise<MCPRunResult> {
         this.outputChannel.appendLine(`🎭 Starting Playwright tests for ${options.projectPath}`);
+        
+        // Auto-start application if not running
+        let targetUrl = options.targetUrl;
+        if (!targetUrl && options.projectInfo) {
+            this.outputChannel.appendLine('🔍 Checking if application is running...');
+            try {
+                // Override to use npm run dev
+                const projectWithDev = {
+                    ...options.projectInfo,
+                    devCommand: 'npm run dev',
+                    runCommand: 'npm run dev'
+                };
+                
+                targetUrl = await this.appRunner.start(projectWithDev);
+                this.outputChannel.appendLine(`✅ Application ready at ${targetUrl}`);
+                
+                // Wait for app to be fully ready
+                const readyUrl = await this.appRunner.waitForReady(30000);
+                if (readyUrl) {
+                    targetUrl = readyUrl;
+                }
+            } catch (error: any) {
+                this.outputChannel.appendLine(`⚠️ Failed to auto-start application: ${error.message}`);
+                this.outputChannel.appendLine('Proceeding with tests using configured URL...');
+            }
+        }
         
         const result: MCPRunResult = {
             serverId: 'playwright-mcp',
@@ -69,7 +101,8 @@ export class MCPTestRunner {
                 failed: 0,
                 skipped: 0,
                 duration: 0
-            }
+            },
+            targetUrl: targetUrl
         };
 
         this.runningTests.set('playwright-mcp', result);
@@ -86,10 +119,13 @@ export class MCPTestRunner {
                 throw new Error('Playwright tests not found. Please generate tests first.');
             }
 
-            // Run Playwright tests
+            // Run Playwright tests with discovered URL
             const cmd = `cd "${playwrightDir}" && npx playwright test ${options.testPattern || ''} --reporter=json`;
             
             this.outputChannel.appendLine(`▶️ Running: ${cmd}`);
+            if (targetUrl) {
+                this.outputChannel.appendLine(`🌐 Target URL: ${targetUrl}`);
+            }
             
             let stdout = '';
             let stderr = '';
@@ -97,7 +133,11 @@ export class MCPTestRunner {
             try {
                 const { stdout: out, stderr: err } = await execAsync(cmd, { 
                     timeout: 300000,
-                    env: { ...process.env, CI: 'true' }
+                    env: { 
+                        ...process.env, 
+                        CI: 'true',
+                        PLAYWRIGHT_TEST_BASE_URL: targetUrl || process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3000'
+                    }
                 });
                 stdout = out;
                 stderr = err;
@@ -244,6 +284,32 @@ export class MCPTestRunner {
     async runChromeDevToolsTests(options: MCPRunOptions): Promise<MCPRunResult> {
         this.outputChannel.appendLine(`🔧 Starting Chrome DevTools tests for ${options.projectPath}`);
         
+        // Auto-start application if not running
+        let targetUrl = options.targetUrl;
+        if (!targetUrl && options.projectInfo) {
+            this.outputChannel.appendLine('🔍 Checking if application is running...');
+            try {
+                // Override to use npm run dev
+                const projectWithDev = {
+                    ...options.projectInfo,
+                    devCommand: 'npm run dev',
+                    runCommand: 'npm run dev'
+                };
+                
+                targetUrl = await this.appRunner.start(projectWithDev);
+                this.outputChannel.appendLine(`✅ Application ready at ${targetUrl}`);
+                
+                // Wait for app to be fully ready
+                const readyUrl = await this.appRunner.waitForReady(30000);
+                if (readyUrl) {
+                    targetUrl = readyUrl;
+                }
+            } catch (error: any) {
+                this.outputChannel.appendLine(`⚠️ Failed to auto-start application: ${error.message}`);
+                this.outputChannel.appendLine('Proceeding with tests using configured URL...');
+            }
+        }
+        
         const result: MCPRunResult = {
             serverId: 'chrome-devtools-mcp',
             serverName: 'Chrome DevTools MCP',
@@ -256,7 +322,8 @@ export class MCPTestRunner {
                 failed: 0,
                 skipped: 0,
                 duration: 0
-            }
+            },
+            targetUrl: targetUrl
         };
 
         this.runningTests.set('chrome-devtools-mcp', result);

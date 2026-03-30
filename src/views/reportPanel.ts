@@ -1541,6 +1541,9 @@ ${issueContent.labels.map(l => `- ${l}`).join('\n') || 'None'}
                 <button class="nav-link" onclick="showTab('defects')">
                     <i class="fas fa-bug"></i> Defects
                 </button>
+                <button class="nav-link" onclick="showTab('monkey')">
+                    <i class="fas fa-robot"></i> Monkey Testing
+                </button>
                 <button class="nav-link" onclick="showTab('insights')">
                     <i class="fas fa-brain"></i> Insights
                 </button>
@@ -1971,6 +1974,140 @@ ${issueContent.labels.map(l => `- ${l}`).join('\n') || 'None'}
                 </div>
                 `}
             </div>
+        </div>
+
+        <!-- Monkey Testing Tab -->
+        <div id="monkey" class="tab-content">
+            ${monkeyTestResult ? `
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <div class="section-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        Monkey Testing Results
+                        <span style="background: var(--info-bg); color: var(--info); padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; margin-left: 12px;">
+                            ${monkeyTestResult.totalClicks} clicks
+                        </span>
+                    </h2>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; margin-bottom: 24px;">
+                    <div class="metric-card metric-total">
+                        <div class="metric-icon">
+                            <i class="fas fa-hand-pointer"></i>
+                        </div>
+                        <div class="metric-title">Total Clicks</div>
+                        <div class="metric-value">${monkeyTestResult.totalClicks}</div>
+                        <div class="metric-subtitle">random interactions</div>
+                    </div>
+
+                    <div class="metric-card metric-passed">
+                        <div class="metric-icon">
+                            <i class="fas fa-bullseye"></i>
+                        </div>
+                        <div class="metric-title">Unique Elements</div>
+                        <div class="metric-value">${monkeyTestResult.uniqueElements}</div>
+                        <div class="metric-subtitle">elements clicked</div>
+                    </div>
+
+                    <div class="metric-card metric-duration">
+                        <div class="metric-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="metric-title">Duration</div>
+                        <div class="metric-value">${formatDuration(monkeyTestResult.duration)}</div>
+                        <div class="metric-subtitle">test execution time</div>
+                    </div>
+
+                    <div class="metric-card ${monkeyTestResult.errors.length === 0 ? 'metric-passed' : 'metric-failed'}">
+                        <div class="metric-icon">
+                            <i class="fas ${monkeyTestResult.errors.length === 0 ? 'fa-check-circle' : 'fa-exclamation-triangle'}"></i>
+                        </div>
+                        <div class="metric-title">Status</div>
+                        <div class="metric-value">${monkeyTestResult.errors.length === 0 ? 'Clean' : monkeyTestResult.errors.length + ' Errors'}</div>
+                        <div class="metric-subtitle">${monkeyTestResult.errors.length === 0 ? 'No issues found' : 'Review errors below'}</div>
+                    </div>
+                </div>
+
+                ${monkeyTestResult.clickSummary && monkeyTestResult.clickSummary.length > 0 ? `
+                <div class="chart-container" style="margin-bottom: 24px;">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Click Distribution by Element</h3>
+                    </div>
+                    <div style="padding: 20px;">
+                        <div style="display: grid; gap: 12px;">
+                            ${monkeyTestResult.clickSummary.map((item: any) => `
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <div style="width: 12px; height: 12px; border-radius: 50%; background: var(--accent);"></div>
+                                        <span style="color: var(--text-primary); font-weight: 500;">${item.element}</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 16px;">
+                                        <div style="width: 150px; height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden;">
+                                            <div style="width: ${(item.count / monkeyTestResult.totalClicks * 100)}%; height: 100%; background: var(--accent);"></div>
+                                        </div>
+                                        <span style="color: var(--text-secondary); min-width: 60px; text-align: right;">${item.count} clicks</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                ${monkeyTestResult.errors.length > 0 ? `
+                <div class="chart-container" style="border: 1px solid var(--error);">
+                    <div class="chart-header" style="background: var(--error-bg);">
+                        <h3 class="chart-title" style="color: var(--error);">
+                            <i class="fas fa-exclamation-triangle"></i> Errors During Monkey Testing
+                        </h3>
+                    </div>
+                    <div style="padding: 20px;">
+                        <div style="display: grid; gap: 16px;">
+                            ${monkeyTestResult.errors.map((error: string) => `
+                                <div style="padding: 16px; background: var(--error-bg); border-radius: 8px; border-left: 4px solid var(--error);">
+                                    <p style="margin: 0; color: var(--text-primary);">${error}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                ${monkeyTestResult.screenshots && monkeyTestResult.screenshots.length > 0 ? `
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3 class="chart-title">Captured Screenshots</h3>
+                    </div>
+                    <div style="padding: 20px;">
+                        <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                            ${monkeyTestResult.screenshots.length} screenshot(s) captured during testing
+                        </p>
+                        <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+                            ${monkeyTestResult.screenshots.map((screenshot: string, index: number) => `
+                                <div style="padding: 12px 16px; background: var(--bg-tertiary); border-radius: 8px; font-family: monospace; font-size: 0.9rem; color: var(--text-secondary);">
+                                    <i class="fas fa-image" style="margin-right: 8px; color: var(--accent);"></i>
+                                    Screenshot ${index + 1}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+            ` : `
+            <div class="section">
+                <div style="text-align: center; padding: 60px; color: var(--text-secondary);">
+                    <i class="fas fa-robot" style="font-size: 4rem; margin-bottom: 24px; opacity: 0.5;"></i>
+                    <h3 style="color: var(--text-primary); margin-bottom: 8px;">No Monkey Testing Data</h3>
+                    <p>Run monkey testing to see random click statistics and coverage data here.</p>
+                    <p style="margin-top: 16px; font-size: 0.9rem;">
+                        Use the command palette (Ctrl+Shift+P) and run "TestFox: Run Monkey Testing"
+                    </p>
+                </div>
+            </div>
+            `}
         </div>
 
         <!-- Insights Tab -->

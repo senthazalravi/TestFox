@@ -116,33 +116,17 @@ export class AppRunner {
             return this.baseUrl;
         }
 
-        // First, check if application is already running on any port
-        console.log('AppRunner: Checking for running application...');
-        try {
-            const detectedUrl = await this.detectRunningApplication(projectInfo);
-            if (detectedUrl) {
-                this.isRunning = true;
-                this.baseUrl = detectedUrl;
-                this.outputChannel.appendLine(`✓ Found running application at ${this.baseUrl}`);
-                console.log(`AppRunner: Found running app at ${this.baseUrl}`);
-                return this.baseUrl;
-            } else {
-                console.log('AppRunner: No running application detected');
-            }
-        } catch (error) {
-            console.error('AppRunner: Port detection failed:', error);
-            this.outputChannel.appendLine(`Warning: Port detection failed: ${error}`);
-        }
-
         const workspacePath = projectInfo.rootPath;
         const command = projectInfo.devCommand || projectInfo.runCommand;
+        const configuredPort = projectInfo.port || 3000;
 
         if (!command) {
-            throw new Error('No run command found for this project');
+            throw new Error('No run command found for this project. Please configure testfox.app.runCommand or testfox.app.devCommand');
         }
 
         return new Promise((resolve, reject) => {
             this.outputChannel.appendLine(`Starting application: ${command}`);
+            this.outputChannel.appendLine(`Configured port: ${configuredPort}`);
             this.outputChannel.show(true);
 
             // Determine shell based on platform
@@ -152,84 +136,112 @@ export class AppRunner {
 
             // Install dependencies first if needed
             this.ensureDependencies(projectInfo).then(async () => {
+                // Set the PORT environment variable explicitly
+                const env = {
+                    ...process.env,
+                    NODE_ENV: 'development',
+                    PORT: String(configuredPort)
+                };
+                
+                this.outputChannel.appendLine(`Spawning process with PORT=${configuredPort}...`);
+                
                 this.process = cp.spawn(shell, [shellFlag, command], {
                     cwd: workspacePath,
-                    env: {
-                        ...process.env,
-                        NODE_ENV: 'development',
-                        PORT: String(projectInfo.port || 3000)
-                    },
+                    env: env,
                     detached: !isWindows
                 });
 
                 this.isRunning = true;
-                // First try to detect if app is already running on a different port
-                const detectedUrl = await this.detectRunningApplication(projectInfo);
-                if (detectedUrl) {
-                    this.baseUrl = detectedUrl;
-                    this.outputChannel.appendLine(`✓ Detected application running at ${this.baseUrl}`);
-                } else {
-                    this.baseUrl = `http://localhost:${projectInfo.port || 3000}`;
-                }
-
+                
+                // Start with the configured port as default
+                this.baseUrl = `http://localhost:${configuredPort}`;
+                
                 let startupDetected = false;
+                let detectedPortFromOutput: number | null = null;
+                
+                // Increase startup timeout to 30 seconds for slower apps
                 const startupTimeout = setTimeout(async () => {
                     if (!startupDetected) {
-                        // Try to detect the actual running port
-                        try {
+                        this.outputChannel.appendLine(`⚠️ Startup timeout reached. Checking if app is running on port ${configuredPort}...`);
+                        
+                        // Check if the configured port is now responding
+                        const checkUrl = `http://localhost:${configuredPort}`;
+                        if (await this.verifyUrl(checkUrl)) {
+                            this.baseUrl = checkUrl;
+                            startupDetected = true;
+                            this.outputChannel.appendLine(`✓ Application confirmed running at ${this.baseUrl}`);
+                            resolve(this.baseUrl);
+                        } else {
+                            // Try to find on any port as fallback
                             const detectedUrl = await this.detectRunningApplication(projectInfo);
-                            if (detectedUrl && detectedUrl !== this.baseUrl) {
+                            if (detectedUrl) {
                                 this.baseUrl = detectedUrl;
-                                this.outputChannel.appendLine(`✓ Detected application running at ${this.baseUrl}`);
+                                startupDetected = true;
+                                this.outputChannel.appendLine(`✓ Found application running at ${this.baseUrl} (fallback detection)`);
+                                resolve(this.baseUrl);
                             } else {
-                                this.outputChannel.appendLine(`Application assumed running at ${this.baseUrl}`);
+                                reject(new Error(`Application failed to start on port ${configuredPort} within timeout`));
                             }
-                        } catch (error) {
-                            this.outputChannel.appendLine(`Warning: Port detection failed: ${error}`);
-                            this.outputChannel.appendLine(`Application assumed running at ${this.baseUrl}`);
                         }
-                        resolve(this.baseUrl);
                     }
-                }, 15000);
+                }, 30000);
 
                 this.process.stdout?.on('data', (data: Buffer) => {
                     const output = data.toString();
                     this.outputChannel.append(output);
 
-                    // Try to extract actual port from output - improved patterns for Vite, Next.js, etc.
+                    // Enhanced port detection from terminal output
+                    // Look for patterns like "Local: http://localhost:3000" or "listening on port 3000"
                     const portPatterns = [
-                        /Local:\s+http:\/\/localhost:(\d+)/i,  // Vite format: "Local: http://localhost:5173/"
-                        /➜\s+Local:\s+http:\/\/localhost:(\d+)/i,  // Vite with arrow
-                        /localhost:(\d+)/,
-                        /127\.0\.0\.1:(\d+)/,
-                        /0\.0\.0\.0:(\d+)/,
-                        /:\/(\d+)/,  // Port after colon
-                        /port\s+(\d+)/i,  // "port 3000"
-                        /on\s+(\d+)/i,  // "on 3000"
-                        /\*\s+(\d+)/i  // "* 3000" format
+                        { regex: /Local:\s+http:\/\/localhost:(\d+)/i, name: 'Vite/Local pattern' },  // Vite format: "Local: http://localhost:5173/"
+                        { regex: /➜\s+Local:\s+http:\/\/localhost:(\d+)/i, name: 'Vite arrow pattern' },  // Vite with arrow
+                        { regex: /localhost:(\d+)/i, name: 'localhost pattern' },
+                        { regex: /127\.0\.0\.1:(\d+)/i, name: '127.0.0.1 pattern' },
+                        { regex: /0\.0\.0\.0:(\d+)/i, name: '0.0.0.0 pattern' },
+                        { regex: /:\/(\d+)/, name: 'colon-slash pattern' },  // Port after colon
+                        { regex: /port\s+(\d+)/i, name: 'port N pattern' },  // "port 3000"
+                        { regex: /on\s+(\d+)/i, name: 'on N pattern' },  // "on 3000"
+                        { regex: /\*\s+(\d+)/i, name: 'star N pattern' },  // "* 3000" format
+                        { regex: /Ready\s+on\s+http:\/\/localhost:(\d+)/i, name: 'Next.js pattern' },  // Next.js "Ready on http://localhost:3000"
+                        { regex: /server\s+ready\s+at\s+http:\/\/localhost:(\d+)/i, name: 'server ready pattern' },
+                        { regex: /running\s+on\s+.*:(\d+)/i, name: 'running on pattern' }
                     ];
                     
                     for (const pattern of portPatterns) {
-                        const portMatch = output.match(pattern);
+                        const portMatch = output.match(pattern.regex);
                         if (portMatch && !startupDetected) {
                             const detectedPort = parseInt(portMatch[1], 10);
                             if (detectedPort > 0 && detectedPort < 65536) {
+                                detectedPortFromOutput = detectedPort;
                                 const detectedUrl = `http://localhost:${detectedPort}`;
                                 if (detectedUrl !== this.baseUrl) {
                                     this.baseUrl = detectedUrl;
-                                    this.outputChannel.appendLine(`✓ Detected port ${detectedPort} from application output`);
+                                    this.outputChannel.appendLine(`✓ Detected port ${detectedPort} from terminal output (${pattern.name})`);
+                                }
+                                
+                                // If this matches our configured port, resolve immediately
+                                if (detectedPort === configuredPort) {
+                                    startupDetected = true;
+                                    clearTimeout(startupTimeout);
+                                    this.outputChannel.appendLine(`\n✓ Application started successfully at ${this.baseUrl}`);
+                                    resolve(this.baseUrl);
                                 }
                                 break;
                             }
                         }
                     }
 
-                    // Detect when app is ready
+                    // Detect when app is ready via startup messages
                     if (!startupDetected && this.isStartupMessage(output, projectInfo)) {
-                        startupDetected = true;
-                        clearTimeout(startupTimeout);
-                        this.outputChannel.appendLine(`\n✓ Application started at ${this.baseUrl}`);
-                        resolve(this.baseUrl);
+                        // Verify the URL is actually responding before resolving
+                        this.verifyUrl(this.baseUrl).then(isResponding => {
+                            if (isResponding && !startupDetected) {
+                                startupDetected = true;
+                                clearTimeout(startupTimeout);
+                                this.outputChannel.appendLine(`\n✓ Application started at ${this.baseUrl} (verified responding)`);
+                                resolve(this.baseUrl);
+                            }
+                        });
                     }
                 });
 
@@ -239,21 +251,32 @@ export class AppRunner {
 
                     // Check stderr for port info too (some frameworks output there)
                     const portPatterns = [
-                        /Local:\s+http:\/\/localhost:(\d+)/i,
-                        /➜\s+Local:\s+http:\/\/localhost:(\d+)/i,
-                        /localhost:(\d+)/,
-                        /port\s+(\d+)/i
+                        { regex: /Local:\s+http:\/\/localhost:(\d+)/i, name: 'Vite/Local (stderr)' },
+                        { regex: /➜\s+Local:\s+http:\/\/localhost:(\d+)/i, name: 'Vite arrow (stderr)' },
+                        { regex: /localhost:(\d+)/i, name: 'localhost (stderr)' },
+                        { regex: /port\s+(\d+)/i, name: 'port N (stderr)' },
+                        { regex: /Ready\s+on\s+http:\/\/localhost:(\d+)/i, name: 'Next.js (stderr)' },
+                        { regex: /running\s+on\s+.*:(\d+)/i, name: 'running on (stderr)' }
                     ];
                     
                     for (const pattern of portPatterns) {
-                        const portMatch = output.match(pattern);
+                        const portMatch = output.match(pattern.regex);
                         if (portMatch && !startupDetected) {
                             const detectedPort = parseInt(portMatch[1], 10);
                             if (detectedPort > 0 && detectedPort < 65536) {
+                                detectedPortFromOutput = detectedPort;
                                 const detectedUrl = `http://localhost:${detectedPort}`;
                                 if (detectedUrl !== this.baseUrl) {
                                     this.baseUrl = detectedUrl;
-                                    this.outputChannel.appendLine(`✓ Detected port ${detectedPort} from stderr output`);
+                                    this.outputChannel.appendLine(`✓ Detected port ${detectedPort} from stderr (${pattern.name})`);
+                                }
+                                
+                                // If this matches our configured port, resolve immediately
+                                if (detectedPort === configuredPort) {
+                                    startupDetected = true;
+                                    clearTimeout(startupTimeout);
+                                    this.outputChannel.appendLine(`\n✓ Application started successfully at ${this.baseUrl}`);
+                                    resolve(this.baseUrl);
                                 }
                                 break;
                             }
@@ -262,9 +285,14 @@ export class AppRunner {
 
                     // Some frameworks output to stderr
                     if (!startupDetected && this.isStartupMessage(output, projectInfo)) {
-                        startupDetected = true;
-                        clearTimeout(startupTimeout);
-                        resolve(this.baseUrl);
+                        this.verifyUrl(this.baseUrl).then(isResponding => {
+                            if (isResponding && !startupDetected) {
+                                startupDetected = true;
+                                clearTimeout(startupTimeout);
+                                this.outputChannel.appendLine(`\n✓ Application started at ${this.baseUrl} (stderr detection, verified)`);
+                                resolve(this.baseUrl);
+                            }
+                        });
                     }
                 });
 

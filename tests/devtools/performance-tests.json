@@ -1,0 +1,30 @@
+{
+  "name": "Performance Tests",
+  "description": "Chrome DevTools performance monitoring tests",
+  "tests": [
+    {
+      "name": "LCP within threshold",
+      "type": "performance",
+      "threshold": {
+        "metric": "LCP",
+        "value": 2500
+      }
+    },
+    {
+      "name": "FID within threshold",
+      "type": "performance",
+      "threshold": {
+        "metric": "FID",
+        "value": 100
+      }
+    },
+    {
+      "name": "CLS within threshold",
+      "type": "performance",
+      "threshold": {
+        "metric": "CLS",
+        "value": 0.1
+      }
+    }
+  ]
+}

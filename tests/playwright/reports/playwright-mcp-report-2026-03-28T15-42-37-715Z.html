@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playwright MCP Test Report</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        .header h1 { color: #e94560; margin-bottom: 10px; }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-card .value { font-size: 2em; font-weight: bold; }
+        .stat-card.passed .value { color: #10b981; }
+        .stat-card.failed .value { color: #ef4444; }
+        .test-list { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 20px; }
+        .test-item {
+            padding: 15px;
+            margin: 8px 0;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .test-item.passed { border-left: 3px solid #10b981; }
+        .test-item.failed { border-left: 3px solid #ef4444; }
+        .status-badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+        }
+        .status-badge.passed { background: rgba(16,185,129,0.2); color: #10b981; }
+        .status-badge.failed { background: rgba(239,68,68,0.2); color: #ef4444; }
+        .error-message {
+            color: #ef4444;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Playwright MCP Report</h1>
+            <p>3/28/2026, 4:42:35 PM</p>
+        </div>
+        
+        <div class="summary">
+            <div class="stat-card">
+                <div class="value">0</div>
+                <div class="label">Total</div>
+            </div>
+            <div class="stat-card passed">
+                <div class="value">0</div>
+                <div class="label">Passed</div>
+            </div>
+            <div class="stat-card failed">
+                <div class="value">0</div>
+                <div class="label">Failed</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">0%</div>
+                <div class="label">Pass Rate</div>
+            </div>
+        </div>
+        
+        <div class="test-list">
+            <h2>Test Results</h2>
+            
+        </div>
+    </div>
+</body>
+</html>

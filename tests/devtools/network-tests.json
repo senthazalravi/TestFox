@@ -1,0 +1,26 @@
+{
+  "name": "Network Tests",
+  "description": "Chrome DevTools network monitoring tests",
+  "tests": [
+    {
+      "name": "No blocked requests",
+      "type": "network",
+      "description": "Check for blocked network requests",
+      "config": {
+        "blockedUrls": [],
+        "timeout": 5000
+      }
+    },
+    {
+      "name": "Response time within limits",
+      "type": "network",
+      "description": "Ensure API responses are within acceptable time limits",
+      "config": {
+        "maxResponseTime": 2000,
+        "urls": [
+          "{{baseUrl}}/api/*"
+        ]
+      }
+    }
+  ]
+}

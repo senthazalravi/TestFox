@@ -894,7 +894,7 @@ export class TestControlCenterProvider implements vscode.WebviewViewProvider {
 
             // Update BYOK status if provided
             if (state.byokStatus !== undefined) {
-                updateBYOKStatus(state.byokStatus);
+                updateAIStatus(state.byokStatus);
             }
 
             // Update Application status if provided
