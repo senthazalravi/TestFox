@@ -1,8 +1,9 @@
 /**
- * AI Setup Panel - Clean, seamless API key configuration
+ * AI Setup Panel - Seamless AI configuration
  *
- * Shows automatically on first startup if no AI key is configured.
- * Provides a simple, professional setup experience.
+ * Shows on first startup if AI is not configured.
+ * Simple flow: pick provider preset or enter Base URL + API Key + Model.
+ * Tests connection and shows "AI Connected" in status bar on success.
  */
 
 import * as vscode from 'vscode';
@@ -17,59 +18,66 @@ export class AISetupPanel {
 
     public static createOrShow(extensionUri: vscode.Uri): AISetupPanel {
         const column = vscode.ViewColumn.One;
-
         if (AISetupPanel.currentPanel) {
             AISetupPanel.currentPanel._panel.reveal(column);
             return AISetupPanel.currentPanel;
         }
-
         const panel = vscode.window.createWebviewPanel(
-            AISetupPanel.viewType,
-            'TestFox - AI Setup',
-            column,
-            {
-                enableScripts: true,
-                retainContextWhenHidden: true,
-                localResourceRoots: [extensionUri]
-            }
+            AISetupPanel.viewType, 'TestFox - AI Setup', column,
+            { enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [extensionUri] }
         );
-
         AISetupPanel.currentPanel = new AISetupPanel(panel, extensionUri);
         return AISetupPanel.currentPanel;
     }
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+    private constructor(panel: vscode.WebviewPanel, _extensionUri: vscode.Uri) {
         this._panel = panel;
         this._panel.webview.html = this._getHtml();
-
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
-
-        this._panel.webview.onDidReceiveMessage(
-            async (msg) => {
-                switch (msg.command) {
-                    case 'saveConfig':
-                        await this._saveConfiguration(msg.data);
-                        break;
-                    case 'testConnection':
-                        await this._testConnection(msg.data);
-                        break;
-                    case 'skip':
-                        this._onDidComplete.fire(false);
-                        this._panel.dispose();
-                        break;
-                }
-            },
-            null,
-            this._disposables
-        );
+        this._panel.webview.onDidReceiveMessage(async (msg) => {
+            switch (msg.command) {
+                case 'testConnection': await this._testConnection(msg.data); break;
+                case 'saveConfig': await this._saveConfiguration(msg.data); break;
+                case 'skip': this._onDidComplete.fire(false); this._panel.dispose(); break;
+                case 'applyPreset': this._postMessage({ command: 'presetApplied', data: msg.data }); break;
+            }
+        }, null, this._disposables);
     }
 
-    private async _saveConfiguration(data: {
-        provider: string;
-        apiKey: string;
-        model: string;
-        baseUrl: string;
-    }) {
+    private async _testConnection(data: { baseUrl: string; apiKey: string; model: string }) {
+        try {
+            const axios = require('axios');
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            let url = data.baseUrl.replace(/\/$/, '');
+            let body: any;
+
+            // Determine if this is Ollama (no auth needed, different endpoint)
+            const isOllama = url.includes('11434') || url.includes('ollama');
+            if (isOllama) {
+                url = url.replace(/\/api\/.*$/, '') + '/api/generate';
+                body = { model: data.model, prompt: 'Say hi', stream: false };
+            } else {
+                // OpenAI-compatible endpoint
+                if (data.apiKey) headers['Authorization'] = `Bearer ${data.apiKey}`;
+                if (url.includes('openrouter')) {
+                    headers['HTTP-Referer'] = 'https://testfox.dev';
+                    headers['X-Title'] = 'TestFox';
+                }
+                if (!url.endsWith('/chat/completions')) {
+                    url = url + '/chat/completions';
+                }
+                body = { model: data.model, messages: [{ role: 'user', content: 'Say hi' }], max_tokens: 5 };
+            }
+
+            await axios.post(url, body, { headers, timeout: 15000 });
+            this._postMessage({ command: 'testResult', success: true });
+        } catch (err: any) {
+            const message = err.response?.data?.error?.message || err.response?.statusText || err.message || 'Connection failed';
+            this._postMessage({ command: 'testResult', success: false, error: message });
+        }
+    }
+
+    private async _saveConfiguration(data: { baseUrl: string; apiKey: string; model: string; provider: string }) {
         try {
             const config = vscode.workspace.getConfiguration('testfox');
             await config.update('ai.provider', data.provider, vscode.ConfigurationTarget.Global);
@@ -79,516 +87,188 @@ export class AISetupPanel {
             await config.update('ai.enabled', true, vscode.ConfigurationTarget.Global);
 
             this._postMessage({ command: 'saveResult', success: true });
-            vscode.window.showInformationMessage('TestFox: AI configured successfully! You can now generate tests.');
             this._onDidComplete.fire(true);
-
-            // Close after a short delay so user sees the success state
-            setTimeout(() => this._panel.dispose(), 1500);
+            setTimeout(() => this._panel.dispose(), 1200);
         } catch (err) {
-            this._postMessage({
-                command: 'saveResult',
-                success: false,
-                error: err instanceof Error ? err.message : 'Failed to save configuration'
-            });
+            this._postMessage({ command: 'saveResult', success: false, error: err instanceof Error ? err.message : 'Save failed' });
         }
     }
 
-    private async _testConnection(data: {
-        provider: string;
-        apiKey: string;
-        model: string;
-        baseUrl: string;
-    }) {
-        try {
-            const axios = require('axios');
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json'
-            };
-
-            let url = data.baseUrl;
-            let body: any;
-
-            if (data.provider === 'openrouter') {
-                headers['Authorization'] = `Bearer ${data.apiKey}`;
-                headers['HTTP-Referer'] = 'https://testfox.dev';
-                headers['X-Title'] = 'TestFox';
-                url = 'https://openrouter.ai/api/v1/chat/completions';
-                body = {
-                    model: data.model,
-                    messages: [{ role: 'user', content: 'Say "connected" in one word.' }],
-                    max_tokens: 10
-                };
-            } else if (data.provider === 'ollama') {
-                url = `${data.baseUrl}/api/generate`;
-                body = {
-                    model: data.model,
-                    prompt: 'Say "connected" in one word.',
-                    stream: false
-                };
-            } else {
-                // Custom OpenAI-compatible
-                if (data.apiKey) {
-                    headers['Authorization'] = `Bearer ${data.apiKey}`;
-                }
-                if (!url.includes('/chat/completions')) {
-                    url = url.replace(/\/$/, '') + '/chat/completions';
-                }
-                body = {
-                    model: data.model,
-                    messages: [{ role: 'user', content: 'Say "connected" in one word.' }],
-                    max_tokens: 10
-                };
-            }
-
-            await axios.post(url, body, { headers, timeout: 15000 });
-            this._postMessage({ command: 'testResult', success: true });
-        } catch (err: any) {
-            const message = err.response?.data?.error?.message
-                || err.response?.statusText
-                || err.message
-                || 'Connection failed';
-            this._postMessage({ command: 'testResult', success: false, error: message });
-        }
-    }
-
-    private _postMessage(msg: any) {
-        this._panel.webview.postMessage(msg);
-    }
+    private _postMessage(msg: any) { this._panel.webview.postMessage(msg); }
 
     public dispose() {
         AISetupPanel.currentPanel = undefined;
         this._panel.dispose();
-        while (this._disposables.length) {
-            const d = this._disposables.pop();
-            if (d) { d.dispose(); }
-        }
+        while (this._disposables.length) { this._disposables.pop()?.dispose(); }
     }
 
     public static isConfigured(): boolean {
         const config = vscode.workspace.getConfiguration('testfox');
         const provider = config.get<string>('ai.provider', '');
         const apiKey = config.get<string>('ai.apiKey', '');
-        // OpenRouter and custom need an API key; ollama doesn't
-        if (provider === 'ollama') {
-            return true;
-        }
+        if (provider === 'ollama') return true;
         return !!apiKey;
     }
 
     private _getHtml(): string {
         const config = vscode.workspace.getConfiguration('testfox');
-        const currentProvider = config.get<string>('ai.provider', 'openrouter');
-        const currentModel = config.get<string>('ai.model', 'google/gemini-2.0-flash-exp:free');
-        const currentKey = config.get<string>('ai.apiKey', '');
-        const currentBaseUrl = config.get<string>('ai.baseUrl', 'https://openrouter.ai/api/v1');
+        const curKey = config.get<string>('ai.apiKey', '');
+        const curModel = config.get<string>('ai.model', 'google/gemini-2.0-flash-exp:free');
+        const curUrl = config.get<string>('ai.baseUrl', 'https://openrouter.ai/api/v1');
+        const curProvider = config.get<string>('ai.provider', 'openrouter');
 
         return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TestFox AI Setup</title>
 <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-        font-family: var(--vscode-font-family);
-        color: var(--vscode-foreground);
-        background: var(--vscode-editor-background);
-        padding: 0;
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
-        min-height: 100vh;
-    }
-    .setup-container {
-        max-width: 560px;
-        width: 100%;
-        padding: 40px 32px;
-    }
-    .logo-section {
-        text-align: center;
-        margin-bottom: 32px;
-    }
-    .logo-section h1 {
-        font-size: 28px;
-        font-weight: 600;
-        margin-bottom: 8px;
-        color: var(--vscode-foreground);
-    }
-    .logo-section p {
-        color: var(--vscode-descriptionForeground);
-        font-size: 14px;
-        line-height: 1.5;
-    }
-    .provider-cards {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 12px;
-        margin-bottom: 28px;
-    }
-    .provider-card {
-        padding: 16px 12px;
-        border: 2px solid var(--vscode-input-border, rgba(255,255,255,0.1));
-        border-radius: 8px;
-        cursor: pointer;
-        text-align: center;
-        transition: all 0.15s ease;
-        background: transparent;
-    }
-    .provider-card:hover {
-        border-color: var(--vscode-focusBorder);
-        background: var(--vscode-list-hoverBackground);
-    }
-    .provider-card.active {
-        border-color: var(--vscode-focusBorder);
-        background: var(--vscode-list-activeSelectionBackground);
-        color: var(--vscode-list-activeSelectionForeground);
-    }
-    .provider-card .icon { font-size: 24px; margin-bottom: 8px; }
-    .provider-card .name { font-size: 13px; font-weight: 600; }
-    .provider-card .desc { font-size: 11px; color: var(--vscode-descriptionForeground); margin-top: 4px; }
-    .provider-card.active .desc { color: var(--vscode-list-activeSelectionForeground); opacity: 0.8; }
-
-    .form-section {
-        display: none;
-        animation: fadeIn 0.2s ease;
-    }
-    .form-section.active { display: block; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-
-    .field { margin-bottom: 20px; }
-    .field label {
-        display: block;
-        font-size: 13px;
-        font-weight: 500;
-        margin-bottom: 6px;
-        color: var(--vscode-foreground);
-    }
-    .field input, .field select {
-        width: 100%;
-        padding: 9px 12px;
-        border: 1px solid var(--vscode-input-border);
-        border-radius: 4px;
-        background: var(--vscode-input-background);
-        color: var(--vscode-input-foreground);
-        font-size: 13px;
-        font-family: var(--vscode-font-family);
-        outline: none;
-        transition: border-color 0.15s;
-    }
-    .field input:focus, .field select:focus {
-        border-color: var(--vscode-focusBorder);
-    }
-    .field .hint {
-        font-size: 11px;
-        color: var(--vscode-descriptionForeground);
-        margin-top: 4px;
-        line-height: 1.4;
-    }
-    .field .hint a {
-        color: var(--vscode-textLink-foreground);
-        text-decoration: none;
-    }
-
-    .actions {
-        display: flex;
-        gap: 10px;
-        margin-top: 24px;
-    }
-    .btn {
-        padding: 9px 20px;
-        border-radius: 4px;
-        font-size: 13px;
-        font-weight: 500;
-        cursor: pointer;
-        border: none;
-        transition: opacity 0.15s;
-        font-family: var(--vscode-font-family);
-    }
-    .btn:hover { opacity: 0.9; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-primary {
-        background: var(--vscode-button-background);
-        color: var(--vscode-button-foreground);
-        flex: 1;
-    }
-    .btn-secondary {
-        background: var(--vscode-button-secondaryBackground);
-        color: var(--vscode-button-secondaryForeground);
-    }
-    .btn-ghost {
-        background: transparent;
-        color: var(--vscode-descriptionForeground);
-        padding: 9px 12px;
-    }
-
-    .status-bar {
-        margin-top: 16px;
-        padding: 10px 14px;
-        border-radius: 6px;
-        font-size: 12px;
-        display: none;
-        align-items: center;
-        gap: 8px;
-    }
-    .status-bar.visible { display: flex; }
-    .status-bar.success {
-        background: rgba(34, 197, 94, 0.1);
-        border: 1px solid rgba(34, 197, 94, 0.3);
-        color: #22c55e;
-    }
-    .status-bar.error {
-        background: rgba(239, 68, 68, 0.1);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-        color: #ef4444;
-    }
-    .status-bar.loading {
-        background: rgba(59, 130, 246, 0.1);
-        border: 1px solid rgba(59, 130, 246, 0.3);
-        color: #3b82f6;
-    }
-
-    .free-tag {
-        display: inline-block;
-        background: rgba(34, 197, 94, 0.15);
-        color: #22c55e;
-        font-size: 10px;
-        font-weight: 600;
-        padding: 2px 6px;
-        border-radius: 3px;
-        margin-left: 6px;
-        vertical-align: middle;
-    }
-
-    .divider {
-        height: 1px;
-        background: var(--vscode-panel-border);
-        margin: 28px 0;
-    }
-
-    .skip-link {
-        text-align: center;
-        margin-top: 20px;
-    }
-    .skip-link button {
-        background: none;
-        border: none;
-        color: var(--vscode-descriptionForeground);
-        font-size: 12px;
-        cursor: pointer;
-        text-decoration: underline;
-        font-family: var(--vscode-font-family);
-    }
-    .skip-link button:hover { color: var(--vscode-foreground); }
-</style>
-</head>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--vscode-font-family);color:var(--vscode-foreground);background:var(--vscode-editor-background);display:flex;justify-content:center;padding:0;min-height:100vh}
+.c{max-width:540px;width:100%;padding:36px 28px}
+h1{font-size:24px;font-weight:600;margin-bottom:6px}
+.sub{color:var(--vscode-descriptionForeground);font-size:13px;margin-bottom:28px;line-height:1.5}
+.presets{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
+.preset{padding:8px 14px;border:1px solid var(--vscode-input-border,rgba(255,255,255,.12));border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;background:transparent;color:var(--vscode-foreground);font-family:var(--vscode-font-family);transition:all .12s}
+.preset:hover{border-color:var(--vscode-focusBorder);background:var(--vscode-list-hoverBackground)}
+.preset.active{border-color:var(--vscode-focusBorder);background:var(--vscode-button-background);color:var(--vscode-button-foreground)}
+.sep{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--vscode-descriptionForeground);font-size:11px}
+.sep::before,.sep::after{content:'';flex:1;height:1px;background:var(--vscode-panel-border,rgba(255,255,255,.08))}
+.f{margin-bottom:16px}
+.f label{display:block;font-size:12px;font-weight:500;margin-bottom:4px}
+.f input,.f select{width:100%;padding:8px 10px;border:1px solid var(--vscode-input-border);border-radius:4px;background:var(--vscode-input-background);color:var(--vscode-input-foreground);font-size:13px;font-family:var(--vscode-font-family);outline:none}
+.f input:focus,.f select:focus{border-color:var(--vscode-focusBorder)}
+.hint{font-size:11px;color:var(--vscode-descriptionForeground);margin-top:3px}
+.hint a{color:var(--vscode-textLink-foreground);text-decoration:none}
+.actions{display:flex;gap:10px;margin-top:24px}
+.btn{padding:9px 18px;border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--vscode-font-family);transition:opacity .12s}
+.btn:hover{opacity:.9}.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--vscode-button-background);color:var(--vscode-button-foreground);flex:1}
+.btn-secondary{background:var(--vscode-button-secondaryBackground);color:var(--vscode-button-secondaryForeground)}
+.status{margin-top:14px;padding:10px 14px;border-radius:6px;font-size:12px;display:none;align-items:center;gap:8px}
+.status.vis{display:flex}
+.status.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e}
+.status.err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444}
+.status.load{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#3b82f6}
+.skip{text-align:center;margin-top:18px}
+.skip button{background:none;border:none;color:var(--vscode-descriptionForeground);font-size:11px;cursor:pointer;text-decoration:underline;font-family:var(--vscode-font-family)}
+.skip button:hover{color:var(--vscode-foreground)}
+</style></head>
 <body>
-<div class="setup-container">
-    <div class="logo-section">
-        <h1>TestFox AI Setup</h1>
-        <p>Connect an AI provider to generate intelligent tests for your project.<br>
-        Choose a provider below to get started.</p>
-    </div>
+<div class="c">
+<h1>AI Configuration</h1>
+<p class="sub">Connect an AI provider to enhance test generation. Pick a preset or enter your own endpoint. TestFox works without AI too.</p>
 
-    <div class="provider-cards">
-        <div class="provider-card ${currentProvider === 'openrouter' ? 'active' : ''}" data-provider="openrouter" onclick="selectProvider('openrouter')">
-            <div class="icon">&#9889;</div>
-            <div class="name">OpenRouter</div>
-            <div class="desc">Free models available</div>
-        </div>
-        <div class="provider-card ${currentProvider === 'ollama' ? 'active' : ''}" data-provider="ollama" onclick="selectProvider('ollama')">
-            <div class="icon">&#127968;</div>
-            <div class="name">Ollama</div>
-            <div class="desc">Local, private</div>
-        </div>
-        <div class="provider-card ${currentProvider === 'custom' ? 'active' : ''}" data-provider="custom" onclick="selectProvider('custom')">
-            <div class="icon">&#128279;</div>
-            <div class="name">Custom API</div>
-            <div class="desc">Any OpenAI-compatible</div>
-        </div>
-    </div>
+<div class="presets">
+  <button class="preset${curProvider === 'openrouter' ? ' active' : ''}" onclick="applyPreset('openrouter')">OpenRouter (Free)</button>
+  <button class="preset${curProvider === 'ollama' ? ' active' : ''}" onclick="applyPreset('ollama')">Ollama (Local)</button>
+  <button class="preset" onclick="applyPreset('openai')">OpenAI</button>
+  <button class="preset" onclick="applyPreset('anthropic')">Anthropic</button>
+  <button class="preset" onclick="applyPreset('deepseek')">DeepSeek</button>
+  <button class="preset${curProvider === 'custom' ? ' active' : ''}" onclick="applyPreset('custom')">Custom</button>
+</div>
 
-    <!-- OpenRouter Form -->
-    <div class="form-section" id="form-openrouter">
-        <div class="field">
-            <label>API Key</label>
-            <input type="password" id="or-key" placeholder="sk-or-..." value="${currentProvider === 'openrouter' ? currentKey : ''}">
-            <div class="hint">Get a free key at <a href="https://openrouter.ai/keys">openrouter.ai/keys</a></div>
-        </div>
-        <div class="field">
-            <label>Model</label>
-            <select id="or-model">
-                <option value="google/gemini-2.0-flash-exp:free" ${currentModel === 'google/gemini-2.0-flash-exp:free' ? 'selected' : ''}>Gemini 2.0 Flash <span class="free-tag">FREE</span></option>
-                <option value="google/gemini-2.0-pro-exp-02-05:free" ${currentModel === 'google/gemini-2.0-pro-exp-02-05:free' ? 'selected' : ''}>Gemini 2.0 Pro (FREE)</option>
-                <option value="deepseek/deepseek-r1:free" ${currentModel === 'deepseek/deepseek-r1:free' ? 'selected' : ''}>DeepSeek R1 (FREE)</option>
-                <option value="deepseek/deepseek-v3:free" ${currentModel === 'deepseek/deepseek-v3:free' ? 'selected' : ''}>DeepSeek V3 (FREE)</option>
-                <option value="meta-llama/llama-3.3-70b-instruct:free" ${currentModel === 'meta-llama/llama-3.3-70b-instruct:free' ? 'selected' : ''}>Llama 3.3 70B (FREE)</option>
-                <option value="qwen/qwen-2.5-coder-32b-instruct:free" ${currentModel === 'qwen/qwen-2.5-coder-32b-instruct:free' ? 'selected' : ''}>Qwen 2.5 Coder (FREE)</option>
-                <option value="mistralai/mistral-nemo:free" ${currentModel === 'mistralai/mistral-nemo:free' ? 'selected' : ''}>Mistral Nemo (FREE)</option>
-                <option value="anthropic/claude-3.5-sonnet" ${currentModel === 'anthropic/claude-3.5-sonnet' ? 'selected' : ''}>Claude 3.5 Sonnet (Paid)</option>
-                <option value="openai/gpt-4o" ${currentModel === 'openai/gpt-4o' ? 'selected' : ''}>GPT-4o (Paid)</option>
-            </select>
-            <div class="hint">Free models work great for test generation. No billing required.</div>
-        </div>
-    </div>
+<div class="f">
+  <label>Base URL</label>
+  <input type="text" id="baseUrl" placeholder="https://openrouter.ai/api/v1" value="${curUrl}">
+  <div class="hint" id="urlHint">The API base URL (without /chat/completions)</div>
+</div>
 
-    <!-- Ollama Form -->
-    <div class="form-section" id="form-ollama">
-        <div class="field">
-            <label>Model Name</label>
-            <input type="text" id="ol-model" placeholder="llama3.1:8b" value="${currentProvider === 'ollama' ? currentModel : 'llama3.1:8b'}">
-            <div class="hint">Models: llama3.1, codellama, mistral, qwen2.5, deepseek-coder</div>
-        </div>
-        <div class="field">
-            <label>Host URL</label>
-            <input type="text" id="ol-url" placeholder="http://localhost:11434" value="${currentProvider === 'ollama' ? currentBaseUrl : 'http://localhost:11434'}">
-            <div class="hint">Default Ollama server: http://localhost:11434</div>
-        </div>
-    </div>
+<div class="f">
+  <label>API Key</label>
+  <input type="password" id="apiKey" placeholder="sk-..." value="${curKey}">
+  <div class="hint" id="keyHint">Get a free key at <a href="https://openrouter.ai/keys">openrouter.ai/keys</a></div>
+</div>
 
-    <!-- Custom API Form -->
-    <div class="form-section" id="form-custom">
-        <div class="field">
-            <label>Base URL</label>
-            <input type="text" id="cu-url" placeholder="https://api.openai.com/v1" value="${currentProvider === 'custom' ? currentBaseUrl : ''}">
-            <div class="hint">OpenAI-compatible endpoint (e.g. https://api.openai.com/v1)</div>
-        </div>
-        <div class="field">
-            <label>API Key</label>
-            <input type="password" id="cu-key" placeholder="sk-..." value="${currentProvider === 'custom' ? currentKey : ''}">
-        </div>
-        <div class="field">
-            <label>Model</label>
-            <input type="text" id="cu-model" placeholder="gpt-4o" value="${currentProvider === 'custom' ? currentModel : ''}">
-        </div>
-    </div>
+<div class="f">
+  <label>Model</label>
+  <input type="text" id="model" placeholder="google/gemini-2.0-flash-exp:free" value="${curModel}">
+  <div class="hint" id="modelHint">Model identifier from your provider</div>
+</div>
 
-    <div class="actions">
-        <button class="btn btn-secondary" onclick="testConnection()" id="btn-test">Test Connection</button>
-        <button class="btn btn-primary" onclick="saveConfig()" id="btn-save">Save & Start Testing</button>
-    </div>
+<div class="actions">
+  <button class="btn btn-secondary" id="btnTest" onclick="testConn()">Test Connection</button>
+  <button class="btn btn-primary" id="btnSave" onclick="saveConf()">Save & Connect</button>
+</div>
 
-    <div class="status-bar" id="status"></div>
+<div class="status" id="st"></div>
 
-    <div class="skip-link">
-        <button onclick="skip()">Skip for now (use rule-based test generation)</button>
-    </div>
+<div class="skip"><button onclick="vscode.postMessage({command:'skip'})">Skip - use rule-based testing only</button></div>
 </div>
 
 <script>
-    const vscode = acquireVsCodeApi();
-    let selectedProvider = '${currentProvider || 'openrouter'}';
+const vscode=acquireVsCodeApi();
+let provider='${curProvider||'openrouter'}';
 
-    function selectProvider(provider) {
-        selectedProvider = provider;
-        document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('active'));
-        document.querySelector('[data-provider="' + provider + '"]').classList.add('active');
-        document.querySelectorAll('.form-section').forEach(f => f.classList.remove('active'));
-        document.getElementById('form-' + provider).classList.add('active');
-        hideStatus();
-    }
+const presets={
+  openrouter:{url:'https://openrouter.ai/api/v1',model:'google/gemini-2.0-flash-exp:free',keyHint:'Get a free key at <a href="https://openrouter.ai/keys">openrouter.ai/keys</a>',urlHint:'OpenRouter API endpoint',modelHint:'Free: gemini-2.0-flash, deepseek-r1, llama-3.3-70b',needsKey:true},
+  ollama:{url:'http://localhost:11434',model:'llama3.1:8b',keyHint:'No API key needed for local Ollama',urlHint:'Local Ollama server',modelHint:'Run: ollama pull llama3.1:8b',needsKey:false},
+  openai:{url:'https://api.openai.com/v1',model:'gpt-4o',keyHint:'Get key at <a href="https://platform.openai.com/api-keys">platform.openai.com</a>',urlHint:'OpenAI API endpoint',modelHint:'gpt-4o, gpt-4o-mini, gpt-3.5-turbo',needsKey:true},
+  anthropic:{url:'https://api.anthropic.com/v1',model:'claude-sonnet-4-20250514',keyHint:'Get key at <a href="https://console.anthropic.com">console.anthropic.com</a>',urlHint:'Anthropic API endpoint',modelHint:'claude-sonnet-4-20250514, claude-3-5-haiku-20241022',needsKey:true},
+  deepseek:{url:'https://api.deepseek.com/v1',model:'deepseek-chat',keyHint:'Get key at <a href="https://platform.deepseek.com">platform.deepseek.com</a>',urlHint:'DeepSeek API endpoint',modelHint:'deepseek-chat, deepseek-reasoner',needsKey:true},
+  custom:{url:'',model:'',keyHint:'Your provider API key',urlHint:'Any OpenAI-compatible base URL',modelHint:'Model name from your provider',needsKey:true}
+};
 
-    function getFormData() {
-        if (selectedProvider === 'openrouter') {
-            return {
-                provider: 'openrouter',
-                apiKey: document.getElementById('or-key').value.trim(),
-                model: document.getElementById('or-model').value,
-                baseUrl: 'https://openrouter.ai/api/v1'
-            };
-        } else if (selectedProvider === 'ollama') {
-            return {
-                provider: 'ollama',
-                apiKey: '',
-                model: document.getElementById('ol-model').value.trim(),
-                baseUrl: document.getElementById('ol-url').value.trim()
-            };
-        } else {
-            return {
-                provider: 'custom',
-                apiKey: document.getElementById('cu-key').value.trim(),
-                model: document.getElementById('cu-model').value.trim(),
-                baseUrl: document.getElementById('cu-url').value.trim()
-            };
-        }
-    }
+function applyPreset(p){
+  provider=p;
+  const pr=presets[p]||presets.custom;
+  document.querySelectorAll('.preset').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  if(pr.url)document.getElementById('baseUrl').value=pr.url;
+  if(pr.model)document.getElementById('model').value=pr.model;
+  if(!pr.needsKey)document.getElementById('apiKey').value='';
+  document.getElementById('urlHint').innerHTML=pr.urlHint;
+  document.getElementById('keyHint').innerHTML=pr.keyHint;
+  document.getElementById('modelHint').innerHTML=pr.modelHint;
+  hideStatus();
+}
 
-    function testConnection() {
-        const data = getFormData();
-        if (selectedProvider === 'openrouter' && !data.apiKey) {
-            showStatus('Please enter your OpenRouter API key', 'error');
-            return;
-        }
-        if (selectedProvider === 'ollama' && !data.model) {
-            showStatus('Please enter a model name', 'error');
-            return;
-        }
-        if (selectedProvider === 'custom' && (!data.baseUrl || !data.model)) {
-            showStatus('Please fill in the base URL and model name', 'error');
-            return;
-        }
-        showStatus('Testing connection...', 'loading');
-        setButtonsDisabled(true);
-        vscode.postMessage({ command: 'testConnection', data });
-    }
+function getFormData(){
+  return{
+    baseUrl:document.getElementById('baseUrl').value.trim(),
+    apiKey:document.getElementById('apiKey').value.trim(),
+    model:document.getElementById('model').value.trim(),
+    provider:provider
+  };
+}
 
-    function saveConfig() {
-        const data = getFormData();
-        if (selectedProvider === 'openrouter' && !data.apiKey) {
-            showStatus('Please enter your OpenRouter API key', 'error');
-            return;
-        }
-        showStatus('Saving configuration...', 'loading');
-        setButtonsDisabled(true);
-        vscode.postMessage({ command: 'saveConfig', data });
-    }
+function testConn(){
+  const d=getFormData();
+  if(!d.baseUrl){showStatus('Enter a base URL','err');return}
+  if(!d.model){showStatus('Enter a model name','err');return}
+  showStatus('Testing connection...','load');
+  setBtns(true);
+  vscode.postMessage({command:'testConnection',data:d});
+}
 
-    function skip() {
-        vscode.postMessage({ command: 'skip' });
-    }
+function saveConf(){
+  const d=getFormData();
+  if(!d.baseUrl){showStatus('Enter a base URL','err');return}
+  if(!d.model){showStatus('Enter a model name','err');return}
+  showStatus('Saving...','load');
+  setBtns(true);
+  vscode.postMessage({command:'saveConfig',data:d});
+}
 
-    function showStatus(msg, type) {
-        const el = document.getElementById('status');
-        const icons = { success: '&#10003;', error: '&#10007;', loading: '&#8987;' };
-        el.innerHTML = (icons[type] || '') + ' ' + msg;
-        el.className = 'status-bar visible ' + type;
-    }
+function showStatus(msg,type){
+  const el=document.getElementById('st');
+  const icons={ok:'&#10003;',err:'&#10007;',load:'&#8987;'};
+  el.innerHTML=(icons[type]||'')+' '+msg;
+  el.className='status vis '+type;
+}
+function hideStatus(){document.getElementById('st').className='status'}
+function setBtns(d){document.getElementById('btnTest').disabled=d;document.getElementById('btnSave').disabled=d}
 
-    function hideStatus() {
-        document.getElementById('status').className = 'status-bar';
-    }
-
-    function setButtonsDisabled(disabled) {
-        document.getElementById('btn-test').disabled = disabled;
-        document.getElementById('btn-save').disabled = disabled;
-    }
-
-    window.addEventListener('message', e => {
-        const msg = e.data;
-        setButtonsDisabled(false);
-        switch (msg.command) {
-            case 'testResult':
-                if (msg.success) {
-                    showStatus('Connection successful! AI is ready.', 'success');
-                } else {
-                    showStatus(msg.error || 'Connection failed', 'error');
-                }
-                break;
-            case 'saveResult':
-                if (msg.success) {
-                    showStatus('Configuration saved! Starting TestFox...', 'success');
-                    setButtonsDisabled(true);
-                } else {
-                    showStatus(msg.error || 'Failed to save', 'error');
-                }
-                break;
-        }
-    });
-
-    // Initialize with current provider
-    selectProvider(selectedProvider);
+window.addEventListener('message',e=>{
+  const m=e.data;setBtns(false);
+  if(m.command==='testResult'){
+    if(m.success)showStatus('AI Connected - connection successful!','ok');
+    else showStatus(m.error||'Connection failed','err');
+  }
+  if(m.command==='saveResult'){
+    if(m.success)showStatus('AI Connected - configuration saved!','ok');
+    else showStatus(m.error||'Save failed','err');
+  }
+});
 </script>
-</body>
-</html>`;
+</body></html>`;
     }
 }

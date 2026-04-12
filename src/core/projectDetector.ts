@@ -17,17 +17,101 @@ export class ProjectDetector {
 
         // Detect based on configuration files
         await this.detectFromConfigFiles(workspacePath, projectInfo);
-        
+
         // Detect framework
         await this.detectFramework(workspacePath, projectInfo);
-        
+
         // Detect run commands
         await this.detectCommands(workspacePath, projectInfo);
-        
+
         // Detect port
         await this.detectPort(workspacePath, projectInfo);
 
+        // Detect platform characteristics
+        this.detectPlatformTraits(workspacePath, projectInfo);
+
         return projectInfo;
+    }
+
+    /**
+     * Detect whether this is a web app (frontend/fullstack) vs backend-only/CLI,
+     * and determine if it can be auto-started for testing.
+     */
+    private detectPlatformTraits(workspacePath: string, info: ProjectInfo): void {
+        const frontendFrameworks: string[] = ['react', 'vue', 'angular', 'svelte', 'nextjs', 'nuxt', 'gatsby'];
+        const fullstackFrameworks: string[] = ['nextjs', 'nuxt'];
+        const backendWebFrameworks: string[] = ['express', 'fastify', 'koa', 'nestjs', 'hapi', 'django', 'flask', 'fastapi', 'springboot', 'spring', 'rails', 'sinatra', 'laravel', 'symfony', 'gin', 'echo', 'fiber', 'aspnet'];
+
+        const fw = info.framework || '';
+
+        // Check if this is a VS Code extension, CLI tool, or library (NOT a web app)
+        let isVSCodeExtension = false;
+        let isBuildToolProject = false;
+        try {
+            const pkgPath = path.join(workspacePath, 'package.json');
+            if (fs.existsSync(pkgPath)) {
+                const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+                const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+
+                // VS Code extension detection
+                if (pkg.engines?.vscode || allDeps['@types/vscode'] || allDeps['@vscode/vsce']) {
+                    isVSCodeExtension = true;
+                    console.log('ProjectDetector: Detected VS Code extension - will not auto-start');
+                }
+
+                // CLI / library detection (no web server)
+                if (pkg.bin && !pkg.scripts?.start?.includes('serve') && !pkg.scripts?.start?.includes('server')) {
+                    isBuildToolProject = true;
+                }
+
+                // Check if dev command is a build/watch command, not a server
+                const devScript = pkg.scripts?.dev || '';
+                const watchScript = pkg.scripts?.watch || '';
+                const isBuildWatch = /esbuild|webpack.*watch|tsc.*watch|rollup.*watch|gulp.*watch|nodemon.*build/i.test(devScript)
+                    || /esbuild|webpack|tsc|rollup/i.test(watchScript);
+                if (isBuildWatch && !devScript.includes('serve') && !devScript.includes('server') && !devScript.includes('next') && !devScript.includes('vite')) {
+                    isBuildToolProject = true;
+                    console.log('ProjectDetector: Dev command is a build/watch tool, not a web server');
+                }
+
+                // Bundler detection
+                if (allDeps['vite'] && !isVSCodeExtension) {
+                    (info as any).bundler = 'vite';
+                }
+                if ((allDeps['webpack'] || allDeps['react-scripts']) && !isVSCodeExtension) {
+                    (info as any).bundler = 'webpack';
+                }
+            }
+        } catch { /* ignore */ }
+
+        // Only mark as web app if it's truly a web application, not a VS Code extension or build tool
+        if (isVSCodeExtension || isBuildToolProject) {
+            (info as any).isWebApp = false;
+            (info as any).hasFrontend = false;
+            (info as any).hasBackend = false;
+            (info as any).canAutoStart = false;
+            (info as any).isVSCodeExtension = isVSCodeExtension;
+        } else {
+            (info as any).isWebApp = frontendFrameworks.includes(fw)
+                || fullstackFrameworks.includes(fw)
+                || backendWebFrameworks.includes(fw);
+
+            (info as any).hasFrontend = frontendFrameworks.includes(fw) || fullstackFrameworks.includes(fw);
+            (info as any).hasBackend = backendWebFrameworks.includes(fw) || fullstackFrameworks.includes(fw);
+
+            // Vite-based projects are web apps
+            if ((info as any).bundler === 'vite') {
+                if (!(info as any).isWebApp) { (info as any).isWebApp = true; }
+                if (!(info as any).hasFrontend) { (info as any).hasFrontend = true; }
+            }
+
+            // Can only auto-start if we have a dev/run command that starts a server
+            (info as any).canAutoStart = !!(info.devCommand || info.runCommand);
+        }
+
+        (info as any).platform = process.platform;
+
+        console.log(`ProjectDetector: Platform traits - isWebApp=${(info as any).isWebApp}, hasFrontend=${(info as any).hasFrontend}, hasBackend=${(info as any).hasBackend}, canAutoStart=${(info as any).canAutoStart}, isVSCodeExt=${isVSCodeExtension}, bundler=${(info as any).bundler || 'none'}`);
     }
 
     private async detectFromConfigFiles(workspacePath: string, info: ProjectInfo): Promise<void> {
@@ -248,17 +332,33 @@ export class ProjectDetector {
                     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
                     const scripts = packageJson.scripts || {};
 
-                    // Detect dev command
-                    if (scripts.dev) {
+                    // Check if this is a VS Code extension (should not auto-start)
+                    const isVSCodeExt = !!packageJson.engines?.vscode;
+
+                    // Helper: check if a script runs a web server (not just a build tool)
+                    const isServerScript = (script: string): boolean => {
+                        if (!script) return false;
+                        // Build/watch tools are NOT servers
+                        const buildPatterns = /^(node\s+)?esbuild|webpack\b|tsc\b|rollup\b|gulp\b|babel\b/i;
+                        if (buildPatterns.test(script) && !script.includes('serve') && !script.includes('dev-server')) {
+                            return false;
+                        }
+                        // npm run watch / npm run compile are NOT servers
+                        if (/npm run (watch|compile|build)/i.test(script)) return false;
+                        return true;
+                    };
+
+                    // Detect dev command - only if it actually starts a server
+                    if (scripts.dev && isServerScript(scripts.dev) && !isVSCodeExt) {
                         info.devCommand = `${info.packageManager} run dev`;
-                    } else if (scripts.start) {
+                    } else if (scripts.start && isServerScript(scripts.start) && !isVSCodeExt) {
                         info.devCommand = `${info.packageManager} run start`;
-                    } else if (scripts.serve) {
+                    } else if (scripts.serve && !isVSCodeExt) {
                         info.devCommand = `${info.packageManager} run serve`;
                     }
 
                     // Detect run command
-                    if (scripts.start) {
+                    if (scripts.start && isServerScript(scripts.start) && !isVSCodeExt) {
                         info.runCommand = `${info.packageManager} run start`;
                     }
 

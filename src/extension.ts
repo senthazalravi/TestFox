@@ -1636,28 +1636,48 @@ function initStatusBar(context: vscode.ExtensionContext): void {
     // Main TestFox status
     statusBarMain = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     statusBarMain.text = '$(beaker) TestFox';
-    statusBarMain.tooltip = 'TestFox - Click to open dashboard';
-    statusBarMain.command = 'testfox.openDashboard';
+    statusBarMain.tooltip = 'TestFox - Click to generate tests';
+    statusBarMain.command = 'testfox.generateTests';
     statusBarMain.show();
     context.subscriptions.push(statusBarMain);
 
-    // AI Model status
+    // AI Connection status - prominent indicator
     statusBarAI = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 99);
     statusBarAI.command = 'testfox.configureAI';
+    statusBarAI.text = '$(circle-outline) AI: Checking...';
+    statusBarAI.tooltip = 'TestFox AI - Click to configure';
     statusBarAI.show();
     context.subscriptions.push(statusBarAI);
 
-    // Current status
+    // Current operation status
     statusBarStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 98);
     statusBarStatus.text = '$(sync~spin) Initializing...';
     statusBarStatus.show();
     context.subscriptions.push(statusBarStatus);
 
-    // Scheduler status
+    // App status
     statusBarScheduler = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 97);
     statusBarScheduler.command = 'testfox.checkAppStatus';
-    updateSchedulerStatus(); // Will run async in background
+    updateSchedulerStatus();
     context.subscriptions.push(statusBarScheduler);
+}
+
+/**
+ * Update the AI status bar indicator
+ */
+function updateAIStatusBar(connected: boolean, model?: string): void {
+    if (!statusBarAI) return;
+    if (connected) {
+        statusBarAI.text = `$(check) AI Connected${model ? ': ' + model.split('/').pop()?.split(':')[0] : ''}`;
+        statusBarAI.tooltip = `TestFox AI connected${model ? ' (' + model + ')' : ''}\nClick to reconfigure`;
+        statusBarAI.backgroundColor = undefined;
+        if (actionsPanel) actionsPanel.setAIStatus('connected');
+    } else {
+        statusBarAI.text = '$(circle-outline) AI: Not configured';
+        statusBarAI.tooltip = 'TestFox AI not configured\nClick to set up (rule-based testing still works)';
+        statusBarAI.backgroundColor = undefined;
+        if (actionsPanel) actionsPanel.setAIStatus('disconnected');
+    }
 }
 
 /**
@@ -1678,126 +1698,239 @@ function updateStatus(status: 'ready' | 'analyzing' | 'running' | 'stopped' | 'e
 }
 
 /**
- * Load AI configuration
+ * Load AI configuration and update status bar
  */
 function loadAIConfiguration(context: vscode.ExtensionContext): void {
     const config = vscode.workspace.getConfiguration('testfox');
     const apiKey = config.get<string>('ai.apiKey');
-    
-    if (apiKey) {
-        const openRouter = getOpenRouterClient();
-        openRouter.setApiKey(apiKey);
-        openRouter.loadConfiguration(); // Reload to ensure model is set correctly
-        
-        // If no model is configured, default to free Gemini
-        const model = config.get<string>('ai.model');
-        if (!model) {
-            config.update('ai.model', 'google/gemini-2.0-flash-exp:free', vscode.ConfigurationTarget.Global).then(() => {
-                console.log('TestFox: Set default model to Gemini 2.0 Flash (free)');
-            });
+    const model = config.get<string>('ai.model', '');
+    const provider = config.get<string>('ai.provider', '');
+
+    if (apiKey || provider === 'ollama') {
+        try {
+            const openRouter = getOpenRouterClient();
+            if (apiKey) openRouter.setApiKey(apiKey);
+            openRouter.loadConfiguration();
+        } catch (err) {
+            console.log('TestFox: OpenRouter client update skipped:', err);
         }
+
+        if (!model) {
+            config.update('ai.model', 'google/gemini-2.0-flash-exp:free', vscode.ConfigurationTarget.Global);
+        }
+
+        // Re-test connection silently and update status bar
+        testAIConnectionSilent().catch(() => {});
+    } else {
+        updateAIStatusBar(false);
     }
 }
 
-/**
- * Check if AI is configured and show setup panel if needed
- */
-async function checkAndShowAISetup(context: vscode.ExtensionContext): Promise<void> {
-    const isConfigured = AISetupPanel.isConfigured();
-    const setupCompleted = context.globalState.get<boolean>('testfox.setupCompleted', false);
-
-    console.log('TestFox: Checking AI setup status:', { isConfigured, setupCompleted });
-
-    if (!isConfigured && !setupCompleted) {
-        // Show the AI Setup panel after a short delay (non-blocking)
-        const setupTimeout = setTimeout(async () => {
-            const panel = AISetupPanel.createOrShow(context.extensionUri);
-            panel.onDidComplete(async (configured) => {
-                await context.globalState.update('testfox.setupCompleted', true);
-                if (configured && actionsPanel) {
-                    actionsPanel.setAIStatus('connected');
-                }
-            });
-        }, 1500);
-
-        context.subscriptions.push({ dispose: () => clearTimeout(setupTimeout) });
-    } else if (isConfigured && actionsPanel) {
-        actionsPanel.setAIStatus('connected');
-    }
-}
+// checkAndShowAISetup replaced by checkAndTestAI in autoInitialize
 
 /**
  * Auto-initialize extension
+ *
+ * Flow:
+ * 1. Detect project platform & framework
+ * 2. Show detected info in status bar
+ * 3. Check AI configuration, show setup if needed
+ * 4. Test AI connection, update "AI Connected" status
+ * 5. If web app detected, offer to start it
+ * 6. Update actions panel with all status info
  */
 async function autoInitialize(context: vscode.ExtensionContext): Promise<void> {
-    // Check and show AI setup if needed
-    await checkAndShowAISetup(context);
-
     const config = vscode.workspace.getConfiguration('testfox');
     const autoAnalyze = config.get<boolean>('autoAnalyze', true);
     const autoInstallDeps = config.get<boolean>('autoInstallDependencies', true);
 
-    console.log('Auto-initialization starting...');
-    console.log(`Auto-analyze: ${autoAnalyze}, Auto-install deps: ${autoInstallDeps}`);
-    console.log(`Workspace folders: ${vscode.workspace.workspaceFolders?.length || 0}`);
+    console.log('TestFox: Auto-initialization starting...');
 
     try {
-        // Check and install dependencies
+        // Step 1: Dependencies
         if (autoInstallDeps) {
-            console.log('Checking dependencies...');
             updateStatus('analyzing', 'Checking dependencies...');
             try {
                 await dependencyManager.ensureDependencies();
-                console.log('Dependencies check completed');
             } catch (error) {
-                console.error('Dependency installation failed:', error);
-                vscode.window.showWarningMessage('TestFox: Failed to install dependencies. Some features may not work.');
+                console.error('TestFox: Dependency check failed:', error);
             }
         }
 
-        // Auto-analyze project if enabled
+        // Step 2: Detect project platform & framework
         if (autoAnalyze && vscode.workspace.workspaceFolders) {
-            console.log('Starting auto-analysis...');
             updateStatus('analyzing', 'Detecting project...');
             try {
                 await analyzeProject(true);
-                console.log('Auto-analysis completed successfully');
             } catch (error) {
-                console.error('Auto-analysis failed:', error);
-                vscode.window.showWarningMessage('TestFox: Failed to auto-analyze project. Please try manual analysis.');
+                console.error('TestFox: Auto-analysis failed:', error);
             }
-        } else {
-            console.log('Auto-analysis skipped (disabled or no workspace)');
+        }
+
+        // Step 3: Show detected project in status bar
+        const projectInfo = testStore.getProjectInfo();
+        if (projectInfo) {
+            const fwDisplay = projectInfo.framework
+                ? projectInfo.framework.charAt(0).toUpperCase() + projectInfo.framework.slice(1)
+                : projectInfo.type;
+            statusBarMain.text = `$(beaker) TestFox: ${fwDisplay}`;
+            statusBarMain.tooltip = `TestFox - ${fwDisplay} (${projectInfo.language})\nClick to generate tests`;
+            console.log(`TestFox: Detected ${fwDisplay} (${projectInfo.language}) project`);
+
+            // Update actions panel with project and app details
+            if (actionsPanel) {
+                actionsPanel.setProjectInfo({
+                    framework: projectInfo.framework,
+                    language: projectInfo.language,
+                    port: projectInfo.port,
+                    isWebApp: (projectInfo as any).isWebApp
+                });
+                actionsPanel.setAppStatus('stopped');
+            }
+        }
+
+        // Step 4: Check AI configuration and test connection
+        updateStatus('analyzing', 'Checking AI...');
+        await checkAndTestAI(context);
+
+        // Step 5: If web app, check if running or offer to start
+        if (projectInfo && (projectInfo as any).isWebApp && (projectInfo as any).canAutoStart) {
+            updateStatus('analyzing', 'Checking application...');
+            const appUrl = await checkApplicationAvailability();
+
+            if (appUrl) {
+                // App already running
+                const port = appUrl.split(':').pop();
+                if (actionsPanel) actionsPanel.setAppStatus('running');
+                console.log(`TestFox: Web app already running at ${appUrl}`);
+            } else {
+                // Offer to start the web app
+                const fwName = projectInfo.framework || projectInfo.type;
+                const autoRunWithoutPrompts = config.get<boolean>('automation.autoRunWithoutPrompts', false);
+
+                if (autoRunWithoutPrompts) {
+                    // Auto-start without asking
+                    console.log('TestFox: Auto-starting web application...');
+                    try {
+                        const url = await appRunner.start(projectInfo);
+                        if (actionsPanel) actionsPanel.setAppStatus('running');
+                    } catch (err) {
+                        console.error('TestFox: Failed to auto-start app:', err);
+                    }
+                } else {
+                    // Ask user
+                    vscode.window.showInformationMessage(
+                        `TestFox detected a ${fwName} web app. Start it for testing?`,
+                        'Start App',
+                        'Later'
+                    ).then(async (selection) => {
+                        if (selection === 'Start App') {
+                            try {
+                                updateStatus('running', 'Starting app...');
+                                const url = await appRunner.start(projectInfo);
+                                if (actionsPanel) actionsPanel.setAppStatus('running');
+                                updateStatus('ready');
+                                vscode.window.showInformationMessage(
+                                    `App running at ${url}`,
+                                    'Generate Tests'
+                                ).then(sel => {
+                                    if (sel === 'Generate Tests') {
+                                        vscode.commands.executeCommand('testfox.generateTests');
+                                    }
+                                });
+                            } catch (err) {
+                                console.error('TestFox: Failed to start app:', err);
+                                updateStatus('ready');
+                            }
+                        }
+                    });
+                }
+            }
         }
 
         updateStatus('ready');
-        console.log('Auto-initialization completed successfully');
+        console.log('TestFox: Auto-initialization completed');
 
-        // Show welcome message with detected project
-        const projectInfo = testStore.getProjectInfo();
-        if (projectInfo) {
-            const message = projectInfo.framework
-                ? `TestFox detected ${projectInfo.framework} (${projectInfo.language}) project`
-                : `TestFox detected ${projectInfo.type} project`;
+    } catch (error) {
+        console.error('TestFox: Auto-initialize failed:', error);
+        updateStatus('error', 'Init failed');
+    }
+}
 
-            vscode.window.showInformationMessage(
-                message,
-                'Generate Tests',
-                'Open Dashboard'
-            ).then(selection => {
-                if (selection === 'Generate Tests') {
-                    vscode.commands.executeCommand('testfox.generateTests');
-                } else if (selection === 'Open Dashboard') {
-                    vscode.commands.executeCommand('testfox.openDashboard');
+/**
+ * Check AI configuration, test connection silently, update status bar.
+ * If not configured, show AI setup panel.
+ */
+async function checkAndTestAI(context: vscode.ExtensionContext): Promise<void> {
+    const isConfigured = AISetupPanel.isConfigured();
+    const setupCompleted = context.globalState.get<boolean>('testfox.setupCompleted', false);
+
+    if (!isConfigured && !setupCompleted) {
+        // Show AI setup panel on first launch
+        updateAIStatusBar(false);
+        const setupTimeout = setTimeout(() => {
+            const panel = AISetupPanel.createOrShow(context.extensionUri);
+            panel.onDidComplete(async (configured) => {
+                await context.globalState.update('testfox.setupCompleted', true);
+                if (configured) {
+                    // Re-test connection after setup
+                    await testAIConnectionSilent();
                 }
             });
+        }, 1500);
+        context.subscriptions.push({ dispose: () => clearTimeout(setupTimeout) });
+        return;
+    }
 
-            // Proactive testing prompt with Skip button
-            await promptForAutoTesting(context);
+    if (isConfigured) {
+        // Test connection silently in the background
+        await testAIConnectionSilent();
+    } else {
+        updateAIStatusBar(false);
+    }
+}
+
+/**
+ * Silently test AI connection and update status bar
+ */
+async function testAIConnectionSilent(): Promise<void> {
+    const config = vscode.workspace.getConfiguration('testfox');
+    const apiKey = config.get<string>('ai.apiKey', '');
+    const baseUrl = config.get<string>('ai.baseUrl', '');
+    const model = config.get<string>('ai.model', '');
+    const provider = config.get<string>('ai.provider', '');
+
+    if (!baseUrl || !model) {
+        updateAIStatusBar(false);
+        return;
+    }
+
+    try {
+        const axios = require('axios');
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        let url = baseUrl.replace(/\/$/, '');
+        let body: any;
+
+        const isOllama = provider === 'ollama' || url.includes('11434');
+        if (isOllama) {
+            url = url.replace(/\/api\/.*$/, '') + '/api/generate';
+            body = { model, prompt: 'hi', stream: false };
+        } else {
+            if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+            if (url.includes('openrouter')) {
+                headers['HTTP-Referer'] = 'https://testfox.dev';
+                headers['X-Title'] = 'TestFox';
+            }
+            if (!url.endsWith('/chat/completions')) url += '/chat/completions';
+            body = { model, messages: [{ role: 'user', content: 'hi' }], max_tokens: 5 };
         }
-    } catch (error) {
-        console.error('Auto-initialize failed:', error);
-        updateStatus('error', 'Init failed');
+
+        await axios.post(url, body, { headers, timeout: 10000 });
+        updateAIStatusBar(true, model);
+        console.log(`TestFox: AI connected (${model})`);
+    } catch (err: any) {
+        console.log('TestFox: AI connection test failed:', err.message || err);
+        updateAIStatusBar(false);
     }
 }
 
@@ -2026,14 +2159,19 @@ export async function analyzeProject(silent = false): Promise<void> {
 
 export async function generateTests(): Promise<void> {
 
-    // Check if application is running
-    const appUrl = await checkApplicationAvailability();
-    
+    // Skip app-start logic for VS Code extensions and non-web projects
+    const projectInfo = testStore.getProjectInfo();
+    const isWebApp = projectInfo && (projectInfo as any).isWebApp;
+    const canAutoStart = projectInfo && (projectInfo as any).canAutoStart;
+
+    // Check if application is running (only relevant for web apps)
+    const appUrl = isWebApp ? await checkApplicationAvailability() : null;
+
     // Check if auto-run without prompts is enabled
     const config = vscode.workspace.getConfiguration('testfox');
     const autoRunWithoutPrompts = config.get<boolean>('automation.autoRunWithoutPrompts', false);
-    
-    if (!appUrl) {
+
+    if (!appUrl && isWebApp && canAutoStart) {
         // If auto-run is enabled, automatically start the application without prompting
         if (autoRunWithoutPrompts) {
             console.log('TestFox: Auto-run enabled, automatically starting application...');
@@ -2089,24 +2227,22 @@ export async function generateTests(): Promise<void> {
     }
 
     // Re-check for running application after potential start
-    const finalAppUrl = await checkApplicationAvailability();
-    if (!finalAppUrl) {
-        vscode.window.showErrorMessage('TestFox: Application is not running. Please start your application first.');
-        return;
-    }
+    const finalAppUrl = isWebApp ? await checkApplicationAvailability() : null;
 
-    updateStatus('analyzing', 'Analyzing running application...');
-
-    // Perform runtime analysis of the running application
-    let runtimeAppInfo;
-    try {
-        runtimeAppInfo = await runtimeAppAnalyzer.analyzeApplication(finalAppUrl);
-        console.log(`TestFox: Runtime analysis complete - ${runtimeAppInfo.title}`);
-    } catch (error) {
-        console.error('TestFox: Runtime analysis failed:', error);
-        updateStatus('error');
-        vscode.window.showErrorMessage(`TestFox: Failed to analyze running application - ${error}`);
-        return;
+    // Runtime analysis only if an app is running
+    let runtimeAppInfo: any = null;
+    if (finalAppUrl) {
+        updateStatus('analyzing', 'Analyzing running application...');
+        try {
+            runtimeAppInfo = await runtimeAppAnalyzer.analyzeApplication(finalAppUrl);
+            console.log(`TestFox: Runtime analysis complete - ${runtimeAppInfo.title}`);
+        } catch (error) {
+            console.error('TestFox: Runtime analysis failed (continuing with rule-based):', error);
+        }
+    } else if (isWebApp) {
+        console.log('TestFox: No running app found. Generating rule-based tests only.');
+    } else {
+        console.log('TestFox: Non-web project. Generating rule-based tests.');
     }
 
     updateStatus('running', 'Generating comprehensive test suite...');
@@ -2120,13 +2256,19 @@ export async function generateTests(): Promise<void> {
         cancellable: false
     }, async (progress) => {
         try {
-            // Always generate rule-based tests first
-            progress.report({ message: 'Generating runtime-based tests...' });
+            // Generate tests - runtime analysis only if app is running
             if (actionsPanel) actionsPanel.setRunning(true);
-            const runtimeTests = await runtimeAppAnalyzer.generateRuntimeTests(runtimeAppInfo);
+            let runtimeTests: any[] = [];
+            if (runtimeAppInfo) {
+                progress.report({ message: 'Generating runtime-based tests...' });
+                try {
+                    runtimeTests = await runtimeAppAnalyzer.generateRuntimeTests(runtimeAppInfo);
+                } catch (err) {
+                    console.log('TestFox: Runtime test generation skipped:', err);
+                }
+            }
 
             progress.report({ message: 'Generating backend tests...' });
-            // Progress tracked via vscode.window.withProgress
             const backendGenerator = new BackendTestGenerator();
             const backendTests = backendGenerator.generateAllBackendTests();
 

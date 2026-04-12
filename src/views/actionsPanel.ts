@@ -1,8 +1,8 @@
 /**
- * Actions Panel - Clean sidebar webview replacing Test Control Center
+ * Actions Panel - Sidebar webview for TestFox
  *
- * Provides quick actions for generating tests, running tests,
- * MCP integration, and AI status - all in a clean sidebar.
+ * Shows: detected platform, app status with start/stop,
+ * AI connection status, quick actions, MCP tools.
  */
 
 import * as vscode from 'vscode';
@@ -14,9 +14,7 @@ export class ActionsPanelProvider implements vscode.WebviewViewProvider {
     private _appStatus: 'running' | 'stopped' | 'unknown' = 'unknown';
     private _isRunning = false;
 
-    constructor(
-        private readonly _extensionUri: vscode.Uri
-    ) {}
+    constructor(private readonly _extensionUri: vscode.Uri) {}
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -24,46 +22,21 @@ export class ActionsPanelProvider implements vscode.WebviewViewProvider {
         _token: vscode.CancellationToken
     ): void {
         this._view = webviewView;
-
-        webviewView.webview.options = {
-            enableScripts: true,
-            localResourceRoots: [this._extensionUri]
-        };
-
+        webviewView.webview.options = { enableScripts: true, localResourceRoots: [this._extensionUri] };
         webviewView.webview.html = this._getHtml();
 
         webviewView.webview.onDidReceiveMessage(async (msg) => {
             switch (msg.command) {
-                case 'analyzeProject':
-                    await vscode.commands.executeCommand('testfox.analyze');
-                    break;
-                case 'generateTests':
-                    await vscode.commands.executeCommand('testfox.generateTests');
-                    break;
-                case 'runAllTests':
-                    await vscode.commands.executeCommand('testfox.runAll');
-                    break;
-                case 'runFullCycle':
-                    await vscode.commands.executeCommand('testfox.runFullCycle');
-                    break;
-                case 'viewReport':
-                    await vscode.commands.executeCommand('testfox.viewLatestReport');
-                    break;
-                case 'configureAI':
-                    await vscode.commands.executeCommand('testfox.configureAI');
-                    break;
-                case 'mcpGenerate':
-                    await vscode.commands.executeCommand(`testfox.mcp.generate${msg.type}`);
-                    break;
-                case 'mcpRun':
-                    await vscode.commands.executeCommand(`testfox.mcp.run${msg.type}`);
-                    break;
-                case 'generateCategory':
-                    await vscode.commands.executeCommand('testfox.generateCategory', msg.category);
-                    break;
-                case 'runCategory':
-                    await vscode.commands.executeCommand('testfox.runCategory', msg.category);
-                    break;
+                case 'analyzeProject': await vscode.commands.executeCommand('testfox.analyze'); break;
+                case 'generateTests': await vscode.commands.executeCommand('testfox.generateTests'); break;
+                case 'runAllTests': await vscode.commands.executeCommand('testfox.runAll'); break;
+                case 'runFullCycle': await vscode.commands.executeCommand('testfox.runFullCycle'); break;
+                case 'viewReport': await vscode.commands.executeCommand('testfox.viewLatestReport'); break;
+                case 'configureAI': await vscode.commands.executeCommand('testfox.configureAI'); break;
+                case 'startApp': await vscode.commands.executeCommand('testfox.startApplications'); break;
+                case 'stopApp': await vscode.commands.executeCommand('testfox.stopApp'); break;
+                case 'mcpGenerate': await vscode.commands.executeCommand(`testfox.mcp.generate${msg.type}`); break;
+                case 'mcpRun': await vscode.commands.executeCommand(`testfox.mcp.run${msg.type}`); break;
             }
         });
     }
@@ -88,320 +61,189 @@ export class ActionsPanelProvider implements vscode.WebviewViewProvider {
         this._postMessage({ command: 'runComplete', summary });
     }
 
-    private _postMessage(msg: any): void {
-        this._view?.webview.postMessage(msg);
+    public setProjectInfo(info: { framework?: string; language?: string; port?: number; isWebApp?: boolean }): void {
+        this._postMessage({ command: 'projectInfo', ...info });
     }
+
+    private _postMessage(msg: any): void { this._view?.webview.postMessage(msg); }
 
     private _getHtml(): string {
         return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-        font-family: var(--vscode-font-family);
-        color: var(--vscode-foreground);
-        background: var(--vscode-sideBar-background);
-        padding: 12px;
-        font-size: 12px;
-    }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--vscode-font-family);color:var(--vscode-foreground);background:var(--vscode-sideBar-background);padding:12px;font-size:12px}
+.section{margin-bottom:14px}
+.section-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--vscode-sideBarSectionHeader-foreground,var(--vscode-descriptionForeground));margin-bottom:6px;padding:0 4px}
 
-    .section { margin-bottom: 16px; }
-    .section-title {
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: var(--vscode-sideBarSectionHeader-foreground, var(--vscode-descriptionForeground));
-        margin-bottom: 8px;
-        padding: 0 4px;
-    }
+/* Status cards */
+.status-card{padding:10px;border:1px solid var(--vscode-panel-border,rgba(255,255,255,.08));border-radius:6px;margin-bottom:10px;font-size:11px}
+.status-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.status-row:last-child{margin-bottom:0}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot.green{background:#22c55e}
+.dot.red{background:#ef4444}
+.dot.yellow{background:#eab308;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.status-label{flex:1;color:var(--vscode-descriptionForeground)}
+.status-value{font-weight:500}
+.status-action{font-size:10px;padding:2px 8px;border-radius:3px;border:1px solid var(--vscode-panel-border,rgba(255,255,255,.12));background:transparent;color:var(--vscode-foreground);cursor:pointer;font-family:var(--vscode-font-family)}
+.status-action:hover{background:var(--vscode-list-hoverBackground)}
 
-    .status-bar {
-        display: flex;
-        gap: 12px;
-        padding: 8px 10px;
-        background: var(--vscode-sideBar-background);
-        border: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.08));
-        border-radius: 6px;
-        margin-bottom: 12px;
-        font-size: 11px;
-    }
-    .status-item { display: flex; align-items: center; gap: 4px; }
-    .status-dot {
-        width: 6px; height: 6px; border-radius: 50%;
-    }
-    .status-dot.green { background: #22c55e; }
-    .status-dot.red { background: #ef4444; }
-    .status-dot.yellow { background: #eab308; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+/* Buttons */
+.action-btn{display:flex;align-items:center;gap:8px;width:100%;padding:7px 10px;border:none;border-radius:4px;cursor:pointer;font-family:var(--vscode-font-family);font-size:12px;color:var(--vscode-foreground);background:transparent;text-align:left;transition:background .1s}
+.action-btn:hover{background:var(--vscode-list-hoverBackground)}
+.action-btn:disabled{opacity:.4;cursor:not-allowed}
+.action-btn .icon{width:16px;text-align:center;font-size:14px;flex-shrink:0}
+.action-btn .label{flex:1}
+.action-btn.primary{background:var(--vscode-button-background);color:var(--vscode-button-foreground);font-weight:500;margin-bottom:4px}
+.action-btn.primary:hover{background:var(--vscode-button-hoverBackground)}
 
-    .action-btn {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        width: 100%;
-        padding: 7px 10px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-family: var(--vscode-font-family);
-        font-size: 12px;
-        color: var(--vscode-foreground);
-        background: transparent;
-        text-align: left;
-        transition: background 0.1s;
-    }
-    .action-btn:hover { background: var(--vscode-list-hoverBackground); }
-    .action-btn:active { background: var(--vscode-list-activeSelectionBackground); }
-    .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .action-btn .icon { width: 16px; text-align: center; font-size: 14px; flex-shrink: 0; }
-    .action-btn .label { flex: 1; }
-    .action-btn .badge {
-        font-size: 10px;
-        padding: 1px 6px;
-        border-radius: 10px;
-        background: var(--vscode-badge-background);
-        color: var(--vscode-badge-foreground);
-    }
+/* Running */
+.running{display:none;align-items:center;gap:8px;padding:10px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:6px;margin-bottom:10px;font-size:12px;color:#3b82f6}
+.running.vis{display:flex}
+.spinner{width:14px;height:14px;border:2px solid rgba(59,130,246,.3);border-top-color:#3b82f6;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-    .action-btn.primary {
-        background: var(--vscode-button-background);
-        color: var(--vscode-button-foreground);
-        font-weight: 500;
-        margin-bottom: 4px;
-    }
-    .action-btn.primary:hover { background: var(--vscode-button-hoverBackground); }
-
-    .divider {
-        height: 1px;
-        background: var(--vscode-panel-border, rgba(255,255,255,0.06));
-        margin: 4px 0;
-    }
-
-    .mcp-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px;
-    }
-    .mcp-btn {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        padding: 10px 6px;
-        border: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.08));
-        border-radius: 6px;
-        cursor: pointer;
-        background: transparent;
-        color: var(--vscode-foreground);
-        font-family: var(--vscode-font-family);
-        font-size: 11px;
-        transition: all 0.1s;
-    }
-    .mcp-btn:hover {
-        background: var(--vscode-list-hoverBackground);
-        border-color: var(--vscode-focusBorder);
-    }
-    .mcp-btn .mcp-icon { font-size: 18px; }
-    .mcp-btn .mcp-name { font-weight: 500; }
-    .mcp-btn .mcp-actions {
-        display: flex;
-        gap: 4px;
-        margin-top: 4px;
-    }
-    .mcp-btn .mcp-action {
-        font-size: 10px;
-        padding: 2px 6px;
-        border-radius: 3px;
-        background: var(--vscode-badge-background);
-        color: var(--vscode-badge-foreground);
-        cursor: pointer;
-        border: none;
-        font-family: var(--vscode-font-family);
-    }
-    .mcp-btn .mcp-action:hover { opacity: 0.8; }
-
-    .running-indicator {
-        display: none;
-        align-items: center;
-        gap: 8px;
-        padding: 10px;
-        background: rgba(59, 130, 246, 0.1);
-        border: 1px solid rgba(59, 130, 246, 0.3);
-        border-radius: 6px;
-        margin-bottom: 12px;
-        font-size: 12px;
-        color: #3b82f6;
-    }
-    .running-indicator.visible { display: flex; }
-    .spinner {
-        width: 14px; height: 14px;
-        border: 2px solid rgba(59, 130, 246, 0.3);
-        border-top-color: #3b82f6;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-</style>
-</head>
+/* MCP grid */
+.mcp-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mcp-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 6px;border:1px solid var(--vscode-panel-border,rgba(255,255,255,.08));border-radius:6px;cursor:pointer;background:transparent;color:var(--vscode-foreground);font-family:var(--vscode-font-family);font-size:11px;transition:all .1s}
+.mcp-btn:hover{background:var(--vscode-list-hoverBackground);border-color:var(--vscode-focusBorder)}
+.mcp-icon{font-size:16px}
+.mcp-name{font-weight:500}
+.mcp-actions{display:flex;gap:4px;margin-top:3px}
+.mcp-action{font-size:9px;padding:2px 6px;border-radius:3px;background:var(--vscode-badge-background);color:var(--vscode-badge-foreground);cursor:pointer;border:none;font-family:var(--vscode-font-family)}
+.mcp-action:hover{opacity:.8}
+</style></head>
 <body>
-    <!-- Status Bar -->
-    <div class="status-bar">
-        <div class="status-item">
-            <span class="status-dot yellow" id="ai-dot"></span>
-            <span id="ai-label">AI: Checking...</span>
-        </div>
-        <div class="status-item">
-            <span class="status-dot red" id="app-dot"></span>
-            <span id="app-label">App: Unknown</span>
-        </div>
-    </div>
 
-    <!-- Running Indicator -->
-    <div class="running-indicator" id="running-indicator">
-        <div class="spinner"></div>
-        <span>Tests running in background...</span>
-    </div>
+<!-- Status Card -->
+<div class="status-card">
+  <div class="status-row">
+    <span class="dot yellow" id="ai-dot"></span>
+    <span class="status-label">AI</span>
+    <span class="status-value" id="ai-val">Checking...</span>
+    <button class="status-action" onclick="send('configureAI')">Configure</button>
+  </div>
+  <div class="status-row">
+    <span class="dot red" id="app-dot"></span>
+    <span class="status-label">App</span>
+    <span class="status-value" id="app-val">Not running</span>
+    <button class="status-action" id="app-btn" onclick="send('startApp')">Start</button>
+  </div>
+  <div class="status-row" id="project-row" style="display:none">
+    <span class="dot green"></span>
+    <span class="status-label">Platform</span>
+    <span class="status-value" id="project-val"></span>
+  </div>
+</div>
 
-    <!-- Quick Actions -->
-    <div class="section">
-        <div class="section-title">Quick Actions</div>
-        <button class="action-btn primary" onclick="send('generateTests')">
-            <span class="icon">&#9881;</span>
-            <span class="label">Generate Tests</span>
-        </button>
-        <button class="action-btn primary" onclick="send('runAllTests')">
-            <span class="icon">&#9654;</span>
-            <span class="label">Run All Tests</span>
-        </button>
-        <button class="action-btn" onclick="send('runFullCycle')">
-            <span class="icon">&#128640;</span>
-            <span class="label">Full Cycle (Smoke > Functional > Regression)</span>
-        </button>
-        <button class="action-btn" onclick="send('viewReport')">
-            <span class="icon">&#128202;</span>
-            <span class="label">View Latest Report</span>
-        </button>
-    </div>
+<!-- Running Indicator -->
+<div class="running" id="running-indicator">
+  <div class="spinner"></div>
+  <span>Tests running in background...</span>
+</div>
 
-    <!-- Project -->
-    <div class="section">
-        <div class="section-title">Project</div>
-        <button class="action-btn" onclick="send('analyzeProject')">
-            <span class="icon">&#128269;</span>
-            <span class="label">Analyze Project</span>
-        </button>
-        <button class="action-btn" onclick="send('configureAI')">
-            <span class="icon">&#9881;</span>
-            <span class="label">AI Settings</span>
-        </button>
-    </div>
+<!-- Quick Actions -->
+<div class="section">
+  <div class="section-title">Test Actions</div>
+  <button class="action-btn primary" onclick="send('generateTests')">
+    <span class="icon">&#9881;</span><span class="label">Generate Tests</span>
+  </button>
+  <button class="action-btn primary" onclick="send('runAllTests')">
+    <span class="icon">&#9654;</span><span class="label">Run All Tests</span>
+  </button>
+  <button class="action-btn" onclick="send('runFullCycle')">
+    <span class="icon">&#128640;</span><span class="label">Full Cycle (Smoke &gt; Functional &gt; Regression)</span>
+  </button>
+  <button class="action-btn" onclick="send('viewReport')">
+    <span class="icon">&#128202;</span><span class="label">View Latest Report</span>
+  </button>
+</div>
 
-    <!-- MCP Tools -->
-    <div class="section">
-        <div class="section-title">MCP Test Generation</div>
-        <div class="mcp-grid">
-            <div class="mcp-btn">
-                <span class="mcp-icon">&#127917;</span>
-                <span class="mcp-name">Playwright</span>
-                <div class="mcp-actions">
-                    <button class="mcp-action" onclick="mcpGen('Playwright')">Generate</button>
-                    <button class="mcp-action" onclick="mcpRun('Playwright')">Run</button>
-                </div>
-            </div>
-            <div class="mcp-btn">
-                <span class="mcp-icon">&#128225;</span>
-                <span class="mcp-name">Postman</span>
-                <div class="mcp-actions">
-                    <button class="mcp-action" onclick="mcpGen('Postman')">Generate</button>
-                    <button class="mcp-action" onclick="mcpRun('Postman')">Run</button>
-                </div>
-            </div>
-            <div class="mcp-btn">
-                <span class="mcp-icon">&#128736;</span>
-                <span class="mcp-name">DevTools</span>
-                <div class="mcp-actions">
-                    <button class="mcp-action" onclick="mcpGen('ChromeDevTools')">Generate</button>
-                    <button class="mcp-action" onclick="mcpRun('ChromeDevTools')">Run</button>
-                </div>
-            </div>
-            <div class="mcp-btn">
-                <span class="mcp-icon">&#129302;</span>
-                <span class="mcp-name">Puppeteer</span>
-                <div class="mcp-actions">
-                    <button class="mcp-action" onclick="send('mcpGenerate', {type:'Puppeteer'})">Launch</button>
-                </div>
-            </div>
-        </div>
+<!-- Project -->
+<div class="section">
+  <div class="section-title">Project</div>
+  <button class="action-btn" onclick="send('analyzeProject')">
+    <span class="icon">&#128269;</span><span class="label">Analyze Project</span>
+  </button>
+</div>
+
+<!-- MCP Tools -->
+<div class="section">
+  <div class="section-title">MCP Test Engines</div>
+  <div class="mcp-grid">
+    <div class="mcp-btn">
+      <span class="mcp-icon">&#127917;</span>
+      <span class="mcp-name">Playwright</span>
+      <div class="mcp-actions">
+        <button class="mcp-action" onclick="mcpGen('Playwright')">Generate</button>
+        <button class="mcp-action" onclick="mcpRun('Playwright')">Run</button>
+      </div>
     </div>
+    <div class="mcp-btn">
+      <span class="mcp-icon">&#128225;</span>
+      <span class="mcp-name">Postman</span>
+      <div class="mcp-actions">
+        <button class="mcp-action" onclick="mcpGen('Postman')">Generate</button>
+        <button class="mcp-action" onclick="mcpRun('Postman')">Run</button>
+      </div>
+    </div>
+    <div class="mcp-btn">
+      <span class="mcp-icon">&#128736;</span>
+      <span class="mcp-name">DevTools</span>
+      <div class="mcp-actions">
+        <button class="mcp-action" onclick="mcpGen('ChromeDevTools')">Generate</button>
+        <button class="mcp-action" onclick="mcpRun('ChromeDevTools')">Run</button>
+      </div>
+    </div>
+    <div class="mcp-btn">
+      <span class="mcp-icon">&#129302;</span>
+      <span class="mcp-name">Puppeteer</span>
+      <div class="mcp-actions">
+        <button class="mcp-action" onclick="mcpGen('Puppeteer')">Launch</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
-    const vscode = acquireVsCodeApi();
+const vscode=acquireVsCodeApi();
+function send(cmd,data){vscode.postMessage({command:cmd,...(data||{})})}
+function mcpGen(t){vscode.postMessage({command:'mcpGenerate',type:t})}
+function mcpRun(t){vscode.postMessage({command:'mcpRun',type:t})}
 
-    function send(command, data) {
-        vscode.postMessage({ command, ...data });
-    }
-
-    function mcpGen(type) {
-        vscode.postMessage({ command: 'mcpGenerate', type });
-    }
-
-    function mcpRun(type) {
-        vscode.postMessage({ command: 'mcpRun', type });
-    }
-
-    window.addEventListener('message', e => {
-        const msg = e.data;
-        switch (msg.command) {
-            case 'aiStatus':
-                updateAIStatus(msg.status);
-                break;
-            case 'appStatus':
-                updateAppStatus(msg.status);
-                break;
-            case 'runningState':
-                document.getElementById('running-indicator').classList.toggle('visible', msg.running);
-                break;
-            case 'runComplete':
-                document.getElementById('running-indicator').classList.remove('visible');
-                break;
-        }
-    });
-
-    function updateAIStatus(status) {
-        const dot = document.getElementById('ai-dot');
-        const label = document.getElementById('ai-label');
-        if (status === 'connected') {
-            dot.className = 'status-dot green';
-            label.textContent = 'AI: Connected';
-        } else if (status === 'disconnected') {
-            dot.className = 'status-dot red';
-            label.textContent = 'AI: Not configured';
-        } else {
-            dot.className = 'status-dot yellow';
-            label.textContent = 'AI: Checking...';
-        }
-    }
-
-    function updateAppStatus(status) {
-        const dot = document.getElementById('app-dot');
-        const label = document.getElementById('app-label');
-        if (status === 'running') {
-            dot.className = 'status-dot green';
-            label.textContent = 'App: Running';
-        } else if (status === 'stopped') {
-            dot.className = 'status-dot red';
-            label.textContent = 'App: Stopped';
-        } else {
-            dot.className = 'status-dot yellow';
-            label.textContent = 'App: Unknown';
-        }
-    }
+window.addEventListener('message',e=>{
+  const m=e.data;
+  switch(m.command){
+    case 'aiStatus':
+      const ad=document.getElementById('ai-dot'),av=document.getElementById('ai-val');
+      if(m.status==='connected'){ad.className='dot green';av.textContent='Connected'}
+      else if(m.status==='disconnected'){ad.className='dot red';av.textContent='Not configured'}
+      else{ad.className='dot yellow';av.textContent='Checking...'}
+      break;
+    case 'appStatus':
+      const apd=document.getElementById('app-dot'),apv=document.getElementById('app-val'),apb=document.getElementById('app-btn');
+      if(m.status==='running'){apd.className='dot green';apv.textContent=m.port?'Port '+m.port:'Running';apb.textContent='Stop';apb.onclick=function(){send('stopApp')}}
+      else{apd.className='dot red';apv.textContent='Not running';apb.textContent='Start';apb.onclick=function(){send('startApp')}}
+      break;
+    case 'runningState':
+      document.getElementById('running-indicator').classList.toggle('vis',m.running);
+      break;
+    case 'runComplete':
+      document.getElementById('running-indicator').classList.remove('vis');
+      break;
+    case 'projectInfo':
+      if(m.framework||m.language){
+        const pr=document.getElementById('project-row');pr.style.display='flex';
+        const pv=document.getElementById('project-val');
+        const fw=m.framework?(m.framework.charAt(0).toUpperCase()+m.framework.slice(1)):m.language;
+        pv.textContent=fw+(m.isWebApp?' (Web App)':'');
+      }
+      break;
+  }
+});
 </script>
-</body>
-</html>`;
+</body></html>`;
     }
 }
