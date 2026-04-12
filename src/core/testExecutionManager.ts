@@ -1,13 +1,14 @@
 import * as vscode from 'vscode';
 import { TestCase, TestResult } from '../types';
-import { TestControlCenterProvider, TestRunState, LogEntry } from '../views/testControlCenter';
 
 /**
- * Manages test execution state and integrates with Test Control Center
+ * Manages test execution state (pause/resume/stop)
+ * Decoupled from UI - works independently of any view provider
  */
 export class TestExecutionManager {
     private _isPaused = false;
     private _isStopped = false;
+    private _outputChannel: vscode.OutputChannel;
     private _currentRun: {
         tests: TestCase[];
         completed: number;
@@ -17,7 +18,9 @@ export class TestExecutionManager {
         startTime: number;
     } | null = null;
 
-    constructor(private controlCenter: TestControlCenterProvider) {}
+    constructor(_unused?: any) {
+        this._outputChannel = vscode.window.createOutputChannel('TestFox Execution');
+    }
 
     /**
      * Start a new test run
@@ -34,17 +37,7 @@ export class TestExecutionManager {
             startTime: Date.now()
         };
 
-        this.controlCenter.updateState({
-            status: 'running',
-            elapsed: 0,
-            progress: 0,
-            currentTest: null,
-            logs: [],
-            summary: { total: tests.length, passed: 0, failed: 0, skipped: 0 },
-            trigger
-        });
-
-        this.addLog('info', `Starting test run with ${tests.length} tests`);
+        this.addLog('info', `Starting test run with ${tests.length} tests${trigger ? ` (${trigger})` : ''}`);
     }
 
     /**
@@ -69,7 +62,6 @@ export class TestExecutionManager {
     pause(): void {
         if (this._currentRun) {
             this._isPaused = true;
-            this.controlCenter.updateState({ status: 'paused' });
             this.addLog('warning', 'Test execution paused');
         }
     }
@@ -80,7 +72,6 @@ export class TestExecutionManager {
     resume(): void {
         if (this._currentRun) {
             this._isPaused = false;
-            this.controlCenter.updateState({ status: 'running' });
             this.addLog('info', 'Test execution resumed');
         }
     }
@@ -92,7 +83,6 @@ export class TestExecutionManager {
         if (this._currentRun) {
             this._isStopped = true;
             this._isPaused = false;
-            this.controlCenter.updateState({ status: 'stopped' });
             this.addLog('warning', 'Test execution stopped by user');
         }
     }
@@ -104,32 +94,17 @@ export class TestExecutionManager {
         if (!this._currentRun) return;
 
         this._currentRun.completed++;
-        
+
         if (result.status === 'passed') {
             this._currentRun.passed++;
-            this.addLog('success', `✔ ${test.name}`);
+            this.addLog('success', `PASS ${test.name}`);
         } else if (result.status === 'failed') {
             this._currentRun.failed++;
-            this.addLog('error', `✖ ${test.name}: ${result.error || 'Failed'}`);
+            this.addLog('error', `FAIL ${test.name}: ${result.error || 'Failed'}`);
         } else {
             this._currentRun.skipped++;
-            this.addLog('warning', `⚠ ${test.name}: Skipped`);
+            this.addLog('warning', `SKIP ${test.name}`);
         }
-
-        const progress = Math.round((this._currentRun.completed / this._currentRun.tests.length) * 100);
-        const elapsed = Math.floor((Date.now() - this._currentRun.startTime) / 1000);
-
-        this.controlCenter.updateState({
-            progress,
-            elapsed,
-            currentTest: test.name,
-            summary: {
-                total: this._currentRun.tests.length,
-                passed: this._currentRun.passed,
-                failed: this._currentRun.failed,
-                skipped: this._currentRun.skipped
-            }
-        });
     }
 
     /**
@@ -138,14 +113,8 @@ export class TestExecutionManager {
     completeRun(): void {
         if (!this._currentRun) return;
 
-        this.controlCenter.updateState({
-            status: 'completed',
-            progress: 100,
-            currentTest: null
-        });
-
         const summary = this._currentRun;
-        this.addLog('info', 
+        this.addLog('info',
             `Test run completed: ${summary.passed} passed, ${summary.failed} failed, ${summary.skipped} skipped`
         );
 
@@ -158,11 +127,9 @@ export class TestExecutionManager {
      * Add a log entry
      */
     addLog(type: 'success' | 'error' | 'warning' | 'info', message: string): void {
-        this.controlCenter.addLog({
-            type,
-            message,
-            timestamp: new Date()
-        });
+        const timestamp = new Date().toISOString().slice(11, 19);
+        const prefix = type === 'error' ? 'ERR' : type === 'warning' ? 'WRN' : type === 'success' ? 'OK ' : 'INF';
+        this._outputChannel.appendLine(`[${timestamp}] ${prefix} ${message}`);
     }
 
     /**
@@ -178,4 +145,3 @@ export class TestExecutionManager {
         } : null;
     }
 }
-

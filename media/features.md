@@ -1,148 +1,78 @@
-# Powerful Testing Features ⚡
+# Features
 
-<div align="center">
-  <h2>TestFox's Comprehensive Testing Suite</h2>
-</div>
+An overview of what TestFox provides.
 
 ---
 
-## 🧪 **18 Comprehensive Test Categories**
+## 30+ test categories
 
-TestFox covers the complete testing spectrum following ISTQB standards:
+TestFox generates tests across a wide range of categories, including:
 
-### Quick Validation Tests
-| Test Type | Purpose | Automation |
-|-----------|---------|------------|
-| **Smoke Tests** | Critical path verification | ✅ Full |
-| **Sanity Tests** | Focused regression checks | ✅ Full |
-| **Regression Tests** | Existing feature validation | ✅ Full |
+**Functional testing** -- Smoke, sanity, regression, integration, API (REST/GraphQL), UI/E2E, form validation, CRUD operations, authentication, and authorization.
 
-### Functional Testing
-| Test Type | Purpose | Automation |
-|-----------|---------|------------|
-| **Functional Tests** | Feature behavior validation | 🔄 Hybrid |
-| **API Tests** | REST/GraphQL endpoint testing | ✅ Full |
-| **UI/E2E Tests** | User interface automation | ✅ Full |
-| **Integration Tests** | Component interaction | ✅ Full |
-| **Database Tests** | Data integrity & CRUD | ✅ Full |
+**Non-functional testing** -- Security (OWASP Top 10), performance, load testing, accessibility (WCAG), SEO, cross-browser, and responsive/viewport testing.
 
-### Non-Functional Testing
-| Test Type | Purpose | Automation |
-|-----------|---------|------------|
-| **Security Tests** | OWASP Top 10, injection attacks | ✅ Full |
-| **Performance Tests** | Response times, Core Web Vitals | ✅ Full |
-| **Load Tests** | Concurrent user simulation | ✅ Full |
-| **Accessibility Tests** | WCAG 2.1 compliance | 🔄 Hybrid |
+**Monitoring and diagnostics** -- Console error detection, network request validation, broken link checks, and resource loading verification.
 
-### Advanced Testing
-| Test Type | Purpose | Automation |
-|-----------|---------|------------|
-| **Account Management** | User lifecycle testing | ✅ Full |
-| **Console Monitoring** | JavaScript error detection | ✅ Full |
-| **Network Monitoring** | API call validation | ✅ Full |
+All categories are generated using rules derived from your project structure. AI mode adds deeper, context-specific scenarios on top.
 
 ---
 
-## 🤖 **AI-Powered Intelligence**
+## Swagger / OpenAPI auto-detection
 
-### Smart Test Generation
-```typescript
-// TestFox analyzes your code and generates:
-// - Unit test suggestions
-// - Integration test scenarios
-// - End-to-end user journeys
-// - Security test payloads
-// - Performance benchmarks
-```
+TestFox scans your workspace for Swagger and OpenAPI specification files. When found, it:
 
-### Intelligent Automation
-- **🔍 Code Analysis**: Automatic route, form, and API discovery
-- **📝 Test Data Generation**: Contextual test data creation
-- **🎯 Smart Assertions**: Meaningful validation rules
-- **🔄 Self-Healing Tests**: Adapts to UI changes
+- Parses endpoints, request schemas, and response models.
+- Generates a Postman-compatible collection with realistic mock values.
+- Creates API tests covering each endpoint with valid and invalid payloads.
+
+No manual configuration is needed -- place your spec file in the project and TestFox handles the rest.
 
 ---
 
-## 👤 **Test Account Management**
+## Rule-based + AI modes
 
-### Automatic Account Creation
-```javascript
-// TestFox creates accounts on-demand:
-✅ Admin accounts for security testing
-✅ User accounts for functional testing
-✅ Guest accounts for public features
-✅ Tester accounts for QA validation
-```
+**Rule-based generation** works out of the box with no external dependencies. It applies deterministic rules to your codebase to produce a comprehensive test suite.
 
-### Complete Lifecycle
-1. **Create** → Generates test accounts automatically
-2. **Use** → Logs in and performs comprehensive testing
-3. **Validate** → Tests account-specific features
-4. **Clean** → Removes test accounts after testing
+**AI-enhanced generation** (optional) connects to OpenRouter, Ollama, or a custom API to produce additional context-aware test cases, smarter assertions, and edge-case scenarios.
+
+You can switch between modes at any time.
 
 ---
 
-## 📊 **Real-Time Monitoring & Reporting**
+## MCP tool integrations
 
-### Live Dashboard Features
-- **📈 Interactive Charts**: Pass/fail trends over time
-- **🐛 Defect Tracking**: Automatic bug categorization
-- **🌐 Browser Console**: JavaScript error monitoring
-- **📡 Network Logs**: API call validation
-- **📱 Cross-Device**: Mobile and desktop testing
+TestFox supports Model Context Protocol (MCP) servers for extended tooling:
 
-### External Dashboard
-```bash
-# Access TestFox remotely:
-TestFox: View Dashboard in Browser
-# Opens http://localhost:8080 with full control
-```
+- **Playwright MCP** -- Browser automation and E2E test execution.
+- **Postman MCP** -- API collection management and execution.
+- **DevTools MCP** -- Chrome DevTools protocol integration.
+- **Puppeteer MCP** -- Headless browser control.
+
+MCP tools appear in the **Actions panel** in the sidebar and can be invoked alongside generated tests.
 
 ---
 
-## 🔧 **Integration & Compatibility**
+## Fire-and-forget execution
 
-### Supported Technologies
-<div align="center">
-
-| **Frontend** | **Backend** | **Database** | **Cloud** |
-|-------------|-------------|-------------|-----------|
-| React, Vue, Angular | Node.js, Python | PostgreSQL, MySQL | AWS, Azure |
-| Next.js, Nuxt.js | Java, .NET | MongoDB, Redis | GCP, Vercel |
-| Svelte, Gatsby | PHP, Ruby | SQLite, MSSQL | Netlify, Railway |
-
-</div>
-
-### CI/CD Integration
-- **GitHub Actions** integration
-- **GitLab CI** support
-- **Jenkins** pipelines
-- **Docker** container testing
+Run your test suite and move on. TestFox executes tests in the background without blocking your editor. Results are stored in the **Test Runs** history and can be reviewed at any time.
 
 ---
 
-## 🎯 **Key Benefits**
+## Comprehensive reports
 
-### Time Savings
-- **90% reduction** in manual testing time
-- **Automated regression** testing
-- **Parallel execution** across browsers
+Each test run produces a detailed report including:
 
-### Quality Improvement
-- **Earlier bug detection** in development
-- **Consistent test execution** across environments
-- **Comprehensive coverage** of edge cases
-
-### Developer Experience
-- **VS Code integration** with familiar interface
-- **Real-time feedback** during development
-- **Easy setup** with automatic configuration
+- Pass/fail status for every test case.
+- Defect entries with categorized IDs (e.g., SEC-001, PERF-003).
+- Screenshots and console logs for failed UI tests.
+- Network request/response details for API tests.
+- Execution time and performance metrics.
 
 ---
 
-<div align="center">
-  <h3>🚀 Ready to Transform Your Testing?</h3>
-  <p>TestFox combines the power of AI with comprehensive testing methodologies</p>
-  <p>to deliver unparalleled quality assurance.</p>
-</div>
+## Multi-language support
 
+TestFox works with projects in: JavaScript/TypeScript, Python, Java, C/C++, Rust, Go, .NET, PHP, and Ruby.
+
+It detects your stack automatically and tailors test generation to the language, framework, and tooling in use.

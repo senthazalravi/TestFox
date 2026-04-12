@@ -1,522 +1,341 @@
-# TestFox 🦊
+# TestFox
 
 <div align="center">
 
-**AI-Powered Comprehensive Testing for Every Programming Language**
+**Comprehensive End-to-End Testing for Every Project**
 
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue?logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=TestFox.testfox)
 [![OpenVSX](https://img.shields.io/badge/OpenVSX-Registry-green)](https://open-vsx.org/extension/TestFox/testfox)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-*The Final Quality Gate in Your Software Development Lifecycle*
+Generate, run, and report on hundreds of tests across 30+ categories.
+Works out of the box with rule-based generation. Add an AI key for even smarter tests.
 
 </div>
 
 ---
 
-## 🌟 What is TestFox?
+## How It Works
 
-TestFox is a **comprehensive VS Code extension** that automatically generates and executes tests across **20+ test categories** for applications written in **any programming language**. It combines rule-based test generation with **AI-powered intelligence** to ensure your code is production-ready.
+```
+1. Install TestFox from the VS Code marketplace
+2. Open any project  ->  TestFox auto-detects language, framework, routes, forms, APIs
+3. (Optional) Add an AI key  ->  Seamless setup panel on first launch
+4. Click "Generate Tests"  ->  Hundreds of tests across 30+ categories
+5. Click "Run All Tests"   ->  Fire and forget - view report when ready
+```
 
-### ✨ Key Highlights
-
-- 🌍 **Multi-Language Support**: JavaScript, TypeScript, Python, Java, C, C++, Rust, Go, .NET, PHP, Ruby
-- 🤖 **AI-Powered**: Use **FREE or PAID** AI models from 15+ providers
-- 🧪 **20+ Test Categories**: Smoke, Functional, Security, Performance, Accessibility, Backend, Payment, and more
-- 💳 **Payment Testing**: Stripe, PayPal, Braintree integration tests
-- ⚙️ **Backend Testing**: State Integrity, Concurrency, Reliability, Idempotency, Webhooks
-- 📊 **Interactive Reports**: Beautiful web-based dashboard with real-time results
-- 🔒 **Security Testing**: OWASP Top 10 vulnerability detection
-- ♿ **Accessibility**: WCAG 2.1 compliance checking
-- ⚡ **Performance Optimized**: Fast extension activation and instant UI loading
+TestFox generates **comprehensive rule-based tests without AI**. When AI is configured, tests are enhanced with intelligent analysis. When a Swagger/OpenAPI spec is detected, TestFox automatically generates a full Postman collection with mock values, schema validation, and security tests.
 
 ---
 
-## 🚀 Supported Languages & Frameworks
-
-TestFox automatically detects your project type and generates appropriate tests:
+## Supported Languages & Frameworks
 
 | Language | Frameworks | Build Tools |
 |----------|------------|-------------|
 | **JavaScript/TypeScript** | React, Vue, Angular, Next.js, Express, NestJS, Fastify, Svelte | npm, yarn, pnpm |
 | **Python** | Django, Flask, FastAPI | pip, poetry |
 | **Java** | Spring, Spring Boot | Maven, Gradle |
-| **C** | Any | Make, CMake |
-| **C++** | Any | Make, CMake, Meson |
+| **C / C++** | Any | Make, CMake, Meson |
 | **Rust** | Actix, Rocket, Axum | Cargo |
 | **Go** | Gin, Echo, Fiber | go mod |
 | **.NET** | ASP.NET Core, Blazor | dotnet |
 | **PHP** | Laravel, Symfony | Composer |
 | **Ruby** | Rails, Sinatra | Bundler |
-| **Kotlin** | Spring, Ktor | Gradle |
 
 ---
 
-## AI Providers & Models - Comprehensive Support
+## Test Categories (30+)
 
-TestFox integrates with **8 AI providers**, giving you access to **300+ AI models** from major providers. Choose **FREE models** or paid options based on your needs.
+### Quick Validation
+| Category | What It Tests |
+|----------|---------------|
+| **Smoke** | Health endpoints, route accessibility, static assets, error pages, CORS preflight |
+| **Sanity** | Server response time, core navigation, database connection, session persistence |
+| **Regression** | All routes still accessible, form submissions, auth flows intact |
 
-### Quick Setup
+### Functional
+| Category | What It Tests |
+|----------|---------------|
+| **Functional** | Form validation, field constraints, double-submit prevention, reset behavior, auth flows (login, register, password reset, account lockout, remember me) |
+| **API** | Happy path, missing required fields, invalid types, empty body, wrong HTTP method, schema validation, content-type validation |
+| **UI** | Viewport responsiveness (desktop/tablet/mobile), interactive elements, visual layout, loading states |
+| **E2E** | Full user journeys: registration, CRUD workflows, search/filter, multi-step flows |
+| **Integration** | Database resilience, transaction rollback, external API timeout handling, retry logic |
+| **Database** | CRUD operations, constraint validation, relationship testing, transaction handling |
+| **Payment** | Stripe/PayPal/Braintree flows, card validation, 3D Secure, subscription lifecycle, fraud detection, webhook signature verification |
 
-| Provider | Setup Time | Authentication | Default URL |
-|----------|------------|-------------|-------------|
-| **OpenRouter** | 2 minutes | API Key | https://openrouter.ai/api/v1 |
-| **Google Gemini** | 1 minute | API Key | https://generativelanguage.googleapis.com |
-| **DeepSeek** | 1 minute | API Key | https://api.deepseek.com |
-| **Ollama** | 5 minutes | Local | http://localhost:11434 |
-| **LM Studio** | 5 minutes | Local | http://localhost:1234 |
-| **Nvidia NIM** | 5 minutes | API Key | http://localhost:8000 |
-| **Amazon Nova** | 2 minutes | API Key / NOVA_API_KEY | https://api.nova.amazon.com/v1 |
-| **BYO API** | 1 minute | API Key | Custom |
+### Non-Functional
+| Category | What It Tests |
+|----------|---------------|
+| **Security** | OWASP Top 10: SQL injection, XSS, CSRF, directory traversal, security headers (HSTS, CSP, X-Frame-Options), cookie attributes (HttpOnly, Secure, SameSite), sensitive data exposure, rate limiting, open redirect, CORS misconfiguration |
+| **Performance** | Core Web Vitals (LCP, FID, CLS), bundle sizes, API response times (p50/p95/p99), database query performance, HTTP caching headers |
+| **Load** | Concurrent users, rate limiting, throughput |
+| **Stress** | Beyond capacity, retry storms |
+| **Accessibility** | WCAG 2.1: keyboard navigation, color contrast (AA), form labels/ARIA, image alt text, heading hierarchy, screen reader compatibility, focus management |
 
-### Free AI Models (No Credit Card Required!)
+### Backend (10 categories)
+| Category | What It Tests |
+|----------|---------------|
+| **Idempotency** | Duplicate request handling with idempotency keys |
+| **Webhooks** | Event ordering, signature verification, timeout/retry, dead-letter queues |
+| **Concurrency** | Race conditions, last-item scenarios |
+| **State Integrity** | Order state machines, event ordering enforcement |
+| **Reliability** | Fault tolerance, duplicate prevention |
+| **Failure Recovery** | Partial failures, self-healing |
+| **API Contract** | Schema validation against spec |
+| **Stability** | Retry storm protection, circuit breakers |
+| **Compliance** | GDPR deletion propagation |
+| **Observability** | PII leak detection in logs |
 
-#### OpenRouter Models (239+ Available)
+### Edge Cases
+| Category | What It Tests |
+|----------|---------------|
+| **Negative** | Malformed JSON, oversized payloads, non-existent IDs, unicode/emoji input, null bytes |
+| **Boundary** | Empty values, numeric extremes, email format edge cases, string length limits, float precision |
+| **Monkey** | Random click/input fuzzing |
+
+---
+
+## Swagger / OpenAPI Integration
+
+When TestFox detects a `swagger.json` or `openapi.json` file in your project, it automatically:
+
+1. **Parses the spec** (OpenAPI 3.x and Swagger 2.0)
+2. **Generates mock values** for all parameters using spec types, formats, and examples
+3. **Creates a Postman collection** (`.testfox/swagger_postman_collection.json`) with:
+   - Happy path requests with mock bodies
+   - Missing required fields tests (400 validation)
+   - Invalid type tests (wrong data types)
+   - Empty body tests
+   - Wrong HTTP method tests (405)
+   - Unauthorized access tests (401/403)
+   - Boundary value tests for numeric params
+   - SQL injection tests
+   - XSS tests
+   - Response schema validation
+4. **Generates rule-based test cases** for API, security, boundary, performance, and contract testing
+
+Place your spec file in any of these locations:
+```
+swagger.json / openapi.json / openapi.yaml
+api/swagger.json / docs/openapi.json
+src/swagger.json / public/openapi.json
+.testfox/swagger.json
+```
+
+---
+
+## AI Setup
+
+TestFox works fully without AI. When you want smarter test generation, configure an AI provider in the setup panel that appears on first launch.
+
+### Providers
+
+| Provider | Cost | Setup |
+|----------|------|-------|
+| **OpenRouter** | Free models available | Get key at [openrouter.ai/keys](https://openrouter.ai/keys) |
+| **Ollama** | Free (local) | Install from [ollama.ai](https://ollama.ai) |
+| **Custom API** | Varies | Any OpenAI-compatible endpoint |
+
+### Free Models (no billing required)
+
 | Model | Provider | Best For |
 |-------|----------|----------|
-| **Gemini 2.0 Flash** | Google | Recommended - Fast & powerful |
-| **DeepSeek R1** | DeepSeek | Advanced reasoning |
-| **Llama 3.3 70B** | Meta | Large context, open source |
-| **Qwen 2.5 72B** | Alibaba | Excellent for code |
-| **Gemma 2 9B** | Google | Lightweight & efficient |
-| **Mistral 7B** | Mistral AI | Fast responses |
-| **Phi-3 Mini** | Microsoft | Compact but capable |
+| Gemini 2.0 Flash | Google | Fast, recommended default |
+| DeepSeek R1 | DeepSeek | Advanced reasoning |
+| Llama 3.3 70B | Meta | Large context |
+| Qwen 2.5 Coder | Alibaba | Code-specialized |
+| Mistral Nemo | Mistral | Lightweight |
 
-#### Direct Provider Models
-| Model | Provider | Best For |
-|-------|----------|----------|
-| **Gemini 2.0 Flash** | Google | Recommended - Fast & powerful |
-| **Nova 2 Lite** | Amazon | Fast and efficient from AWS |
+### Configuration
 
-#### Local Models (Self-Hosted)
-| Model | Provider | Best For |
-|-------|----------|----------|
-| **Any Local Model** | Ollama | Privacy & offline use |
-| **Any Local Model** | LM Studio | Custom model hosting |
-| **Nvidia Models** | Nvidia NIM | GPU-optimized inference |
-
-### Premium AI Models
-
-| Model | Provider | Best For |
-|-------|----------|----------|
-| **GPT-4o** | OpenAI | Best overall quality |
-| **Claude 3.5 Sonnet** | Anthropic | Complex analysis |
-| **Grok Beta** | xAI | Fast & versatile |
-| **Gemini Pro** | Google | Production workloads |
-| **Command R+** | Cohere | Enterprise features |
-| **DeepSeek Pro** | DeepSeek | Advanced capabilities |
-
-### Authentication Methods
-
-#### API Key Authentication
-- **OpenRouter**: Get free key at [OpenRouter.ai/keys](https://openrouter.ai/keys)
-- **Google Gemini**: Get key at [Google AI Studio](https://aistudio.google.com/app/apikey)
-- **DeepSeek**: Get key at [DeepSeek Platform](https://platform.deepseek.com/)
-- **Amazon Nova**: Get key at [AWS Console](https://console.aws.amazon.com/bedrock) OR use `NOVA_API_KEY` environment variable
-- **Nvidia NIM**: Get key from your Nvidia NIM deployment
-- **BYO API**: Use your custom OpenAI-compatible endpoint
-
-#### Local Authentication
-- **Ollama**: No authentication required (local)
-- **LM Studio**: No authentication required (local)
-
-### Environment Variable Support
-
-| Variable | Provider | Usage |
-|-----------|----------|-------|
-| `NOVA_API_KEY` | Amazon Nova | Automatically used if API key not configured |
-| `OPENAI_API_KEY` | BYO API | For custom OpenAI-compatible endpoints |
-| `OLLAMA_HOST` | Ollama | Custom Ollama server URL |
-
-### Getting Started with AI
-
-1. **Choose Your Provider**: Select from 8 supported providers in TestFox settings
-2. **Free Models Available**: OpenRouter, Google Gemini, DeepSeek offer free tiers
-3. **Local Options**: Ollama, LM Studio for offline privacy
-4. **Enterprise Options**: Amazon Nova, Nvidia NIM for corporate environments
-5. **Configure in TestFox**: Click "AI Config" in Test Control Center
-6. **Select Model**: Choose from 300+ available models
-7. **Start Generating**: Begin AI-powered test creation immediately!
-
-### Provider Recommendations
-
-| Use Case | Recommended Provider | Reason |
-|------------|-------------------|--------|
-| **Beginners** | OpenRouter | 239+ models, free tier available |
-| **Enterprise** | Amazon Nova | AWS integration, compliance, reliability |
-| **Privacy-Focused** | Ollama | Local processing, no data sharing |
-| **High Performance** | Nvidia NIM | GPU optimization, speed |
-| **Custom Integration** | BYO API | Bring your own endpoint |
-| **Google Users** | Google Gemini | Native Google integration |
-| **Budget Conscious** | DeepSeek | Excellent free tier, powerful models |
+The AI setup panel appears automatically on first launch. You can also open it anytime:
+- Click **AI Settings** in the sidebar Actions panel
+- Or run `TestFox: Configure AI Settings` from the command palette
 
 ---
 
-## Test Categories (20+ Types)
+## MCP Tools (Model Context Protocol)
 
-TestFox covers the **complete testing spectrum** aligned with **ISTQB standards**:
+TestFox integrates MCP servers for advanced test automation. All available from the sidebar Actions panel:
 
-### 🚦 Quick Validation
-| Category | Description | Status |
-|----------|-------------|--------|
-| **Smoke Tests** | Critical path verification | ✅ Automated |
-| **Sanity Tests** | Quick focused checks | ✅ Automated |
-| **Regression Tests** | Existing features still work | ✅ Automated |
-
-### ⚙️ Functional Testing
-| Category | Description | Status |
-|----------|-------------|--------|
-| **Functional Tests** | Feature behavior validation | ✅ Automated |
-| **API Tests** | REST/GraphQL endpoints | ✅ Automated |
-| **UI/E2E Tests** | User interface journeys | ✅ Automated |
-| **Integration Tests** | Component interactions | ✅ Automated |
-| **Database Tests** | Data integrity & CRUD | ✅ Automated |
-
-### 🛡️ Non-Functional Testing
-| Category | Description | Status |
-|----------|-------------|--------|
-| **Security Tests** | OWASP Top 10, XSS, SQLi | ✅ Automated |
-| **Performance Tests** | Response times, metrics | ✅ Automated |
-| **Load Tests** | Concurrent users | ✅ Automated |
-| **Accessibility Tests** | WCAG 2.1 compliance | ✅ Automated |
-
-### 🔧 Backend Testing (10 Categories)
-| Category | Description | Status |
-|----------|-------------|--------|
-| **Idempotency Tests** | Duplicate request handling | ✅ Automated |
-| **Webhook Tests** | Async event ordering | ✅ Automated |
-| **Concurrency Tests** | Race condition detection | ✅ Automated |
-| **State Integrity Tests** | Data consistency validation | ✅ Automated |
-| **Reliability Tests** | Resilience & duplicate handling | ✅ Automated |
-| **Failure Recovery Tests** | Partial failure & self-healing | ✅ Automated |
-| **API Contract Tests** | Schema validation | ✅ Automated |
-| **Stability Tests** | Retry storm protection | ✅ Automated |
-| **Compliance Tests** | GDPR deletion propagation | ✅ Automated |
-| **Observability Tests** | PII leak detection | ✅ Automated |
-
-### 💳 Payment Testing (4 Categories)
-| Category | Description | Status |
-|----------|-------------|--------|
-| **Payment Flow Tests** | Checkout & subscription flows | ✅ Automated |
-| **Card Validation Tests** | Luhn algorithm, expiry, CVC | ✅ Automated |
-| **Security Tests** | 3D Secure, fraud detection | ✅ Automated |
-| **Webhook Tests** | Payment provider webhooks | ✅ Automated |
-
-### 🎯 Edge Cases & Boundaries
-| Category | Description | Status |
-|----------|-------------|--------|
-| **Negative Tests** | Invalid inputs, errors | ✅ Automated |
-| **Boundary Tests** | Min/max values | ✅ Automated |
-| **Edge Case Tests** | Unusual scenarios | ✅ Automated |
-
-### 👤 User Account Testing
-| Category | Description | Status |
-|----------|-------------|--------|
-| **Account Creation** | Registration flows | ✅ Automated |
-| **Account Security** | Session management | ✅ Automated |
-| **Account Lifecycle** | Full CRUD operations | ✅ Automated |
+| MCP Server | Generate | Run | What It Does |
+|------------|----------|-----|--------------|
+| **Playwright** | Tests from project analysis | Full browser automation | E2E, accessibility, smoke, functional tests |
+| **Postman** | Collection from endpoints | Newman execution | API contract, auth, CRUD, security tests |
+| **DevTools** | Performance/network tests | Chrome DevTools Protocol | LCP/FID/CLS, network monitoring, console errors |
+| **Puppeteer** | Launch browser session | Chrome automation | Tab connection, custom automation |
 
 ---
 
-## 🛡️ Security Testing (OWASP Top 10)
+## Fire and Forget
 
-TestFox performs comprehensive security analysis:
+TestFox is designed to be non-intrusive:
 
-- ✅ **SQL Injection** - Detects database vulnerabilities
-- ✅ **Cross-Site Scripting (XSS)** - Input/output sanitization
-- ✅ **CSRF Protection** - Token verification
-- ✅ **Authentication Bypass** - Login security
-- ✅ **Security Headers** - CSP, HSTS, X-Frame-Options
-- ✅ **Sensitive Data Exposure** - API key leaks, passwords
-- ✅ **Session Management** - Cookie security
-- ✅ **Broken Access Control** - Authorization checks
+1. **Start tests** from the Actions panel or command palette
+2. **Continue working** - tests run in the background
+3. **Get notified** when complete: "42/50 passed. View Report?"
+4. **View the report** anytime - detailed breakdown by category with error details
+
+All test runs are tracked in the **Test Runs** sidebar. Click any past run to see its full report.
 
 ---
 
-## � Backend Testing Suite
+## The Report
 
-Comprehensive backend validation for distributed systems and APIs:
+Every test run produces a comprehensive report with:
 
-### Test Coverage
-
-| Test Type | Description | Example |
-|-----------|-------------|---------|
-| **Idempotency** | Duplicate request handling | Same payment processed only once |
-| **Webhook Ordering** | Async event sequencing | Order: `payment_intent.created` → `payment_intent.succeeded` |
-| **Concurrency** | Race condition detection | Two users reserving last inventory item |
-| **State Integrity** | Data consistency validation | Order cancellation releases stock |
-| **Reliability** | Resilience testing | Duplicate webhook ignored with idempotency key |
-| **Failure Recovery** | Partial failure handling | Retry with exponential backoff |
-| **API Contract** | Schema validation | OpenAPI spec compliance |
-| **Stability** | Retry storm protection | Circuit breaker pattern validation |
-| **Compliance** | Regulatory requirements | GDPR deletion propagation |
-| **Observability** | PII leak detection | No credit card numbers in logs |
+- **Pass rate ring** - Visual percentage indicator
+- **Stats grid** - Total, passed, failed, skipped counts
+- **Failed tests section** - Error details for every failure
+- **Category breakdown** - Collapsible cards with progress bars per category
+- **Individual test results** - Status, duration, error messages
+- **MCP results** - Server-specific test outcomes
 
 ---
 
-## 💳 Payment Testing Suite
+## Quick Start
 
-Complete payment integration testing for e-commerce applications:
+### Install
 
-### Supported Providers
-- **Stripe** - 3D Secure, webhooks, idempotency
-- **PayPal** - Checkout, subscriptions, disputes
-- **Braintree** - Hosted fields, vault, fraud protection
-
-### Test Coverage
-
-| Test Type | Description |
-|-----------|-------------|
-| **Card Validation** | Luhn algorithm, expiry dates, CVC verification |
-| **Fraud Detection** | Velocity checks, AVS, geolocation |
-| **3D Secure** | SCA compliance, challenge flows |
-| **Webhooks** | Signature verification, event ordering |
-| **Idempotency** | Duplicate prevention, key validation |
-| **Subscriptions** | Trial periods, billing cycles, proration |
-| **Disputes** | Chargeback handling, evidence submission |
-
----
-
-## � Interactive Reports Dashboard
-
-Generate beautiful, interactive web reports with:
-
-- 📈 **Real-time Progress** - Live test execution updates
-- 📊 **Category Breakdown** - Pie charts and statistics
-- 🔴 **Security Findings** - Severity levels and recommendations
-- ⚡ **Performance Metrics** - Response times visualization
-- 🤖 **AI Insights** - Intelligent recommendations
-- 📄 **Export Options** - HTML, PDF-ready printing
-
----
-
-## 🔧 Quick Start
-
-### Installation
-
-1. **Open VS Code**
-2. **Go to Extensions** (Ctrl+Shift+X)
-3. **Search for "TestFox"**
-4. **Click Install**
+1. Open VS Code
+2. Go to Extensions (Ctrl+Shift+X)
+3. Search **TestFox**
+4. Click Install
 
 ### First Run
 
-```
-1. Click the 🦊 TestFox icon in the Activity Bar
-2. Click "AI Config" to set up your API key (optional)
-3. Click "Analyze Project" to detect your project
-4. Click "Generate Tests" to create test cases
-5. Click "Run Tests" to execute
-6. Click "View Report" for results
-```
+1. Click the TestFox icon in the Activity Bar
+2. (Optional) Configure AI in the setup panel
+3. Click **Generate Tests** in the Actions panel
+4. Click **Run All Tests**
+5. Click **View Report** when notified
 
----
-
-## 💻 Commands
+### Commands
 
 | Command | Description |
 |---------|-------------|
-| `TestFox: Analyze Project` | Detect project type and structure |
-| `TestFox: Generate Tests` | AI-powered test generation |
-| `TestFox: Generate Test Category` | Generate specific category (Backend, Payment, etc.) |
-| `TestFox: Run All Tests` | Execute all test categories |
-| `TestFox: Run Test Category` | Run specific category |
-| `TestFox: Generate Web Report` | Open interactive dashboard |
-| `TestFox: Configure AI` | Set up AI provider and model |
-| `TestFox: MCP Control` | Open MCP Server control panel |
-| `TestFox: Install Browsers` | Install Playwright browsers |
-| `TestFox: Open Test Control Center` | Open test execution dashboard |
-| `TestFox: Pause/Resume/Stop Tests` | Test execution control |
+| `TestFox: Analyze Project` | Detect project type, routes, forms, APIs |
+| `TestFox: Generate Tests` | Generate tests across all categories |
+| `TestFox: Run All Tests` | Execute all automated tests |
+| `TestFox: Run Full Cycle` | Smoke > Functional > Regression pipeline |
+| `TestFox: Run Test Category` | Run a specific category |
+| `TestFox: View Latest Test Report` | Open comprehensive report |
+| `TestFox: Configure AI Settings` | Open AI setup panel |
+| `TestFox: Run Cross-Browser Tests` | Chrome, Firefox, Safari |
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
-Configure TestFox in VS Code settings (`Ctrl+,`):
+Configure in VS Code settings (Ctrl+,) or `settings.json`:
 
-### 🤖 AI Provider Configuration
 ```json
 {
   "testfox.ai.enabled": true,
   "testfox.ai.provider": "openrouter",
   "testfox.ai.model": "google/gemini-2.0-flash-exp:free",
   "testfox.ai.apiKey": "",
-  "testfox.ai.baseUrl": "https://openrouter.ai/api/v1"
-}
-```
-
-### 📋 Available AI Providers
-| Provider | Value | Base URL | Authentication |
-|----------|---------|-----------|-------------|
-| **OpenRouter** | `openrouter` | https://openrouter.ai/api/v1 | API Key |
-| **Google Gemini** | `google-gemini` | https://generativelanguage.googleapis.com | API Key |
-| **DeepSeek** | `deepseek` | https://api.deepseek.com | API Key |
-| **Ollama** | `ollama` | http://localhost:11434 | Local |
-| **LM Studio** | `lmstudio` | http://localhost:1234 | Local |
-| **Nvidia NIM** | `nvidia-nim` | http://localhost:8000 | API Key |
-| **Amazon Nova** | `amazon-nova` | https://api.nova.amazon.com/v1 | API Key / NOVA_API_KEY |
-| **BYO API** | `byo-api` | Custom | API Key |
-
-### 🔧 Environment Variables
-| Variable | Provider | Description |
-|-----------|----------|-------------|
-| `NOVA_API_KEY` | Amazon Nova | Auto-detects Amazon Nova API key |
-| `OPENAI_API_KEY` | BYO API | For custom OpenAI-compatible endpoints |
-| `OLLAMA_HOST` | Ollama | Custom Ollama server URL |
-
-### 🎯 Model Selection Examples
-```json
-// OpenRouter (239+ models)
-{
-  "testfox.ai.provider": "openrouter",
-  "testfox.ai.model": "google/gemini-2.0-flash-exp:free"
-}
-
-// Amazon Nova
-{
-  "testfox.ai.provider": "amazon-nova",
-  "testfox.ai.baseUrl": "https://api.nova.amazon.com/v1",
-  "testfox.ai.model": "nova-2-lite-v1"
-}
-
-// Local Ollama
-{
-  "testfox.ai.provider": "ollama",
-  "testfox.ai.baseUrl": "http://localhost:11434",
-  "testfox.ai.model": "llama3.1:8b"
-}
-```
-
-### 🚪 Full Configuration Example
-```json
-{
-  "testfox.ai.enabled": true,
-  "testfox.ai.provider": "openrouter",
-  "testfox.ai.model": "google/gemini-2.0-flash-exp:free",
-  "testfox.ai.apiKey": "your-api-key-here",
-  "testfox.ai.baseUrl": "https://openrouter.ai/api/v1",
-  "testfox.ai.fallbackModel": "meta-llama/llama-3.1-8b-instruct:free",
   "testfox.browserHeadless": true,
   "testfox.defaultTimeout": 30000,
   "testfox.securityTestLevel": "standard",
   "testfox.performanceThreshold": 3000,
-  "testfox.automation.enabled": true,
-  "testfox.automation.interval": "1h"
+  "testfox.reportFormat": "html",
+  "testfox.storeResultsInGit": false,
+  "testfox.autoAnalyze": true
 }
 ```
 
+### Key Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `testfox.ai.enabled` | `true` | Enable AI-enhanced test generation |
+| `testfox.ai.provider` | `openrouter` | AI provider: openrouter, ollama, custom |
+| `testfox.browserHeadless` | `true` | Run browser tests in headless mode |
+| `testfox.securityTestLevel` | `standard` | Security test depth: basic, standard, comprehensive |
+| `testfox.performanceThreshold` | `3000` | Max acceptable response time (ms) |
+| `testfox.autoAnalyze` | `true` | Auto-detect project on workspace open |
+| `testfox.storeResultsInGit` | `false` | Persist test results in .testfox/ directory |
+| `testfox.automation.dailyTests` | `false` | Run tests automatically every day |
+
 ---
 
-## 📚 ISTQB-Aligned Testing Techniques
+## ISTQB-Aligned Techniques
 
-TestFox implements industry-standard testing methodologies:
+TestFox implements standard testing methodologies:
 
-- ✅ **Boundary Value Analysis (BVA)**
-- ✅ **Equivalence Partitioning**
-- ✅ **Decision Table Testing**
-- ✅ **State Transition Testing**
-- ✅ **Use Case Testing**
-- ✅ **Error Guessing**
-- ✅ **Exploratory Testing**
+- **Boundary Value Analysis (BVA)** - Min/max/edge values for every input
+- **Equivalence Partitioning** - Valid/invalid input classes
+- **Decision Table Testing** - Combinatorial condition coverage
+- **State Transition Testing** - Auth flows, order states
+- **Use Case Testing** - End-to-end user journeys
+- **Error Guessing** - Common failure patterns
 
 ---
 
-## 🏗️ SDLC Integration
-
-TestFox serves as the **final quality gate** before release:
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Software Development Lifecycle               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  📋 Requirements → 💻 Development → 🧪 Unit Tests → 👀 Review │
-│                                                                 │
-│                            ↓                                    │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │                                                            │ │
-│  │              🦊 TestFox Quality Gate                      │ │
-│  │                                                            │ │
-│  │  ✓ Smoke → Functional → Security → Performance → UAT       │ │
-│  │  ✓ Backend → Payment → AI-Powered Analysis                │ │
-│  │  ✓ 20+ Test Categories    ✓ Multi-Language Support        │ │
-│  │  ✓ MCP Servers            ✓ Interactive Reports            │ │
-│  └────────────────────────────────────────────────────────────┘  │
-│                            ↓                                     │
-│                      🚀 Release                                 │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+TestFox Sidebar
+  |-- Actions Panel       Quick actions, MCP tools, AI/App status
+  |-- Test Explorer        Tests organized by category group
+  |-- Test Runs            Fire-and-forget history with reports
+
+Test Generation Pipeline
+  |-- Project Detection    Language, framework, build tools
+  |-- Code Analysis        Routes, forms, endpoints, auth flows, DB queries
+  |-- Runtime Analysis     Live app inspection (when running)
+  |-- Rule-Based Tests     Comprehensive tests without AI (default)
+  |-- Enhanced Rules       Additional security, performance, a11y, boundary tests
+  |-- Swagger Parser       Auto-detect and parse OpenAPI specs
+  |-- AI Enhancement       Smarter tests when AI is configured
+  |-- MCP Orchestration    Playwright, Postman, DevTools test generation
+
+Test Execution
+  |-- Playwright Runner    Browser automation
+  |-- API Runner           REST/GraphQL testing
+  |-- MCP Test Runner      MCP server execution
+  |-- Full Cycle Runner    Smoke > Functional > Regression pipeline
+  |-- Cross-Browser        Chrome, Firefox, Safari
 ```
 
 ---
 
-## 🔌 MCP Servers (Model Context Protocol)
+## Requirements
 
-TestFox integrates with **MCP Servers** for AI-powered test automation:
-
-### Available MCP Servers
-
-| Server | Capabilities | Command |
-|--------|--------------|---------|
-| **Playwright MCP** | Browser automation, E2E tests, visual testing | `mcpPlaywright` |
-| **Fetch MCP** | API testing, HTTP requests | `mcpFetch` |
-| **Chrome DevTools MCP** | Performance analysis, network monitoring | `mcpChromeDevTools` |
-| **QA Use MCP** | Comprehensive QA automation | `mcpQAUse` |
-
-### MCP Features
-
-- 🤖 **AI-Powered Test Generation** - Generate tests using natural language
-- 🎭 **Playwright Integration** - Automated browser testing
-- 📮 **API Testing** - REST/GraphQL endpoint validation
-- 🔧 **DevTools Analysis** - Performance and network insights
-- 🚀 **One-Click Execution** - Run all MCP tests from control panel
-
----
-
-## 📋 Requirements
-
-- **VS Code** 1.85.0 or higher
+- **VS Code** 1.85.0+
 - **Node.js** 18+ (for test execution)
-- **Internet** (for AI features - optional)
+- **Internet** (optional, only for AI features)
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-Contributions are welcome! Please visit our GitHub repository.
+Contributions welcome. Visit [github.com/senthazalravi/TestFox](https://github.com/senthazalravi/TestFox).
 
-**GitHub**: [github.com/senthazalravi/TestFox](https://github.com/senthazalravi/TestFox)
+## Author
 
----
-
-## 👨‍💻 Author
-
-Developed with ❤️ in **Stockholm, Sweden**
+Developed in **Stockholm, Sweden**
 
 - **Twitter/X**: [@senthazalravi](https://x.com/senthazalravi)
 - **Email**: ravi.antone@gmail.com
 
----
+## Support
 
-## 🙏 Support the Project
+- Star us on GitHub
+- Write a review on the VS Code Marketplace
+- Share with your team
 
-- ⭐ **Star us on GitHub**
-- 📝 **Write a review** on the VS Code Marketplace
-- 💬 **Share** with your developer friends
-- 💰 **Sponsor** our LLM credits and infrastructure
+## License
 
----
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
 <div align="center">
 
-**TestFox** 🦊 *- The Final Quality Gate*
-
-*Making software testing intelligent, comprehensive, and accessible to everyone.*
+**TestFox** - Comprehensive end-to-end testing that works out of the box.
 
 </div>

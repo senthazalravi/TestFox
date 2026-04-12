@@ -1,137 +1,67 @@
-# Start Testing with TestFox 🚀
+# Getting Started
 
-<div align="center">
-  <h2>Your Testing Journey Begins Now</h2>
-  <p>Follow these simple steps to start testing your application</p>
-</div>
+A quick walkthrough of the core workflow: generate tests, run them, and review results.
 
 ---
 
-## 📋 **Step-by-Step Testing Workflow**
+## The TestFox sidebar
 
-### 1. **Analyze Your Project**
-```bash
-# Click the TestFox icon in the sidebar
-# Select "TestFox: Analyze Project"
-```
-**What happens:**
-- 🔍 TestFox scans your codebase
-- 🏗️ Detects your tech stack and frameworks
-- 📋 Identifies routes, forms, and APIs
-- ⚙️ Configures testing parameters
+Open the TestFox icon in the Activity Bar. The sidebar has three sections:
 
-### 2. **Generate Test Cases**
-```bash
-# Select "TestFox: Generate Tests"
-```
-**TestFox creates:**
-- 🧪 **18 categories** of automated tests
-- 🤖 **AI-enhanced** test scenarios
-- 👤 **Test accounts** for user testing
-- 🔐 **Security tests** for vulnerabilities
-- 📊 **Performance benchmarks**
-
-### 3. **Run Automated Tests**
-```bash
-# Choose your testing approach:
-# • "Run All Tests" - Complete test suite
-# • "Run Full Cycle Testing" - End-to-end with accounts
-# • "Run Category" - Specific test types
-```
-
-**Real-time execution:**
-- 📊 Live progress tracking
-- 🌐 Browser automation
-- 📱 Multi-device testing
-- 🐛 Automatic defect detection
-
-### 4. **Review Results**
-```bash
-# Open "TestFox: Open Defect Dashboard"
-# Or "TestFox: View Dashboard in Browser"
-```
-
-**Interactive dashboard features:**
-- 📈 **Pass/Fail Trends** over time
-- 🐛 **Defect Tracking** with unique IDs
-- 👤 **Test Accounts** created/used
-- 🌐 **Browser & Network** monitoring
-- 📄 **Detailed Reports** for sharing
+1. **Actions** -- Quick actions (Analyze, Generate, Run) and MCP tool access.
+2. **Test Explorer** -- Browse generated test cases organized by category.
+3. **Test Runs** -- History of past executions with status and links to reports.
 
 ---
 
-## 🎮 **Testing Commands Overview**
+## Workflow
 
-| Command | Purpose | When to Use |
-|---------|---------|-------------|
-| **Analyze Project** | Detect tech stack & setup | First time setup |
-| **Generate Tests** | Create comprehensive test suite | After code changes |
-| **Run All Tests** | Execute full automated testing | Regular testing |
-| **Run Full Cycle** | Complete end-to-end testing | Release validation |
-| **Open Dashboard** | View results & trends | After test execution |
-| **Export Report** | Share test results | Team communication |
+### 1. Generate tests
 
----
+In the Actions panel, click **Generate Tests** (or run `TestFox: Generate Tests` from the command palette). TestFox analyzes your project and produces tests across 30+ categories.
 
-## 💡 **Pro Tips for Success**
+If you have not analyzed the project yet, TestFox will run analysis first automatically.
 
-### Getting Better Results
-- **Keep AI enabled** for smarter test generation
-- **Run full cycle testing** for comprehensive validation
-- **Check the dashboard** regularly for trends
-- **Use specific categories** for targeted testing
+### 2. Run tests
 
-### Handling Test Failures
-- **Review defect IDs** (UI-0001, API-0002, etc.)
-- **Check screenshots** for visual issues
-- **Monitor console logs** for JavaScript errors
-- **Validate network calls** for API issues
+Click **Run** on any test or group in the Test Explorer, or use the **Run All** action in the Actions panel. Tests execute in the background -- you can keep working while they run.
 
-### Optimizing Performance
-- **Use the browser dashboard** for remote access
-- **Enable parallel testing** for faster execution
-- **Configure timeouts** based on your app speed
-- **Set up CI/CD integration** for automated testing
+### 3. View the report
+
+When a run completes, it appears in the **Test Runs** section. Click on a run to open its full report, which includes:
+
+- Summary with pass/fail counts.
+- Individual test results with details.
+- Screenshots and logs for failures.
+- Defect entries with categorized IDs.
 
 ---
 
-## 🎯 **What Makes TestFox Special**
+## Common actions
 
-### 🧠 **Intelligence**
-- **AI-powered test generation** with contextual understanding
-- **Automatic account creation** for realistic testing
-- **Smart defect categorization** with meaningful IDs
-
-### ⚡ **Speed**
-- **Parallel test execution** across multiple browsers
-- **Real-time progress tracking** with live updates
-- **Instant setup** with automatic project detection
-
-### 🎯 **Accuracy**
-- **ISTQB-aligned methodologies** following industry standards
-- **Comprehensive coverage** of 18+ testing categories
-- **OWASP security testing** for vulnerability detection
-
-### 🤝 **Integration**
-- **VS Code native** with familiar interface
-- **External dashboard** for team collaboration
-- **CI/CD ready** for automated pipelines
+| Action | Where to find it |
+|--------|-----------------|
+| Analyze project | Actions panel or command palette |
+| Generate tests | Actions panel or command palette |
+| Run all tests | Actions panel or Test Explorer |
+| Run a single category | Right-click a category in Test Explorer |
+| View a past report | Click a run in Test Runs |
+| Configure AI | Command palette: `TestFox: Configure AI` |
+| Access MCP tools | Actions panel (MCP tools section) |
 
 ---
 
-## 📞 **Need Help?**
+## Tips
 
-- 📚 **Documentation**: [TestFox Docs](https://testfox.dev/docs)
-- 💬 **Community**: [GitHub Discussions](https://github.com/testfox/testfox-vscode/discussions)
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/testfox/testfox-vscode/issues)
-- 📧 **Support**: [support@testfox.dev](mailto:support@testfox.dev)
+- **Start without AI** to see what rule-based generation produces, then enable AI to compare.
+- **Use the Test Explorer** to run individual categories when you are focused on a specific area (e.g., security or performance).
+- **Check Test Runs history** to track improvements across runs over time.
+- **Swagger users**: drop your spec file in the project root and regenerate tests -- TestFox picks it up automatically.
 
 ---
 
-<div align="center">
-  <h2>🎉 Welcome to the Future of Testing!</h2>
-  <p>You're now equipped with TestFox - the most advanced testing solution for modern applications.</p>
-  <br>
-  <p><strong>Happy Testing! 🦊✨</strong></p>
-</div>
+## Need help?
 
+- Documentation: [testfox.dev/docs](https://testfox.dev/docs)
+- Issues: [GitHub Issues](https://github.com/nicetestfox/testfox/issues)
+- Support: [support@testfox.dev](mailto:support@testfox.dev)

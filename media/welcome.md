@@ -1,56 +1,40 @@
-# Welcome to TestFox 🦊
+# Welcome to TestFox
 
-<div align="center">
-  <img src="testfox-icon.png" width="128" height="128" alt="TestFox Logo"/>
-  <h1>TestFox</h1>
-  <p><strong>Smart Testing • Quality Assurance • Bug Detection</strong></p>
-  <p><em>The Final Quality Gate in Your SDLC</em></p>
-</div>
+**Comprehensive end-to-end testing for your projects -- out of the box.**
 
 ---
 
-## 🚀 **TestFox Cuts Testing Time & Finds Bugs**
+## What is TestFox?
 
-TestFox is your intelligent testing companion that **automates comprehensive quality assurance** and helps you deliver **bug-free applications** faster than ever.
+TestFox is a VS Code extension that generates and runs a full suite of end-to-end tests for your application. It works immediately with rule-based test generation and optionally integrates with AI providers for enhanced coverage.
 
-### ✨ **Why Choose TestFox?**
+### Core Value
 
-| Feature | Benefit |
-|---------|---------|
-| **🤖 AI-Powered Testing** | Intelligent test generation using advanced AI models |
-| **🔄 Automated Workflows** | Complete end-to-end testing without manual intervention |
-| **📊 Real-Time Monitoring** | Live test execution with detailed progress tracking |
-| **🐛 Smart Defect Tracking** | Automatic bug detection with meaningful defect IDs |
-| **👤 Test Account Creation** | On-demand test account generation and lifecycle management |
-| **🌐 Multi-Browser Testing** | Cross-browser compatibility with real device emulation |
+- **30+ test categories** generated automatically from your codebase -- no test authoring required.
+- **No AI dependency** -- rule-based generation works offline and out of the box. Enable AI (OpenRouter, Ollama, or a custom API) when you want deeper, context-aware tests.
+- **Swagger / OpenAPI support** -- TestFox detects your API specs and generates Postman-compatible collections with realistic mock values.
 
-### 🎯 **Perfect For**
-- **Developers** building robust applications
-- **QA Teams** needing comprehensive test coverage
-- **DevOps Engineers** implementing quality gates
-- **Product Managers** ensuring release quality
+### Who is it for?
+
+- Developers who want comprehensive test coverage without writing tests manually.
+- QA engineers looking for fast, repeatable end-to-end validation.
+- Teams that need security, performance, and accessibility checks alongside functional tests.
 
 ---
 
-## 📋 **Quick Start**
+## How it works
 
-1. **Analyze Your Project** - TestFox automatically detects your tech stack
-2. **Generate Tests** - AI creates comprehensive test suites
-3. **Run Tests** - Execute automated testing across multiple categories
-4. **Review Results** - Interactive dashboard with detailed insights
-
----
-
-## 🛡️ **Privacy & Security**
-
-By using TestFox, you agree to our [Terms of Service](https://testfox.dev/terms) and [Privacy Policy](https://testfox.dev/privacy).
-
-TestFox processes your code only for testing purposes and does not store or transmit your data to external servers (except for AI processing when explicitly enabled).
+1. **Analyze** -- TestFox scans your project and detects your tech stack, routes, and APIs.
+2. **Generate** -- It produces tests across 30+ categories using rules (and AI, if enabled).
+3. **Run** -- Fire-and-forget execution handles everything in the background.
+4. **Review** -- View detailed reports with pass/fail results, defect tracking, and logs.
 
 ---
 
-<div align="center">
-  <p><strong>Ready to revolutionize your testing workflow?</strong></p>
-  <p>Click "Next" to get started with TestFox!</p>
-</div>
+## Privacy
 
+TestFox processes your code locally for test generation. No data is transmitted externally unless you explicitly enable an AI provider. See the [Privacy Policy](https://testfox.dev/privacy) and [Terms of Service](https://testfox.dev/terms) for details.
+
+---
+
+Click **Next** to set up TestFox.

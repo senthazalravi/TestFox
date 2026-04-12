@@ -5,7 +5,10 @@ import { AppRunner } from './core/appRunner';
 import { DependencyManager } from './core/dependencyManager';
 import { TestExplorerProvider } from './views/testExplorer';
 import { TestResultsProvider } from './views/testResultsProvider';
-import { TestControlCenterProvider } from './views/testControlCenter';
+import { ActionsPanelProvider } from './views/actionsPanel';
+import { TestRunsProvider } from './views/testRunsProvider';
+import { TestReportPanel } from './views/testReportPanel';
+import { AISetupPanel } from './views/aiSetupPanel';
 import { TestExecutionManager } from './core/testExecutionManager';
 import { GitIntegration } from './core/gitIntegration';
 import { GitAuth } from './core/gitAuth';
@@ -44,6 +47,9 @@ import { BackendTestGenerator } from './generators/backendTestGenerator';
 import { PaymentTestGenerator } from './generators/paymentTestGenerator';
 import { GitCommitHook } from './core/gitCommitHook';
 import { MCPIntegrationManager } from './core/mcpIntegrationManager';
+import { detectSwaggerSpec } from './core/swaggerParser';
+import { generateSwaggerTestCases, generatePostmanCollection, savePostmanCollection } from './generators/swaggerTestGenerator';
+import { generateEnhancedRuleTests } from './generators/enhancedRuleTests';
 
 let projectDetector: ProjectDetector;
 let codeAnalyzer: CodeAnalyzer;
@@ -52,7 +58,8 @@ let testRunner: TestRunner;
 let testStore: TestStore;
 let testExplorerProvider: TestExplorerProvider;
 let testResultsProvider: TestResultsProvider;
-let testControlCenter: TestControlCenterProvider;
+let actionsPanel: ActionsPanelProvider;
+let testRunsProvider: TestRunsProvider;
 let testExecutionManager: TestExecutionManager;
 let gitIntegration: GitIntegration | null = null;
 let issueCreator: IssueCreator | null = null;
@@ -481,11 +488,19 @@ export async function activate(context: vscode.ExtensionContext) {
         console.log('Initializing view providers...');
         testExplorerProvider = new TestExplorerProvider(testStore);
         testResultsProvider = new TestResultsProvider(testStore);
-        testControlCenter = new TestControlCenterProvider(context.extensionUri, testStore);
-        testExecutionManager = new TestExecutionManager(testControlCenter);
 
-        // Initialize MCP Test Tree Provider
+        // New Actions Panel (replaces Test Control Center)
+        actionsPanel = new ActionsPanelProvider(context.extensionUri);
+
+        // New Test Runs provider (fire-and-forget tracking)
         const workspaceFolders = vscode.workspace.workspaceFolders;
+        const wsPath = workspaceFolders?.[0]?.uri.fsPath || '';
+        testRunsProvider = new TestRunsProvider(wsPath);
+
+        // Test Execution Manager (uses actionsPanel for notifications)
+        testExecutionManager = new TestExecutionManager(null as any);
+
+        // Initialize MCP Test Tree Provider (still available for internal use)
         if (workspaceFolders && workspaceFolders.length > 0) {
             mcpTestTreeProvider = new MCPTestTreeProvider(workspaceFolders[0].uri.fsPath);
         } else {
@@ -499,34 +514,28 @@ export async function activate(context: vscode.ExtensionContext) {
             showCollapseAll: true
         });
 
-        const testResultsView = vscode.window.createTreeView('testfox-results', {
-            treeDataProvider: testResultsProvider,
+        const testRunsView = vscode.window.createTreeView('testfox-runs', {
+            treeDataProvider: testRunsProvider,
             showCollapseAll: true
         });
 
-        // Register MCP Test Explorer view
-        const mcpTestExplorerView = vscode.window.createTreeView('testfox-mcp-tests', {
-            treeDataProvider: mcpTestTreeProvider,
-            showCollapseAll: true
-        });
-
-        // Register Test Control Center webview
-        const controlCenterRegistration = vscode.window.registerWebviewViewProvider(
-            TestControlCenterProvider.viewType,
-            testControlCenter
+        // Register Actions Panel webview
+        const actionsPanelRegistration = vscode.window.registerWebviewViewProvider(
+            ActionsPanelProvider.viewType,
+            actionsPanel
         );
 
-        context.subscriptions.push(testExplorerView, testResultsView, mcpTestExplorerView, controlCenterRegistration);
+        context.subscriptions.push(testExplorerView, testRunsView, actionsPanelRegistration);
         console.log('Views registered successfully');
-        
-        // Focus the TestFox view container after a short delay
+
+        // Focus the TestFox sidebar after a short delay
         setTimeout(async () => {
             try {
-                console.log('TestFox: Focusing test control center view...');
-                await vscode.commands.executeCommand('testfox-control-center.focus');
-                console.log('TestFox: Test control center view focused successfully');
+                console.log('TestFox: Focusing actions panel...');
+                await vscode.commands.executeCommand('testfox-actions.focus');
+                console.log('TestFox: Actions panel focused successfully');
             } catch (error) {
-                console.log('TestFox: Could not focus control center (this is normal on first load):', error);
+                console.log('TestFox: Could not focus actions panel (this is normal on first load):', error);
             }
         }, 1000);
     } catch (error) {
@@ -685,11 +694,8 @@ export async function activate(context: vscode.ExtensionContext) {
         }),
 
         vscode.commands.registerCommand('testfox.configureAI', async () => {
-            // Launch the Unified AI Setup webview
             try {
-                // Always create a new instance to ensure fresh panel
-                unifiedAISetup = new UnifiedAISetup(context.extensionUri);
-                unifiedAISetup.show();
+                AISetupPanel.createOrShow(context.extensionUri);
             } catch (error) {
                 logDiagnostic(`Failed to open AI configuration: ${error}`, 'error');
                 vscode.window.showErrorMessage(
@@ -699,12 +705,35 @@ export async function activate(context: vscode.ExtensionContext) {
         }),
 
         vscode.commands.registerCommand('testfox.openTestControlCenter', async () => {
-            await vscode.commands.executeCommand('testfox-control-center.focus');
+            await vscode.commands.executeCommand('testfox-actions.focus');
+        }),
+
+        // View latest test report
+        vscode.commands.registerCommand('testfox.viewLatestReport', async () => {
+            const wsPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+            TestReportPanel.createOrShow(context.extensionUri, '', wsPath);
+        }),
+
+        // View a specific run's report
+        vscode.commands.registerCommand('testfox.viewRunReport', async (runId?: string) => {
+            const wsPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+            if (runId) {
+                TestReportPanel.createOrShow(context.extensionUri, runId, wsPath);
+            } else {
+                TestReportPanel.createOrShow(context.extensionUri, '', wsPath);
+            }
+        }),
+
+        // Refresh test runs
+        vscode.commands.registerCommand('testfox.refreshRuns', () => {
+            if (testRunsProvider) {
+                testRunsProvider.refresh();
+            }
         }),
 
         vscode.commands.registerCommand('testfox.showOnboarding', async () => {
-            // Force show onboarding (useful for model switching/reconfiguration)
-            OnboardingPanel.createOrShow(context.extensionUri, context, true);
+            // Show AI setup panel (also accessible for reconfiguration)
+            AISetupPanel.createOrShow(context.extensionUri);
         }),
 
         vscode.commands.registerCommand('testfox.showTestDetails', (testId: string) => {
@@ -896,7 +925,7 @@ export async function activate(context: vscode.ExtensionContext) {
                         console.error('Newman run failed:', err, stderr);
                         vscode.window.showErrorMessage(`Newman run failed: ${err.message}`);
                         // Send failure to control center
-                        try { (testControlCenter as any)?.postMessage({ command: 'postmanResults', report: { error: err.message } }); } catch (e) {}
+                        // Postman results are shown via notifications now
                         return;
                     }
 
@@ -908,15 +937,7 @@ export async function activate(context: vscode.ExtensionContext) {
                         vscode.window.showInformationMessage(`Postman run complete. Report saved to ${reportPath}`);
 
                         // Read the saved report and send to Test Control Center webview
-                        try {
-                            const reportRaw = fs.readFileSync(reportPath, 'utf8');
-                            const reportJson = JSON.parse(reportRaw);
-                            if (testControlCenter && typeof (testControlCenter as any).postMessage === 'function') {
-                                (testControlCenter as any).postMessage({ command: 'postmanResults', report: reportJson });
-                            }
-                        } catch (e) {
-                            console.error('Failed to send Postman report to control center:', e);
-                        }
+                        // Postman report is opened via the report file directly
                     } catch (e: any) {
                         console.error('Failed to read Newman report:', e);
                         vscode.window.showErrorMessage('Postman run completed but failed to generate report');
@@ -1298,8 +1319,8 @@ export async function activate(context: vscode.ExtensionContext) {
                     `🐒 Monkey Testing Complete: ${result.totalClicks} clicks on ${result.uniqueElements} unique elements`
                 );
                 
-                // Refresh report panel
-                reportPanel.updateReport();
+                // Refresh views
+                testExplorerProvider?.refresh();
                 
             } catch (error: any) {
                 vscode.window.showErrorMessage(`TestFox: Monkey testing failed - ${error.message}`);
@@ -1679,54 +1700,29 @@ function loadAIConfiguration(context: vscode.ExtensionContext): void {
 }
 
 /**
- * Check if onboarding is needed and show simple onboarding
+ * Check if AI is configured and show setup panel if needed
  */
-async function checkAndShowOnboarding(context: vscode.ExtensionContext): Promise<void> {
-    const config = vscode.workspace.getConfiguration('testfox');
-    const apiKey = config.get<string>('ai.apiKey');
-    const provider = config.get<string>('ai.provider');
+async function checkAndShowAISetup(context: vscode.ExtensionContext): Promise<void> {
+    const isConfigured = AISetupPanel.isConfigured();
     const setupCompleted = context.globalState.get<boolean>('testfox.setupCompleted', false);
-    const onboardingShown = context.globalState.get<boolean>('testfox.onboardingShown', false);
 
-    console.log('🦊 TestFox: Checking onboarding status:', {
-        setupCompleted,
-        onboardingShown,
-        hasApiKey: !!apiKey,
-        provider
-    });
+    console.log('TestFox: Checking AI setup status:', { isConfigured, setupCompleted });
 
-    // Always show onboarding on first install or if AI is not properly configured
-    if (!onboardingShown || !setupCompleted || !apiKey || !provider) {
-        // Mark as shown immediately to prevent multiple prompts
-        await context.globalState.update('testfox.onboardingShown', true);
-
-        // Show simple onboarding dialog after extension loads
-        const onboardingTimeout = setTimeout(async () => {
-            const result = await vscode.window.showInformationMessage(
-                '🦊 Welcome to TestFox! AI-powered testing is ready.',
-                'Set Up AI',
-                'Skip AI (Rule-based)',
-                'Configure Later'
-            );
-
-            if (result === 'Set Up AI') {
-                // Show the onboarding panel for AI setup
-                OnboardingPanel.createOrShow(context.extensionUri, context);
-            } else if (result === 'Skip AI (Rule-based)') {
-                // Mark setup as completed with rule-based mode
+    if (!isConfigured && !setupCompleted) {
+        // Show the AI Setup panel after a short delay (non-blocking)
+        const setupTimeout = setTimeout(async () => {
+            const panel = AISetupPanel.createOrShow(context.extensionUri);
+            panel.onDidComplete(async (configured) => {
                 await context.globalState.update('testfox.setupCompleted', true);
-                await config.update('ai.enabled', false, vscode.ConfigurationTarget.Global);
-                vscode.window.showInformationMessage('TestFox configured for rule-based testing. Use "AI Config" button later to enable AI features.');
-            }
-            // "Configure Later" doesn't mark setup as completed, so it will show again next time
-        }, 2000);
+                if (configured && actionsPanel) {
+                    actionsPanel.setAIStatus('connected');
+                }
+            });
+        }, 1500);
 
-        // Store timeout reference for cleanup
-        context.subscriptions.push({
-            dispose: () => {
-                clearTimeout(onboardingTimeout);
-            }
-        });
+        context.subscriptions.push({ dispose: () => clearTimeout(setupTimeout) });
+    } else if (isConfigured && actionsPanel) {
+        actionsPanel.setAIStatus('connected');
     }
 }
 
@@ -1734,8 +1730,8 @@ async function checkAndShowOnboarding(context: vscode.ExtensionContext): Promise
  * Auto-initialize extension
  */
 async function autoInitialize(context: vscode.ExtensionContext): Promise<void> {
-    // Check and show onboarding if needed
-    await checkAndShowOnboarding(context);
+    // Check and show AI setup if needed
+    await checkAndShowAISetup(context);
 
     const config = vscode.workspace.getConfiguration('testfox');
     const autoAnalyze = config.get<boolean>('autoAnalyze', true);
@@ -1844,13 +1840,8 @@ async function promptForAutoTesting(context: vscode.ExtensionContext): Promise<v
     if (result === 'Skip') {
         console.log('TestFox: User skipped auto-testing');
         vscode.window.showInformationMessage(
-            'TestFox: You can start testing anytime using the Test Control Center or command palette.',
-            'Open Control Center'
-        ).then(selection => {
-            if (selection === 'Open Control Center') {
-                vscode.commands.executeCommand('testfox.openTestControlCenter');
-            }
-        });
+            'TestFox: You can start testing anytime from the sidebar Actions panel or command palette.'
+        );
         return;
     }
 
@@ -2131,11 +2122,11 @@ export async function generateTests(): Promise<void> {
         try {
             // Always generate rule-based tests first
             progress.report({ message: 'Generating runtime-based tests...' });
-            if (testControlCenter) testControlCenter.updateState({ status: 'running', progress: 8, currentTest: 'Generating runtime-based tests...' });
+            if (actionsPanel) actionsPanel.setRunning(true);
             const runtimeTests = await runtimeAppAnalyzer.generateRuntimeTests(runtimeAppInfo);
 
             progress.report({ message: 'Generating backend tests...' });
-            if (testControlCenter) testControlCenter.updateState({ status: 'running', progress: 18, currentTest: 'Generating backend tests...' });
+            // Progress tracked via vscode.window.withProgress
             const backendGenerator = new BackendTestGenerator();
             const backendTests = backendGenerator.generateAllBackendTests();
 
@@ -2155,7 +2146,7 @@ export async function generateTests(): Promise<void> {
             // Check if AI enhancement is available
             if (openRouter.isBYOKReady()) {
                 progress.report({ message: 'Enhancing tests with AI...' });
-                if (testControlCenter) testControlCenter.updateState({ status: 'running', progress: 45, currentTest: 'Enhancing tests with AI...' });
+                // AI enhancement in progress
 
                 try {
                     // Enhance the tests with AI
@@ -2172,7 +2163,7 @@ export async function generateTests(): Promise<void> {
                         vscode.window.showInformationMessage(
                             `🎉 TestFox: Generated ${finalTestCount} AI-enhanced test cases!`
                         );
-                        if (testControlCenter) testControlCenter.updateState({ status: 'running', progress: 80, currentTest: 'AI enhancement complete' });
+                        // AI enhancement complete
                         testExplorerProvider.refresh();
                         testResultsProvider.refresh();
                         updateStatus('ready');
@@ -2206,21 +2197,21 @@ export async function generateTests(): Promise<void> {
             
             // Quick Validation
             progress.report({ message: 'Generating smoke tests...' });
-            if (testControlCenter) testControlCenter.updateState({ status: 'running', progress: 55, currentTest: 'Generating smoke tests...' });
+            // Progress: smoke tests
             await generator.generateSmokeTests();
             await generator.generateSanityTests();
             await generator.generateRegressionTests();
 
             // Functional
             progress.report({ message: 'Generating functional tests...' });
-            if (testControlCenter) testControlCenter.updateState({ status: 'running', progress: 62, currentTest: 'Generating functional tests...' });
+            // Progress: functional tests
             await generator.generateFunctionalTests();
             await generator.generateApiTests();
             await generator.generateIntegrationTests();
 
             // Non-Functional
             progress.report({ message: 'Generating security tests...' });
-            if (testControlCenter) testControlCenter.updateState({ status: 'running', progress: 70, currentTest: 'Generating security tests...' });
+            // Progress: security tests
             await generator.generateSecurityTests();
             await generator.generatePerformanceTests();
             await generator.generateLoadTests();
@@ -2228,7 +2219,7 @@ export async function generateTests(): Promise<void> {
 
             // Edge Cases
             progress.report({ message: 'Generating edge case tests...' });
-            if (testControlCenter) testControlCenter.updateState({ status: 'running', progress: 74, currentTest: 'Generating edge case tests...' });
+            // Progress: edge cases
             await generator.generateEdgeCaseTests();
             await generator.generateNegativeTests();
             await generator.generateBoundaryTests();
@@ -2236,7 +2227,7 @@ export async function generateTests(): Promise<void> {
 
             // Manual/Exploratory
             progress.report({ message: 'Generating exploratory tests...' });
-            if (testControlCenter) testControlCenter.updateState({ status: 'running', progress: 76, currentTest: 'Generating exploratory/manual tests...' });
+            // Progress: exploratory tests
             await generator.generateExploratoryTests();
             await generator.generateUsabilityTests();
             await generator.generateAcceptanceTests();
@@ -2253,7 +2244,7 @@ export async function generateTests(): Promise<void> {
 
             // AI-Powered E2E Tests
             progress.report({ message: 'Generating E2E tests with AI...' });
-            if (testControlCenter) testControlCenter.updateState({ status: 'running', progress: 84, currentTest: 'Generating AI-powered E2E tests...' });
+            // Progress: AI E2E tests
             const projectInfo = testStore.getProjectInfo();
             if (projectInfo && analysisResult) {
                 const e2eGenerator = new AIE2ETestGenerator(workspacePath);
@@ -2302,16 +2293,56 @@ export async function generateTests(): Promise<void> {
                 console.log(`TestFox: Generated ${paymentTests.length} payment tests`);
             }
 
+            // Enhanced Rule-Based Tests (fills gaps when AI is unavailable)
+            progress.report({ message: 'Generating enhanced rule-based tests...' });
+            try {
+                const enhancedAnalysis = testStore.getAnalysisResult();
+                if (enhancedAnalysis) {
+                    const enhancedTests = generateEnhancedRuleTests(enhancedAnalysis);
+                    for (const test of enhancedTests) {
+                        testStore.addTest(test as any);
+                    }
+                    console.log(`TestFox: Generated ${enhancedTests.length} enhanced rule-based tests`);
+                }
+            } catch (enhancedErr) {
+                console.log('TestFox: Enhanced rule tests skipped:', enhancedErr);
+            }
+
+            // Swagger / OpenAPI API Tests
+            progress.report({ message: 'Checking for Swagger/OpenAPI spec...' });
+            const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+            try {
+                const swaggerSpec = await detectSwaggerSpec(workspaceRoot);
+                if (swaggerSpec) {
+                    console.log(`TestFox: Found Swagger spec "${swaggerSpec.title}" with ${swaggerSpec.endpoints.length} endpoints`);
+
+                    // Generate rule-based test cases from Swagger
+                    const swaggerTests = generateSwaggerTestCases(swaggerSpec);
+                    for (const test of swaggerTests) {
+                        testStore.addTest(test as any);
+                    }
+                    console.log(`TestFox: Generated ${swaggerTests.length} API tests from Swagger spec`);
+
+                    // Generate Postman collection
+                    const postmanCollection = generatePostmanCollection(swaggerSpec);
+                    const collectionPath = savePostmanCollection(postmanCollection, workspaceRoot);
+                    console.log(`TestFox: Postman collection saved to ${collectionPath}`);
+                }
+            } catch (swaggerErr) {
+                console.log('TestFox: Swagger spec parsing skipped:', swaggerErr);
+            }
+
             // Refresh views
             testExplorerProvider.refresh();
             testResultsProvider.refresh();
             updateStatus('ready');
-            if (testControlCenter) testControlCenter.updateState({ status: 'idle', progress: 100, currentTest: 'Generation complete' });
+            if (actionsPanel) actionsPanel.setRunning(false);
 
             const tests = testStore.getAllTests();
             const testCount = Array.isArray(tests) ? tests.length : 0;
+            const swaggerNote = (await detectSwaggerSpec(workspaceRoot)) ? ' (includes Swagger API tests)' : '';
             vscode.window.showInformationMessage(
-                `TestFox: Generated ${testCount} test cases across all categories`
+                `TestFox: Generated ${testCount} test cases across all categories${swaggerNote}`
             );
         } catch (error) {
             updateStatus('error');
@@ -2669,11 +2700,20 @@ export async function runAllTests(): Promise<void> {
 
     // Start a new defect tracking run
     const runNumber = defectTracker.startNewRun();
-    
+
     // Determine trigger type
-    const trigger = 'manual' as const; // Can be enhanced to detect scheduled/commit triggers
-    
-    // Start test execution with Control Center
+    const trigger = 'manual' as const;
+
+    // Fire-and-forget: track in runs provider
+    const { v4: uuidv4 } = require('uuid');
+    const runId = uuidv4();
+    if (testRunsProvider) {
+        testRunsProvider.startRun(runId, trigger);
+    }
+    if (actionsPanel) {
+        actionsPanel.setRunning(true);
+    }
+
     const automatedTests = Array.isArray(tests) ? tests.filter(t => t.automationLevel !== 'manual') : [];
     if (!Array.isArray(automatedTests) || automatedTests.length === 0) {
         vscode.window.showWarningMessage('TestFox: No automated tests to run.');
@@ -2817,43 +2857,61 @@ export async function runAllTests(): Promise<void> {
             testResultsProvider.refresh();
             updateStatus('ready');
 
-        // Only show critical notifications (optional - can be disabled via settings)
-        const config = vscode.workspace.getConfiguration('testfox');
-        const showIDEToast = config.get<boolean>('showIDEToast', false);
+        // Complete fire-and-forget run tracking
+        const summary = { total: passed + failed + skipped, passed, failed, skipped };
+        if (testRunsProvider) {
+            testRunsProvider.completeRun(runId, summary, duration);
+        }
+        if (actionsPanel) {
+            actionsPanel.setRunning(false);
+            actionsPanel.notifyRunComplete(summary);
+        }
 
-        if (showIDEToast) {
-            const manual = tests.filter(t => t.automationLevel === 'manual').length;
-            vscode.window.showInformationMessage(
-                `TestFox: Run #${runNumber} complete - ${passed} passed, ${failed} failed (${testRun.passRate}% pass rate). ` +
-                `${testRun.newDefects} new defects, ${testRun.fixedDefects} fixed.`
-            );
-
-            // Show defect dashboard if there are new defects
-            if (testRun.newDefects > 0) {
-                const action = await vscode.window.showWarningMessage(
-                    `${testRun.newDefects} new defects found in this run`,
-                    'View Defect Dashboard',
-                    'View in Browser'
-                );
-                if (action === 'View Defect Dashboard') {
-                    vscode.commands.executeCommand('testfox.openDefectDashboard');
-                } else if (action === 'View in Browser') {
-                    vscode.commands.executeCommand('testfox.openBrowserDashboard');
-                }
-                }
-            }
+        // Non-intrusive notification with action to view report
+        const passRate = summary.total > 0 ? Math.round((passed / summary.total) * 100) : 0;
+        const action = await vscode.window.showInformationMessage(
+            `TestFox: ${passed}/${summary.total} tests passed (${passRate}%). ${failed > 0 ? `${failed} failed.` : ''}`,
+            'View Report',
+            'Dismiss'
+        );
+        if (action === 'View Report') {
+            const wsPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+            const reportData = {
+                id: runId,
+                timestamp: new Date(startTime).toISOString(),
+                duration,
+                trigger,
+                summary,
+                tests: Array.isArray(automatedTests) ? automatedTests.map(test => {
+                    const result = testStore.getTestResult(test.id);
+                    return {
+                        testId: test.id,
+                        testName: test.name,
+                        category: test.category,
+                        status: (result?.status || 'pending') as 'passed' | 'failed' | 'skipped',
+                        duration: result?.duration || 0,
+                        error: result?.error
+                    };
+                }) : [],
+                categoryResults: catResultsArray
+            };
+            TestReportPanel.showReport(context.extensionUri, reportData);
+        }
         } catch (error) {
             await appRunner.stop();
             updateStatus('error');
         testExecutionManager.addLog('error', `Test execution failed: ${error}`);
         testExecutionManager.completeRun();
-        
-        // Only show error notification if enabled
-        const config = vscode.workspace.getConfiguration('testfox');
-        const showIDEToast = config.get<boolean>('showIDEToast', false);
-        if (showIDEToast) {
-            vscode.window.showErrorMessage(`TestFox: Test execution failed - ${error}`);
+
+        // Complete fire-and-forget run as failed
+        if (testRunsProvider) {
+            testRunsProvider.completeRun(runId, { total: 0, passed: 0, failed: 0, skipped: 0 }, Date.now() - startTime, 'failed');
         }
+        if (actionsPanel) {
+            actionsPanel.setRunning(false);
+        }
+
+        vscode.window.showErrorMessage(`TestFox: Test execution failed - ${error}`);
     }
 }
 
