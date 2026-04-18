@@ -38,8 +38,9 @@ export class OnboardingPanel {
     }
 
     private get needsGitHubAuth(): boolean {
-        // GitHub auth is optional
-        return false;
+        // Check if GitHub auth is needed for automatic issue creation
+        // Return true to prompt for GitHub connection
+        return true;
     }
 
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {

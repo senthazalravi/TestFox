@@ -200,7 +200,17 @@ export class TestGeneratorAI {
                 const config = vscode.workspace.getConfiguration('testfox');
                 const provider = config.get<string>('ai.provider') || 'openrouter';
 
-                let promptText = `Generate comprehensive test cases for this project based on the analysis above. Focus on functional testing, API testing, security testing (OWASP Top 10), and edge cases. Only generate tests for features that actually exist based on the page analysis.`;
+                let promptText = `Generate comprehensive test cases for this project based on the analysis above. Focus on functional testing, API testing, security testing (OWASP Top 10), and edge cases. Only generate tests for features that actually exist based on the page analysis.
+
+IMPORTANT REQUIREMENTS:
+1. Generate tests for ALL categories: smoke, functional, API, security, performance, UI, E2E, database, payment, integration, accessibility, regression, load, stress, monkey, negative, boundary, idempotency, webhooks, concurrency, state_integrity, reliability, failure_recovery, api_contract, stability, compliance, observability
+2. Each test must include: name, description, priority (critical/high/medium/low), category, steps with clear actions and expected results
+3. For security tests: include SQL injection, XSS, CSRF, directory traversal, header checks
+4. For API tests: cover happy path, missing fields, invalid types, wrong methods, auth required
+5. For UI tests: viewport responsiveness, interactive elements, loading states
+6. For performance: Core Web Vitals, response times, caching
+7. Add contextual information about WHY this test matters and what it validates
+8. Ensure tests can run without errors by including proper setup and teardown`;
 
                 if (provider === 'ollama') {
                     promptText = `Return a JSON object with two arrays: \n{ "playwright_tests": [ ... ], "manual_tests": [ ... ] }\n\n- Each item in "playwright_tests" should include: name, description, priority, code (full Playwright test code as a single string), and tags.\n- Each item in "manual_tests" should include: name, description, priority, steps (array of human-readable steps), expectedResult, category.\n\nMake sure the JSON is the only content in the response (no surrounding markdown or commentary).`;
