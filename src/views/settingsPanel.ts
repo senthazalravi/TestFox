@@ -635,6 +635,7 @@ export class SettingsPanel {
                     <label for="aiProvider">AI Provider</label>
                     <select id="aiProvider" style="margin-top:6px; width:100%;">
                         <option value="openrouter">OpenRouter (recommended)</option>
+                        <option value="google-ai-studio">Google AI Studio</option>
                         <option value="google-gemini">Google Gemini</option>
                         <option value="deepseek">DeepSeek</option>
                         <option value="nvidia-nim">NVIDIA NIM (Kimi)</option>
@@ -795,7 +796,7 @@ export class SettingsPanel {
                 const provider = providerSelect.value;
                 const apiGroup = document.getElementById('apiKeyGroup');
                 const ollamaGroup = document.getElementById('ollamaConfig');
-                if (provider === 'openrouter' || provider === 'google-gemini' || provider === 'deepseek' || provider === 'byo-api' || provider === 'nvidia-nim' || provider === 'amazon-nova') {
+                if (provider === 'openrouter' || provider === 'google-gemini' || provider === 'google-ai-studio' || provider === 'deepseek' || provider === 'byo-api' || provider === 'nvidia-nim' || provider === 'amazon-nova') {
                     apiGroup.style.display = 'block';
                 } else {
                     apiGroup.style.display = 'none';
@@ -912,7 +913,7 @@ export class SettingsPanel {
             if (provider === 'ollama') {
                 document.getElementById('ollamaConfig').style.display = 'block';
                 document.getElementById('apiKeyGroup').style.display = 'none';
-            } else if (provider === 'openrouter' || provider === 'google-gemini' || provider === 'deepseek' || provider === 'byo-api' || provider === 'nvidia-nim' || provider === 'amazon-nova') {
+            } else if (provider === 'openrouter' || provider === 'google-gemini' || provider === 'google-ai-studio' || provider === 'deepseek' || provider === 'byo-api' || provider === 'nvidia-nim' || provider === 'amazon-nova') {
                 document.getElementById('apiKeyGroup').style.display = 'block';
                 document.getElementById('ollamaConfig').style.display = 'none';
             }
@@ -989,7 +990,7 @@ export class SettingsPanel {
             const apiKey = document.getElementById('aiApiKey').value;
             const baseUrl = document.getElementById('ollamaBaseUrl') ? document.getElementById('ollamaBaseUrl').value : '';
 
-            if ((provider === 'openrouter' || provider === 'google-gemini' || provider === 'deepseek' || provider === 'byo-api') && !apiKey) {
+            if ((provider === 'openrouter' || provider === 'google-gemini' || provider === 'google-ai-studio' || provider === 'deepseek' || provider === 'byo-api') && !apiKey) {
                 showToast('Please enter an API key first', 'error');
                 return;
             }

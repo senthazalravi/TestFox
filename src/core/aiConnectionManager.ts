@@ -20,6 +20,33 @@ export interface AIConnectionStatus {
     error?: string;
 }
 
+function resolveProviderType(provider: string): 'ollama' | 'custom' {
+    return provider === 'ollama' ? 'ollama' : 'custom';
+}
+
+function resolveBaseUrl(provider: string, configured: string | undefined): string {
+    if (configured && configured.trim()) return configured;
+    switch (provider) {
+        case 'ollama':
+            return 'http://localhost:11434';
+        case 'lmstudio':
+            return 'http://localhost:1234/v1/chat/completions';
+        case 'openrouter':
+            return 'https://openrouter.ai/api/v1/chat/completions';
+        case 'google-gemini':
+        case 'google-ai-studio':
+            return 'https://generativelanguage.googleapis.com/v1beta';
+        case 'deepseek':
+            return 'https://api.deepseek.com/v1/chat/completions';
+        case 'nvidia-nim':
+            return 'https://integrate.api.nvidia.com/v1/chat/completions';
+        case 'amazon-nova':
+            return 'https://api.nova.amazon.com/v1/chat/completions';
+        default:
+            return 'http://localhost:11434';
+    }
+}
+
 export class AIConnectionManager {
     private outputChannel: vscode.OutputChannel;
     private statusBarItem: vscode.StatusBarItem;
@@ -73,7 +100,8 @@ export class AIConnectionManager {
         }
 
         // For custom providers, check API key
-        if (provider === 'custom' && !apiKey) {
+        const providerType = resolveProviderType(provider);
+        if (providerType === 'custom' && !apiKey) {
             this.connectionStatus.isConfigured = false;
             this.connectionStatus.isConnected = false;
             this.updateStatusBar();
@@ -82,9 +110,9 @@ export class AIConnectionManager {
 
         // Validate configuration
         const providerConfig: LLMProviderConfig = {
-            providerType: provider as 'ollama' | 'custom',
+            providerType,
             model,
-            baseUrl: baseUrl || 'http://localhost:11434',
+            baseUrl: resolveBaseUrl(provider, baseUrl),
             apiKey: apiKey || undefined
         };
 
@@ -124,9 +152,9 @@ export class AIConnectionManager {
             const apiKey = config.get<string>('ai.apiKey');
 
             const providerConfig: LLMProviderConfig = {
-                providerType: provider as 'ollama' | 'custom',
+                providerType: resolveProviderType(provider!),
                 model: model!,
-                baseUrl: baseUrl || 'http://localhost:11434',
+                baseUrl: resolveBaseUrl(provider!, baseUrl),
                 apiKey: apiKey || undefined
             };
 
@@ -257,12 +285,12 @@ export class AIConnectionManager {
             this.statusBarItem.text = '$(plug) AI: Not Configured';
             this.statusBarItem.tooltip = 'AI is not configured. Click to set up AI.';
             this.statusBarItem.command = 'testfox.configureAI';
-            this.statusBarItem.color = new vscode.ThemeColor('descriptionForeground');
+            this.statusBarItem.color = new vscode.ThemeColor('errorForeground');
         } else if (this.connectionStatus.isConnected) {
             this.statusBarItem.text = `$(check) AI: ${this.connectionStatus.provider}`;
             this.statusBarItem.tooltip = `AI connected (${this.connectionStatus.provider} - ${this.connectionStatus.model})`;
             this.statusBarItem.command = 'testfox.testAIConnection';
-            this.statusBarItem.color = undefined;
+            this.statusBarItem.color = new vscode.ThemeColor('testing.iconPassed');
         } else {
             this.statusBarItem.text = '$(x) AI: Disconnected';
             this.statusBarItem.tooltip = `AI connection failed: ${this.connectionStatus.error || 'Unknown error'}. Click to test connection.`;

@@ -2,7 +2,7 @@
   "name": "testfox",
   "displayName": "TestFox",
   "description": "AI-powered comprehensive testing for JavaScript, Python, Java, C, C++, Rust, Go & more. 18+ test categories including security (OWASP), performance, accessibility. FREE AI models available via OpenRouter.",
-  "version": "7.4.0",
+  "version": "8.3.0",
   "publisher": "TestFox",
   "license": "MIT",
   "repository": {
@@ -396,6 +396,12 @@
           "name": "Test Runs",
           "icon": "$(history)",
           "contextualTitle": "TestFox Test Runs"
+        },
+        {
+          "id": "testfox-mcp-tests",
+          "name": "MCP Tests",
+          "icon": "$(plug)",
+          "contextualTitle": "TestFox MCP Tests"
         }
       ]
     },

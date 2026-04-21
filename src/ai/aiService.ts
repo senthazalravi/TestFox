@@ -9,6 +9,7 @@ import { ContextAnalyzer } from '../core/contextAnalyzer';
 export enum AIProvider {
     OPENROUTER = 'openrouter',
     GOOGLE_GEMINI = 'google-gemini',
+    GOOGLE_AI_STUDIO = 'google-ai-studio',
     DEEPSEEK = 'deepseek',
     OLLAMA = 'ollama',
     LMSTUDIO = 'lmstudio',
@@ -102,6 +103,11 @@ export class AIService {
                 }
                 break;
 
+            case AIProvider.GOOGLE_GEMINI:
+            case AIProvider.GOOGLE_AI_STUDIO:
+                console.log('🧠 AI Service: Initializing Google Gemini / AI Studio client');
+                break;
+
             case AIProvider.DEEPSEEK:
                 // Initialize DeepSeek client
                 console.log('🧠 AI Service: Initializing DeepSeek client');
@@ -150,6 +156,7 @@ export class AIService {
                 return await this.checkOpenRouterAvailability();
 
                 case AIProvider.GOOGLE_GEMINI:
+                case AIProvider.GOOGLE_AI_STUDIO:
                     return await this.checkGoogleGeminiAvailability();
 
                 case AIProvider.DEEPSEEK:
@@ -201,6 +208,7 @@ export class AIService {
                     return await this.generateWithOpenRouter(request);
 
                 case AIProvider.GOOGLE_GEMINI:
+                case AIProvider.GOOGLE_AI_STUDIO:
                     return await this.generateWithGoogleGemini(request);
 
                 case AIProvider.DEEPSEEK:
@@ -987,6 +995,15 @@ export function getDefaultAIConfig(provider: AIProvider): AIServiceConfig {
         case AIProvider.GOOGLE_GEMINI:
             return {
                 provider: AIProvider.GOOGLE_GEMINI,
+                baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+                model: 'gemini-1.5-flash',
+                temperature: 0.7,
+                maxTokens: 4096
+            };
+
+        case AIProvider.GOOGLE_AI_STUDIO:
+            return {
+                provider: AIProvider.GOOGLE_AI_STUDIO,
                 baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
                 model: 'gemini-1.5-flash',
                 temperature: 0.7,

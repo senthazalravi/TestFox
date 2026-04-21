@@ -1665,17 +1665,28 @@ function initStatusBar(context: vscode.ExtensionContext): void {
 /**
  * Update the AI status bar indicator
  */
-function updateAIStatusBar(connected: boolean, model?: string): void {
+function updateAIStatusBar(status: boolean | 'connected' | 'not-configured' | 'disconnected', model?: string): void {
     if (!statusBarAI) return;
-    if (connected) {
+    const normalized: 'connected' | 'not-configured' | 'disconnected' =
+        typeof status === 'boolean' ? (status ? 'connected' : 'not-configured') : status;
+
+    if (normalized === 'connected') {
         statusBarAI.text = `$(check) AI Connected${model ? ': ' + model.split('/').pop()?.split(':')[0] : ''}`;
         statusBarAI.tooltip = `TestFox AI connected${model ? ' (' + model + ')' : ''}\nClick to reconfigure`;
         statusBarAI.backgroundColor = undefined;
+        statusBarAI.color = new vscode.ThemeColor('testing.iconPassed');
         if (actionsPanel) actionsPanel.setAIStatus('connected');
+    } else if (normalized === 'disconnected') {
+        statusBarAI.text = '$(x) AI Disconnected';
+        statusBarAI.tooltip = 'TestFox AI configured but unreachable\nClick to reconfigure or test connection';
+        statusBarAI.backgroundColor = undefined;
+        statusBarAI.color = new vscode.ThemeColor('errorForeground');
+        if (actionsPanel) actionsPanel.setAIStatus('disconnected');
     } else {
         statusBarAI.text = '$(circle-outline) AI: Not configured';
         statusBarAI.tooltip = 'TestFox AI not configured\nClick to set up (rule-based testing still works)';
         statusBarAI.backgroundColor = undefined;
+        statusBarAI.color = new vscode.ThemeColor('errorForeground');
         if (actionsPanel) actionsPanel.setAIStatus('disconnected');
     }
 }
@@ -1926,11 +1937,11 @@ async function testAIConnectionSilent(): Promise<void> {
         }
 
         await axios.post(url, body, { headers, timeout: 10000 });
-        updateAIStatusBar(true, model);
+        updateAIStatusBar('connected', model);
         console.log(`TestFox: AI connected (${model})`);
     } catch (err: any) {
         console.log('TestFox: AI connection test failed:', err.message || err);
-        updateAIStatusBar(false);
+        updateAIStatusBar('disconnected');
     }
 }
 
