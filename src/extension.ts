@@ -81,6 +81,7 @@ let gitCommitHook: GitCommitHook;
 let mcpTestTreeProvider: MCPTestTreeProvider;
 let mcpIntegrationManager: MCPIntegrationManager;
 let unifiedAISetup: UnifiedAISetup | undefined;
+let extensionContext: vscode.ExtensionContext;
 
 // Status bar items
 let statusBarMain: vscode.StatusBarItem;
@@ -158,6 +159,7 @@ export async function activate(context: vscode.ExtensionContext) {
         return;
     }
     isActivated = true;
+    extensionContext = context;
 
     // Initialize output channel early
     outputChannel = vscode.window.createOutputChannel('TestFox Diagnostics');
@@ -3048,7 +3050,7 @@ export async function runAllTests(): Promise<void> {
                 }) : [],
                 categoryResults: catResultsArray
             };
-            TestReportPanel.showReport(context.extensionUri, reportData);
+            TestReportPanel.showReport(extensionContext.extensionUri, reportData);
         }
         } catch (error) {
             await appRunner.stop();
