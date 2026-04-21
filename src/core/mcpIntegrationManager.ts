@@ -23,18 +23,40 @@ export class MCPIntegrationManager {
         this.testRunner = new MCPTestRunner();
         this.mcpServerManager = new MCPServerManager(context);
         
-        // Initialize MCP Test Tree Provider
+        // Initialize MCP Test Tree Provider - always initialize to avoid "view not registered" error
+        this.initializeTreeProvider();
+    }
+
+    /**
+     * Initialize tree provider - can be called again when workspace changes
+     */
+    private initializeTreeProvider(): void {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (workspaceFolders && workspaceFolders.length > 0) {
             this.testTreeProvider = new MCPTestTreeProvider(workspaceFolders[0].uri.fsPath);
+        } else {
+            // Create a placeholder provider so the view is registered
+            this.testTreeProvider = null;
         }
+    }
+
+    /**
+     * Re-initialize when workspace changes
+     */
+    refreshTreeProvider(): void {
+        this.initializeTreeProvider();
     }
 
     /**
      * Initialize MCP Test Explorer view
      */
     registerTreeView(context: vscode.ExtensionContext): void {
-        if (!this.testTreeProvider) return;
+        // Always create tree view - even if no workspace, register with empty provider
+        // This prevents "No view is registered" error on first install
+        if (!this.testTreeProvider) {
+            // Create placeholder tree data provider for initial registration
+            this.testTreeProvider = this.createPlaceholderProvider();
+        }
 
         const treeView = vscode.window.createTreeView('testfox-mcp-tests', {
             treeDataProvider: this.testTreeProvider,
@@ -42,6 +64,26 @@ export class MCPIntegrationManager {
         });
 
         context.subscriptions.push(treeView);
+    }
+
+    /**
+     * Create a placeholder provider when no workspace is open
+     */
+    private createPlaceholderProvider(): vscode.TreeDataProvider<any> {
+        return {
+            getChildren: () => Promise.resolve([{
+                label: 'No workspace open',
+                description: 'Open a folder to see MCP tests',
+                iconPath: new vscode.ThemeIcon('folder-opened')
+            }]),
+            getTreeItem: (element: any) => {
+                const item = new vscode.TreeItem(element.label);
+                item.description = element.description;
+                item.iconPath = element.iconPath;
+                item.collapsibleState = vscode.TreeItemCollapsibleState.None;
+                return item;
+            }
+        };
     }
 
     /**
