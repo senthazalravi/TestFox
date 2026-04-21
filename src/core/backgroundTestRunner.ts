@@ -6,6 +6,7 @@ import * as fs from 'fs';
  * Background Test Runner - Runs tests automatically and generates reports
  */
 export interface BackgroundTestOptions {
+    context: vscode.ExtensionContext;
     commitHash: string;
     isFullCycle: boolean;
     outputChannel: vscode.OutputChannel;
@@ -28,7 +29,7 @@ export interface BackgroundTestResult {
  * Run background tests
  */
 export async function runBackgroundTests(options: BackgroundTestOptions): Promise<void> {
-    const { commitHash, isFullCycle, outputChannel, onProgress, onComplete } = options;
+    const { context, commitHash, isFullCycle, outputChannel, onProgress, onComplete } = options;
     
     const startTime = Date.now();
     outputChannel.appendLine(`\n🚀 Starting background test run for commit ${commitHash.substring(0, 7)}`);
@@ -42,8 +43,8 @@ export async function runBackgroundTests(options: BackgroundTestOptions): Promis
         const { TestRunner } = require('../runners/testRunner');
         const { AppRunner } = require('../core/appRunner');
 
-        // Initialize components
-        const testStore = new TestStore();
+        // Initialize components - pass context to TestStore
+        const testStore = new TestStore(context);
         const appRunner = new AppRunner();
         const testRunner = new TestRunner(appRunner, testStore);
 

@@ -53,9 +53,27 @@ export class AISetupPanel {
 
             // Determine if this is Ollama (no auth needed, different endpoint)
             const isOllama = url.includes('11434') || url.includes('ollama');
+            const isNvidiaNim = url.includes('integrate.api.nvidia.com') || url.includes('nvidia');
+            
             if (isOllama) {
                 url = url.replace(/\/api\/.*$/, '') + '/api/generate';
                 body = { model: data.model, prompt: 'Say hi', stream: false };
+            } else if (isNvidiaNim) {
+                // NVIDIA NIM specific configuration
+                if (data.apiKey) headers['Authorization'] = `Bearer ${data.apiKey}`;
+                headers['Accept'] = 'application/json';
+                if (!url.endsWith('/chat/completions')) {
+                    url = url + '/chat/completions';
+                }
+                body = {
+                    model: data.model,
+                    messages: [{ role: 'user', content: 'Say hi' }],
+                    max_tokens: 5,
+                    temperature: 1.0,
+                    top_p: 1.0,
+                    stream: false,
+                    chat_template_kwargs: { thinking: true }
+                };
             } else {
                 // OpenAI-compatible endpoint
                 if (data.apiKey) headers['Authorization'] = `Bearer ${data.apiKey}`;
@@ -163,6 +181,7 @@ h1{font-size:24px;font-weight:600;margin-bottom:6px}
   <button class="preset" onclick="applyPreset('openai')">OpenAI</button>
   <button class="preset" onclick="applyPreset('anthropic')">Anthropic</button>
   <button class="preset" onclick="applyPreset('deepseek')">DeepSeek</button>
+  <button class="preset${curProvider === 'nvidia-nim' ? ' active' : ''}" onclick="applyPreset('nvidia-nim')">NVIDIA NIM</button>
   <button class="preset${curProvider === 'custom' ? ' active' : ''}" onclick="applyPreset('custom')">Custom</button>
 </div>
 
@@ -204,6 +223,7 @@ const presets={
   openai:{url:'https://api.openai.com/v1',model:'gpt-4o',keyHint:'Get key at <a href="https://platform.openai.com/api-keys">platform.openai.com</a>',urlHint:'OpenAI API endpoint',modelHint:'gpt-4o, gpt-4o-mini, gpt-3.5-turbo',needsKey:true},
   anthropic:{url:'https://api.anthropic.com/v1',model:'claude-sonnet-4-20250514',keyHint:'Get key at <a href="https://console.anthropic.com">console.anthropic.com</a>',urlHint:'Anthropic API endpoint',modelHint:'claude-sonnet-4-20250514, claude-3-5-haiku-20241022',needsKey:true},
   deepseek:{url:'https://api.deepseek.com/v1',model:'deepseek-chat',keyHint:'Get key at <a href="https://platform.deepseek.com">platform.deepseek.com</a>',urlHint:'DeepSeek API endpoint',modelHint:'deepseek-chat, deepseek-reasoner',needsKey:true},
+  'nvidia-nim':{url:'https://integrate.api.nvidia.com/v1',model:'moonshotai/kimi-k2.5',keyHint:'Get your NVIDIA NIM API key from NVIDIA NGC',urlHint:'NVIDIA NIM API endpoint',modelHint:'moonshotai/kimi-k2.5, nvidia/llama-3.1-nemotron-70b',needsKey:true},
   custom:{url:'',model:'',keyHint:'Your provider API key',urlHint:'Any OpenAI-compatible base URL',modelHint:'Model name from your provider',needsKey:true}
 };
 

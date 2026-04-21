@@ -198,6 +198,7 @@ export class GitCommitHook {
             const { runBackgroundTests } = require('./backgroundTestRunner');
             
             const result = await runBackgroundTests({
+                context: this.context,
                 commitHash,
                 isFullCycle,
                 outputChannel: this.outputChannel,
